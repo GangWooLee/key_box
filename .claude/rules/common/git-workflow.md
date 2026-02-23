@@ -1,0 +1,55 @@
+---
+description: "Git 워크플로우 표준. 커밋 메시지 형식, PR 절차, 브랜치 전략."
+globs: "*"
+---
+
+# Git 워크플로우
+
+## 커밋 메시지 형식
+
+Conventional Commits를 따릅니다:
+
+```
+<type>: <description>
+```
+
+### 타입
+- `feat` — 새 기능
+- `fix` — 버그 수정
+- `refactor` — 리팩토링 (기능 변경 없음)
+- `docs` — 문서 수정
+- `test` — 테스트 추가/수정
+- `chore` — 빌드, 설정 등 기타
+- `perf` — 성능 개선
+- `ci` — CI/CD 설정
+
+### 예시
+```
+feat: 사용자 프로필 이미지 업로드 기능 추가
+fix: 로그인 시 세션 만료 처리 오류 수정
+refactor: OrderService 결제 로직 분리
+```
+
+## PR 절차
+
+1. **전체 커밋 히스토리 확인** — 최신 커밋만이 아닌 전체 변경 내역 검토
+   ```bash
+   git diff main...HEAD
+   ```
+
+2. **PR 작성 시 포함 항목**:
+   - 변경 요약 (1-3개 불릿 포인트)
+   - 테스트 계획 (체크리스트)
+
+3. **새 브랜치 푸시 시** `-u` 플래그 사용:
+   ```bash
+   git push -u origin feature/my-feature
+   ```
+
+## 기능 개발 순서
+
+1. **계획 수립** — planner 에이전트 또는 `/plan` 커맨드
+2. **TDD 개발** — `/tdd` 워크플로우
+3. **코드 리뷰** — `/code-review` 스킬
+4. **검증** — `/verify` 커맨드
+5. **PR 생성**
