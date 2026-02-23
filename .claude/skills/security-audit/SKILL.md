@@ -371,6 +371,19 @@ def create
 end
 ```
 
+### 11. Claude Code 권한 감사
+
+`.claude/settings.json`의 `permissions` 블록 정기 점검:
+
+| 점검 항목 | 기준 |
+|----------|------|
+| `allow` 패턴 범위 | 와일드카드 최소화. `rm *`, `git push --force*` 없는지 확인 |
+| `deny` 목록 충분성 | 파괴적 명령 차단: `reset --hard`, `rm -rf`, `db:drop` |
+| `ask` 목록 | 위험하지만 필요한 명령: `git push`, `db:migrate` |
+| hooks 안전성 | PostToolUse 등 hooks의 의도치 않은 부작용 확인 |
+
+**위험 신호**: `allow` 목록에 5개 이상 새 패턴이 추가되면 이유 문서화.
+
 ## Automation Script
 
 ### Security Audit Runner
@@ -543,3 +556,5 @@ jobs:
 - [ ] HTTPS enforced in production
 - [ ] Sensitive data filtered from logs
 - [ ] Regular security audits scheduled
+- [ ] Claude Code permissions reviewed (.claude/settings.json)
+- [ ] No overly broad allow patterns

@@ -86,6 +86,28 @@ Task 2.1 (3분): AcademySearchResult 모델 생성
 
 **배치 크기 조정**: 사용자가 "빠르게" 또는 "멈추지 마" 요청 시 배치 크기를 Phase 전체로 확대.
 
+### 병렬 실행 전략 (Agent Teams)
+
+독립적인 태스크는 순차가 아닌 병렬로 실행:
+
+**병렬 가능 조건** (모두 충족 시):
+- 태스크 간 파일 소유권이 겹치지 않음
+- 태스크 간 데이터 의존성 없음
+- 각 태스크가 독립적으로 검증 가능
+
+**예시**:
+```
+# 병렬 가능
+Task 2.1: User 모델 테스트 (teammate-A)
+Task 2.2: Post 모델 테스트 (teammate-B)
+
+# 병렬 불가 — Post가 User에 의존
+Task 3.1: User 서비스 구현 (먼저)
+Task 3.2: Post 서비스 구현 (3.1 완료 후)
+```
+
+**배치 확대**: 독립 태스크 3개 이상이면 teammate 수만큼 병렬. `run_in_background` 활용.
+
 ### Step 3: Plan Document Creation
 Use plan-template.md to generate: `docs/plans/PLAN_<feature-name>.md`
 

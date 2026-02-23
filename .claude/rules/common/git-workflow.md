@@ -53,3 +53,20 @@ refactor: OrderService 결제 로직 분리
 3. **코드 리뷰** — `/code-review` 스킬
 4. **검증** — `/verify` 커맨드
 5. **PR 생성**
+
+## Git Worktrees (병렬 개발)
+
+독립 기능을 동시에 개발할 때 브랜치 전환 대신 worktree 사용:
+
+```bash
+git worktree add ../key_box-feature-x feature/feature-x  # 생성
+git worktree list                                          # 목록
+git worktree remove ../key_box-feature-x                   # 정리
+```
+
+**사용 시점**:
+- Agent Teams에서 teammate별 독립 작업 공간 필요 시
+- 긴급 버그 수정 중 기존 기능 브랜치 보존 시
+- 두 기능의 통합 테스트를 별도 실행해야 할 때
+
+**네이밍**: `key_box-<feature>` 형식, 프로젝트 루트 상위에 생성.

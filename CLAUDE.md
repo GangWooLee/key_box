@@ -11,7 +11,7 @@
 - **Agents** (7): code-review-expert, security-expert, data-integrity-expert, performance-expert, planner, ui-ux-expert, doc-updater
 - **Commands** (10): /plan, /tdd, /verify, /checkpoint, /update-docs, /wrap-up, /skills-manage, /bridge, /verify-rules, /manage-rules
 - **Skills** (60+): See `.claude/skills/README.md` for full list
-- **Rules** (19): Backend (6), Frontend (5), Common (6), Testing (2)
+- **Rules** (20): Backend (6), Frontend (5), Common (7), Testing (2)
 - **Standards** (3): rails-backend, tailwind-frontend, testing
 - **Workflows** (1): feature-development
 

@@ -1,3 +1,7 @@
+---
+globs: "app/**/*.rb,app/**/*.js,lib/**/*.rb"
+---
+
 # 클린 코드 원칙
 
 ## Law of Demeter (디미터 법칙)

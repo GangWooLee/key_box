@@ -1,3 +1,7 @@
+---
+globs: "app/**/*.rb,lib/**/*.rb"
+---
+
 # SOLID 원칙 — Rails/Ruby 맞춤 가이드
 
 ## S — Single Responsibility Principle (단일 책임)
