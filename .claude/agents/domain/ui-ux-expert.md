@@ -16,6 +16,7 @@ related_skills:
   - ui-component
   - stimulus-controller
   - frontend-design
+teamRole: frontend-dev
 ---
 
 # UI/UX Expert (UI/UX 전문가)

@@ -13,7 +13,7 @@
 - **Skills** (60+): See `.claude/skills/README.md` for full list
 - **Rules** (20): Backend (6), Frontend (5), Common (7), Testing (2)
 - **Standards** (3): rails-backend, tailwind-frontend, testing
-- **Workflows** (1): feature-development
+- **Workflows** (4): feature-development, feature-dev-team, review-team, debugging-team
 
 ### Commands Quick Reference
 ```
@@ -55,6 +55,12 @@
 - 새 기능 계획 시 Risk Assessment 포함
 - Probability x Impact 매트릭스
 - Phase별 Rollback 전략 문서화
+
+### Agent Teams
+- **가이드**: `.claude/docs/agent-teams-guide.md`
+- **워크플로우 템플릿**: `.claude/workflows/teams/` (feature-dev, review, debugging)
+- **훅**: TeammateIdle (테스트), TaskCompleted (rubocop + 테스트)
+- **관련 스킬**: dispatching-parallel-agents, parallel-feature-development, parallel-debugging, team-communication-protocols
 
 ## Project-Specific Notes
 - bkit 플러그인 비활성화 (2026-02-23): 프로젝트 자체 프레임워크(agents/commands/skills/rules)와 충돌. `.claude/settings.json`에서 `false` 처리.

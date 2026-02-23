@@ -12,6 +12,7 @@ triggers:
   - lock
 related_skills:
   - database-maintenance
+teamRole: data-reviewer
 ---
 
 # Data Integrity Expert (데이터 안정성 전문가)

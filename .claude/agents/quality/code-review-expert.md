@@ -10,6 +10,7 @@ triggers:
   - 코드 스타일
 related_skills:
   - code-review
+teamRole: quality-guard
 ---
 
 # Code Review Expert (코드 리뷰 전문가)

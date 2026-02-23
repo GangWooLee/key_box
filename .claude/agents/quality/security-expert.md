@@ -12,6 +12,7 @@ triggers:
   - CSRF
 related_skills:
   - security-audit
+teamRole: security-reviewer
 ---
 
 # Security Expert (보안 전문가)

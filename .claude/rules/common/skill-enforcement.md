@@ -24,6 +24,9 @@
 | 테스트 추가 | `/tdd` 또는 `test-gen` | RED→GREEN→REFACTOR |
 | Rails 리소스 생성 | `rails-dev` (자동 라우팅) | 모델/컨트롤러/서비스/잡 |
 | 보안 점검 | `security-audit` | PR 전 또는 주기적 |
+| 팀 기반 기능 개발 | `parallel-feature-development` + 팀 워크플로우 | Medium+ 스코프 기능 |
+| 팀 기반 코드 리뷰 | review-team 워크플로우 | PR 전 전문가 병렬 리뷰 |
+| 복잡 버그 수정 | `parallel-debugging` | 3회 실패 시 또는 다중 레이어 버그 |
 
 ## 예외 조건 (이것만 면제)
 

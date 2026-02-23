@@ -15,6 +15,7 @@ triggers:
 related_skills:
   - performance-check
   - query-object
+teamRole: performance-reviewer
 ---
 
 # Performance Expert (성능 최적화 전문가)

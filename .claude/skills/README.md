@@ -58,6 +58,17 @@
 3. ui-component       → 컴포넌트 일관성
 ```
 
+#### 🤝 팀 기반 개발 워크플로우
+```
+1. parallel-feature-development → 기능 Phase 병렬 분배
+2. parallel-debugging           → 경쟁 가설 병렬 조사
+3. dispatching-parallel-agents  → 병렬 에이전트 오케스트레이션
+4. team-communication-protocols → 팀원 간 구조화된 통신
+```
+
+**팀 템플릿**: `.claude/workflows/teams/` (feature-dev, review, debugging)
+**가이드**: `.claude/docs/agent-teams-guide.md`
+
 #### 📦 배포 전 체크리스트
 ```
 1. test-gen          → 테스트 커버리지 확인
