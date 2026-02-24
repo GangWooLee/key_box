@@ -35,8 +35,7 @@ teamRole: performance-reviewer
 
 ### 성능 규칙
 ```
-.claude/rules/backend/rails-anti-patterns.md  # 안티패턴
-.claude/PERFORMANCE.md                        # 성능 가이드
+.claude/rules/backend/safety.md               # 안전/보안 규칙
 .claude/standards/rails-backend.md            # 백엔드 표준
 ```
 
@@ -353,6 +352,5 @@ end
 
 ## 📚 참조 문서
 
-- [CLAUDE.md - N+1 방지 패턴](../../CLAUDE.md#4-has_one으로-n1-방지-채팅-목록)
-- [rules/backend/rails-anti-patterns.md](../../rules/backend/rails-anti-patterns.md)
-- [PERFORMANCE.md](../../PERFORMANCE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+- [rules/backend/safety.md](../../rules/backend/safety.md)

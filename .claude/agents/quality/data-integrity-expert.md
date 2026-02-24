@@ -32,9 +32,8 @@ teamRole: data-reviewer
 
 ### 데이터베이스 규칙
 ```
-.claude/rules/backend/rails-anti-patterns.md  # 안티패턴
+.claude/rules/backend/safety.md               # 안전/보안 규칙
 .claude/standards/rails-backend.md            # 백엔드 표준
-.claude/DATABASE.md                           # 스키마 문서
 ```
 
 ---
@@ -346,6 +345,5 @@ end
 
 ## 📚 참조 문서
 
-- [CLAUDE.md - Race Condition 방지](../../CLAUDE.md#2-race-condition-방지-카운터-업데이트)
-- [rules/backend/rails-anti-patterns.md](../../rules/backend/rails-anti-patterns.md)
-- [DATABASE.md](../../DATABASE.md)
+- [CLAUDE.md](../../CLAUDE.md)
+- [rules/backend/safety.md](../../rules/backend/safety.md)

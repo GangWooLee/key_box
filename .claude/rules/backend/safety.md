@@ -1,8 +1,4 @@
----
-paths: app/controllers/**/*.rb, app/models/**/*.rb
----
-
-# 보안 규칙 (OWASP 기반)
+# 안전 · 보안 규칙 — 안티패턴 방지 + OWASP 기반
 
 ## SQL Injection 방지
 
@@ -34,16 +30,53 @@ User.where(id: ids)
 ## CSRF 보호
 
 ```ruby
-# ApplicationController에서 필수 활성화
-protect_from_forgery with: :exception
+protect_from_forgery with: :exception        # 일반 컨트롤러
+protect_from_forgery with: :null_session     # API 컨트롤러
+```
 
-# API 컨트롤러 (JSON 응답)
-protect_from_forgery with: :null_session
+## Strong Parameters (Mass Assignment 방지)
+
+```ruby
+# ❌ 절대 금지
+params.permit!
+user.update(params[:user])
+
+# ✅ 명시적 허용
+def user_params
+  params.require(:user).permit(:name, :email, :bio)
+end
+# 절대 허용 금지: :admin, :role, :is_admin
+```
+
+## N+1 쿼리 방지
+
+```ruby
+# ❌ N+1 발생 - 절대 금지
+@posts.each { |post| post.user.name }
+
+# ✅ includes 사용
+@posts = Post.includes(:user, :comments).all
+
+# ✅ joins + select (집계용)
+Post.joins(:comments).select("posts.*, COUNT(comments.id) as comments_count").group("posts.id")
+```
+
+## 페이지네이션 필수
+
+```ruby
+# ❌ 전체 조회 금지
+User.all
+Post.where(published: true)
+
+# ✅ 페이지네이션 필수
+User.page(params[:page]).per(20)
+Post.where(published: true).page(params[:page])
 ```
 
 ## 인증 규칙
 
 ### 세션 관리
+
 ```ruby
 # 로그인 시 세션 재생성 (Session Fixation 방지)
 def log_in(user)
@@ -59,46 +92,35 @@ end
 ```
 
 ### 비밀번호 정책
+
 ```ruby
 validates :password, length: { minimum: 8 }
 # 권장: 12자 이상, 대소문자+숫자 포함
 ```
 
-## 인가 규칙
+## 인가 — 리소스 소유권 확인 필수
 
-### 리소스 소유권 확인 필수
 ```ruby
 # ❌ IDOR 취약 - 누구나 접근 가능
-def show
-  @post = Post.find(params[:id])
-end
+@post = Post.find(params[:id])
 
 # ✅ 안전 - 소유권 확인
-def show
-  @post = current_user.posts.find(params[:id])
-end
+@post = current_user.posts.find(params[:id])
 
 # 또는 별도 인가 체크
 before_action :authorize_post, only: [:edit, :update, :destroy]
-
-def authorize_post
-  redirect_to root_path unless @post.user == current_user
-end
 ```
 
-## 파일 업로드
+## 파일 업로드 검증
 
 ```ruby
-# 파일 타입 검증 필수
 validate :acceptable_file
 
 def acceptable_file
   return unless file.attached?
-
   unless file.content_type.in?(%w[image/jpeg image/png image/gif])
     errors.add(:file, "은(는) JPEG, PNG, GIF만 허용됩니다")
   end
-
   if file.byte_size > 5.megabytes
     errors.add(:file, "은(는) 5MB 이하만 허용됩니다")
   end
@@ -116,15 +138,33 @@ Rails.application.config.filter_parameters += [
 ]
 ```
 
+## 로깅 규칙
+
+```ruby
+# ❌ 민감정보 로깅 금지
+Rails.logger.info "Password: #{password}"
+Rails.logger.info "Token: #{api_token}"
+
+# ✅ 컨텍스트만 로깅
+Rails.logger.info "[AUTH] User##{user.id} logged in"
+Rails.logger.error "[PAYMENT] Order##{order.id} failed: #{e.class}"
+```
+
 ## Rate Limiting
 
 ```ruby
-# Rack::Attack 설정 예시
 Rack::Attack.throttle("logins/ip", limit: 5, period: 20.seconds) do |req|
   req.ip if req.path == '/login' && req.post?
 end
+```
 
-Rack::Attack.throttle("email/ip", limit: 10, period: 1.hour) do |req|
-  req.ip if req.path == '/email_verifications' && req.post?
-end
+## 프로덕션 환경 금지 명령어
+
+```bash
+# ❌ 절대 금지 (데이터 손실)
+rails db:reset
+rails db:drop
+User.destroy_all
+Post.delete_all
+git push --force origin main
 ```

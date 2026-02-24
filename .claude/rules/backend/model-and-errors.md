@@ -1,10 +1,6 @@
----
-paths: app/models/**/*.rb
----
+# 모델 패턴 · 에러 처리
 
-# 모델 작성 패턴
-
-## 선언 순서 (필수 준수)
+## 모델 선언 순서 (필수 준수)
 
 ```ruby
 class Post < ApplicationRecord
@@ -34,26 +30,17 @@ class Post < ApplicationRecord
   scope :published, -> { where(published: true) }
 
   # 7. Class Methods
-  def self.search(query)
-    where("title LIKE ?", "%#{query}%")
-  end
-
   # 8. Instance Methods
-  def published?
-    published_at.present?
-  end
 
   private
-
-  def sanitize_content
-    self.content = ActionController::Base.helpers.sanitize(content)
-  end
+  # Private Methods
 end
 ```
 
 ## Association 규칙
 
 ### dependent 옵션 필수
+
 ```ruby
 # ❌ 고아 레코드 발생 위험
 has_many :comments
@@ -64,17 +51,16 @@ has_many :likes, dependent: :delete_all  # 콜백 불필요 시
 ```
 
 ### Counter Cache 활용
-```ruby
-# 댓글 수 등 빈번한 카운팅에 사용
-belongs_to :post, counter_cache: true
 
-# Migration
-add_column :posts, :comments_count, :integer, default: 0
+```ruby
+belongs_to :post, counter_cache: true
+# Migration: add_column :posts, :comments_count, :integer, default: 0
 ```
 
 ## Validation 규칙
 
-### 길이 제한 명시
+### 길이 제한 필수
+
 ```ruby
 # ❌ 무제한 입력 허용 위험
 validates :bio, presence: true
@@ -85,6 +71,7 @@ validates :name, length: { minimum: 1, maximum: 50 }
 ```
 
 ### 에러 메시지 한국어
+
 ```ruby
 validates :email,
   presence: { message: "을(를) 입력해주세요" },
@@ -93,12 +80,10 @@ validates :email,
 
 ## Scope 규칙
 
-### 체이닝 가능하게
 ```ruby
 # ✅ 체이닝 가능 - ActiveRecord::Relation 반환
 scope :active, -> { where(deleted_at: nil) }
 scope :recent, -> { order(created_at: :desc) }
-
 # 사용: Post.active.recent.limit(10)
 
 # ❌ 체이닝 불가 - 배열 반환 금지
@@ -114,7 +99,68 @@ enum :status, {
   published: 2,
   archived: 3
 }, prefix: true
-
-# 사용: post.status_published?
-#       post.status_published!
+# 사용: post.status_published?, post.status_published!
 ```
+
+---
+
+## 에러 처리
+
+### rescue 최소 범위 원칙
+
+rescue는 예외를 발생시키는 **특정 메서드 내부**에 배치. 컨트롤러 액션 전체를 감싸지 않음.
+
+```ruby
+# ❌ 컨트롤러 액션 전체 감싸기 — redirect 누락 위험
+def complete_step
+  upsert_entry(step_index)
+  redirect_to next_path, status: :see_other
+rescue ActiveRecord::RecordInvalid => e
+  Rails.logger.error e.message
+  # redirect 실행 안 됨! 204 No Content 반환
+end
+
+# ✅ 실패 가능한 메서드 내부에서 rescue
+def complete_step
+  upsert_entry(step_index)
+  redirect_to next_path, status: :see_other
+end
+
+private
+
+def upsert_entry(step_index)
+  entry = Model.find_or_initialize_by(...)
+  entry.save!
+rescue ActiveRecord::RecordInvalid => e
+  Rails.logger.error "[Context] Save failed: #{e.message}"
+end
+```
+
+### 예외별 처리 전략
+
+| 예외 | 위치 | 처리 |
+|------|------|------|
+| `RecordNotFound` | Controller (before_action) | 404 렌더링 |
+| `RecordInvalid` | 실패 메서드 내부 | 로그 + graceful fallback |
+| `RecordNotUnique` | 실패 메서드 내부 | retry (bounded) |
+| `Faraday::Error` | Service 객체 내부 | 사용자 친화 메시지 반환 |
+
+### Bounded Retry 패턴
+
+```ruby
+MAX_RETRY = 3
+
+def create
+  retries ||= 0
+  # ... 작업 ...
+rescue ActiveRecord::RecordNotUnique
+  retries += 1
+  retry if retries <= MAX_RETRY
+  Rails.logger.error "[Context] Max retries exceeded"
+end
+```
+
+### Graceful Degradation
+
+- 보조 데이터(대화 기록, 추적 정보) 저장 실패 → 로그 + 계속 진행
+- 핵심 데이터(결과물, 사용자 정보) 저장 실패 → 에러 표시 + 재시도 안내

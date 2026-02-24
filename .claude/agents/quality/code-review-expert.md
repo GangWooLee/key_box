@@ -30,8 +30,8 @@ teamRole: quality-guard
 
 ### 품질 규칙
 ```
-.claude/rules/common/code-quality.md     # 코드 품질 규칙
-.claude/rules/backend/rails-anti-patterns.md  # Rails 안티패턴
+.claude/rules/common/code-standards.md   # 코드 품질/클린 코드 규칙
+.claude/rules/backend/safety.md          # 안전/보안 규칙
 .claude/standards/rails-backend.md       # Rails 백엔드 표준
 .claude/standards/testing.md             # 테스트 표준
 ```
@@ -273,7 +273,7 @@ CI 테스트 실패 시 자주 발생하는 패턴과 해결책:
 | **Dropdown 경쟁** | 15% | 옵션 표시 대기 | 클릭 전 `assert_selector` |
 | **상태 오염** | 5% | `SecureRandom.hex` | 유니크 테스트 데이터 |
 
-**상세 가이드**: [.claude/rules/testing/ci-troubleshooting.md](../../rules/testing/ci-troubleshooting.md)
+**상세 가이드**: [.claude/rules/testing/testing.md](../../rules/testing/testing.md)
 
 ### 자주 사용하는 CI 디버깅 패턴
 ```ruby
@@ -303,6 +303,6 @@ assert_selector "[data-controller='chat-room']", wait: 5
 
 ## 📚 참조 문서
 
-- [rules/common/code-quality.md](../../rules/common/code-quality.md)
-- [rules/backend/rails-anti-patterns.md](../../rules/backend/rails-anti-patterns.md)
+- [rules/common/code-standards.md](../../rules/common/code-standards.md)
+- [rules/backend/safety.md](../../rules/backend/safety.md)
 - [standards/rails-backend.md](../../standards/rails-backend.md)

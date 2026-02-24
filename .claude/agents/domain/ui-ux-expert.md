@@ -15,7 +15,7 @@ triggers:
 related_skills:
   - ui-component
   - stimulus-controller
-  - frontend-design
+  - ui-ux-pro-max
 teamRole: frontend-dev
 ---
 
@@ -279,8 +279,4 @@ assert_text "다음 페이지 고유 텍스트"
 
 ## 참조 문서
 
-- [rules/frontend/tailwind-dos-donts.md](../../rules/frontend/tailwind-dos-donts.md) — Tailwind 패턴
-- [rules/frontend/design-reasoning.md](../../rules/frontend/design-reasoning.md) — 디자인 추론 규칙
-- [rules/frontend/accessibility.md](../../rules/frontend/accessibility.md) — 접근성 규칙
-- [rules/frontend/stimulus-patterns.md](../../rules/frontend/stimulus-patterns.md) — Stimulus 패턴
-- [rules/frontend/stimulus-architecture.md](../../rules/frontend/stimulus-architecture.md) — Stimulus 아키텍처
+- [rules/frontend/frontend.md](../../rules/frontend/frontend.md) — 프론트엔드 통합 규칙 (Stimulus, 접근성, 디자인, Tailwind)

@@ -34,7 +34,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/igangu/key_box && bin/rails test 2>&1 | tail -5",
+            "command": "bin/rails test 2>&1 | tail -5",
             "timeout": 120
           }
         ]
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "cd /Users/igangu/key_box && echo '=== Rubocop ===' && bundle exec rubocop --force-exclusion 2>&1 | tail -3 && echo '=== Tests ===' && bin/rails test 2>&1 | tail -5",
+            "command": "echo '=== Rubocop ===' && bundle exec rubocop --force-exclusion 2>&1 | tail -3 && echo '=== Tests ===' && bin/rails test 2>&1 | tail -5",
             "timeout": 180
           }
         ]

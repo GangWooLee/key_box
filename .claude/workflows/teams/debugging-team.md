@@ -109,4 +109,4 @@
 
 - [Agent Teams Guide](../../docs/agent-teams-guide.md)
 - [Bugfix Skill](.claude/skills/bugfix/)
-- [Error Handling Rules](../../rules/backend/error-handling.md)
+- [Model & Error Handling Rules](../../rules/backend/model-and-errors.md)

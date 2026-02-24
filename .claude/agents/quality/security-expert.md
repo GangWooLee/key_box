@@ -33,8 +33,7 @@ teamRole: security-reviewer
 
 ### 프로젝트 보안 규칙
 ```
-.claude/rules/backend/security.md       # 백엔드 보안 규칙
-.claude/SECURITY_GUIDE.md               # 암호화/복호화 가이드
+.claude/rules/backend/safety.md         # 안전/보안 규칙
 .claude/standards/rails-backend.md      # Rails 보안 표준
 ```
 
@@ -306,6 +305,5 @@ Rails.application.config.filter_parameters += [
 
 ## 📚 참조 문서
 
-- [rules/backend/security.md](../../rules/backend/security.md)
-- [SECURITY_GUIDE.md](../../SECURITY_GUIDE.md)
+- [rules/backend/safety.md](../../rules/backend/safety.md)
 - [OWASP Top 10](https://owasp.org/Top10/)
