@@ -28,6 +28,18 @@
 | 팀 기반 코드 리뷰 | review-team 워크플로우 | PR 전 전문가 병렬 리뷰 |
 | 복잡 버그 수정 | `parallel-debugging` | 3회 실패 시 또는 다중 레이어 버그 |
 
+## 도메인 감지 시 추가 의무
+
+작업 유형 매핑(위 테이블)에 더해, 요청에서 도메인 키워드 감지 시:
+
+1. **Standard 자동 READ**: 해당 도메인의 Standard 파일을 읽고 상세 패턴 참조
+   - Frontend → `.claude/standards/tailwind-frontend.md` READ
+   - Backend/Database/Security/Quality → `.claude/standards/rails-backend.md` READ
+   - Testing → `.claude/standards/testing.md` READ
+2. **에이전트 고려**: 리뷰/팀 컨텍스트에서 도메인 전문 에이전트 활용 검토
+
+도메인 키워드 및 전체 매핑: CLAUDE.md "도메인별 자동 라우팅" 테이블 참조.
+
 ## 예외 조건 (이것만 면제)
 
 - 사용자가 명시적으로 "스킬 없이" 또는 "빠르게" 요청한 경우

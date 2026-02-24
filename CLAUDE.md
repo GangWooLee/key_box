@@ -80,6 +80,8 @@ CLAUDE.md (진입점, 항상 로드)
 ├── 리팩토링? → code-review → 수정 → /verify
 ├── UI 작업? → ui-ux-pro-max + ui-component
 └── PR 준비? → /verify (full) → commit → PR
+    ↓
+[도메인 감지] → 해당 Standard 자동 READ (도메인별 자동 라우팅 테이블 참조)
 ```
 
 ### 기능 개발 Phase 흐름
@@ -217,6 +219,24 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 **팀 기반 개발**: `parallel-feature-development` + `dispatching-parallel-agents` + `team-communication-protocols`
 
 전체 스킬 목록 및 결정 가이드: `.claude/skills/README.md`
+
+### 도메인별 자동 라우팅
+
+작업 유형 결정 후, 요청의 **도메인 키워드**를 감지하여 해당 도메인의 전체 툴킷을 활성화한다.
+
+| 도메인 | 감지 키워드 | 스킬 | 에이전트 | Standard (자동 READ) |
+|--------|-----------|------|---------|---------------------|
+| **Frontend** | UI, 화면, 컴포넌트, Stimulus, Tailwind, 접근성, 반응형, 디자인 | `ui-ux-pro-max` `ui-component` `stimulus-controller` | ui-ux-expert | `tailwind-frontend.md` |
+| **Backend** | 모델, 컨트롤러, 서비스, API, 마이그레이션, 라우트, 비즈니스 로직 | `rails-resource` `service-object` `query-object` `rails-dev` | planner, code-review-expert | `rails-backend.md` |
+| **Database** | 데이터베이스, DB, 쿼리, 인덱스, N+1, 트랜잭션, 성능 최적화 | `database-maintenance` `query-object` `performance-check` | data-integrity-expert, performance-expert | `rails-backend.md` |
+| **Security** | 보안, 취약점, XSS, CSRF, SQL injection, 인증, 인가 | `security-audit` | security-expert | `rails-backend.md` |
+| **Testing** | 테스트, 커버리지, TDD, fixture, 시스템 테스트 | `test-gen` `/tdd` | code-review-expert | `testing.md` |
+| **Quality** | 리뷰, 리팩토링, 코드 품질, 클린 코드 | `code-review` `performance-check` | code-review-expert, performance-expert | `rails-backend.md` |
+
+**적용 규칙**:
+1. 도메인 감지 시 → 해당 Standard 파일을 **즉시 READ**하여 상세 패턴 참조
+2. 복수 도메인 감지 시 (예: "모델 + 테스트") → 관련 Standard 모두 READ
+3. 에이전트는 팀 워크플로우 또는 리뷰 시 활성화 (단독 작업 시 선택적)
 
 ---
 
