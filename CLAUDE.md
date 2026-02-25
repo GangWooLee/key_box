@@ -26,22 +26,25 @@ CLAUDE.md (진입점, 항상 로드)
 │   ├── tailwind-frontend.md    # Tailwind/Stimulus 상세 패턴
 │   └── testing.md              # 테스트 상세 패턴
 │
-├── Agents (7개) ─── 전문가 역할 (Task tool로 호출)
+├── Agents (14개) ─── 전문가 역할 (Task tool로 호출)
 │   ├── quality/   code-review-expert, security-expert,
 │   │              data-integrity-expert, performance-expert
 │   ├── domain/    ui-ux-expert
 │   ├── workflow/  planner
-│   └── utility/   doc-updater
+│   ├── utility/   doc-updater
+│   └── business/  market-researcher, product-manager, designer,
+│                  backend-ops, qa-engineer, marketer, data-analyst
 │
 ├── Skills (19개 커스텀 + 외부) ─── 실행 가능 스킬 (키워드 자동 감지)
 │   └── See `.claude/skills/README.md`
 │
-├── Workflows (4개) ─── 팀 작업 템플릿
+├── Workflows (5개) ─── 팀 작업 템플릿
 │   ├── feature-development.md      # 단독 기능 개발 5단계
 │   └── teams/
 │       ├── feature-dev-team.md     # 팀 기반 기능 개발
 │       ├── review-team.md          # 팀 기반 코드 리뷰
-│       └── debugging-team.md       # 팀 기반 디버깅
+│       ├── debugging-team.md       # 팀 기반 디버깅
+│       └── full-lifecycle-team.md  # 10역할 제품 라이프사이클
 │
 └── Commands (10개) ─── 사용자 단축 명령 (/로 호출)
 ```
@@ -242,7 +245,9 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ## Agent Roles
 
-7개 전문가 에이전트. Task tool로 호출하여 병렬 리뷰 가능.
+14개 전문가 에이전트. Task tool로 호출하여 병렬 리뷰 가능.
+
+### 기술 에이전트 (quality + domain + workflow + utility)
 
 | 에이전트 | 역할 | 팀 역할 | 핵심 관심사 |
 |---------|------|---------|-----------|
@@ -254,6 +259,18 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 | **planner** | 기능 설계 | architect | 계획 수립, 리스크 평가 |
 | **doc-updater** | 문서 관리 | docs-writer | 코드맵, 문서-코드 동기화 |
 
+### 비즈니스 에이전트 (business) — Full Lifecycle Team용
+
+| 에이전트 | 역할 | 팀 역할 | Wave |
+|---------|------|---------|------|
+| **market-researcher** | 시장조사, 경쟁사 분석 | market-researcher | 1 |
+| **data-analyst** | 이벤트 트래킹, KPI 설계 | data-analyst | 1 |
+| **product-manager** | PRD 작성, 태스크 분해 | product-manager | 2 |
+| **designer** | UI/UX 디자인, 디자인 시스템 | designer | 2 |
+| **backend-ops** | 인프라, 모니터링, 배포 | backend-ops | 3 |
+| **qa-engineer** | 테스트 전략, 커버리지 | qa-engineer | 4 |
+| **marketer** | 런칭 전략, ASO, 콘텐츠 | marketer | 5 |
+
 ### 에이전트 활용 시점
 
 | 시점 | 호출할 에이전트 |
@@ -264,6 +281,10 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 | DB 마이그레이션 | data-integrity-expert |
 | UI 컴포넌트 리뷰 | ui-ux-expert |
 | 기능 완료 후 문서화 | doc-updater |
+| 대형 기능 시장조사 | market-researcher + data-analyst |
+| 제품 기획 | product-manager |
+| UI/UX 디자인 | designer |
+| 런칭 준비 | marketer |
 
 ### 팀 워크플로우별 에이전트 배치
 
@@ -272,12 +293,13 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 | **review-team** | code-review-expert + security-expert + performance-expert + data-integrity-expert |
 | **feature-dev-team** | planner + 구현 에이전트들 (Phase별 배치) |
 | **debugging-team** | 원인 도메인별 전문가 투입 |
+| **full-lifecycle-team** | 10역할 5 Wave 순차 배치 (시장조사→기획→구현→품질→런칭) |
 
 ---
 
 ## Workflow Templates
 
-4개 워크플로우 템플릿. 팀 기반 작업 시 `.claude/workflows/` 참조.
+5개 워크플로우 템플릿. 팀 기반 작업 시 `.claude/workflows/` 참조.
 
 | 워크플로우 | 파일 | 사용 시점 |
 |-----------|------|----------|
@@ -285,6 +307,7 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 | **feature-dev-team** | `workflows/teams/feature-dev-team.md` | Medium+ 스코프, 팀 병렬 개발 |
 | **review-team** | `workflows/teams/review-team.md` | PR 전 전문가 병렬 리뷰 |
 | **debugging-team** | `workflows/teams/debugging-team.md` | 복잡 버그, 경쟁 가설 병렬 조사 |
+| **full-lifecycle-team** | `workflows/teams/full-lifecycle-team.md` | 대형 기능, 시장조사~런칭 전과정 |
 
 ### 워크플로우 선택 기준
 
@@ -293,6 +316,7 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 ├── Small (1-2 파일, 1 Phase) → 단독 개발 (워크플로우 없이)
 ├── Medium (3-5 파일, 2-3 Phase) → feature-development (단독)
 ├── Large (6+ 파일, 4+ Phase) → feature-dev-team (팀)
+├── X-Large (새 제품/대형 기능 런칭) → full-lifecycle-team (10역할)
 └── 버그 수정
     ├── 단순 (원인 명확) → bugfix 스킬
     └── 복잡 (3회+ 실패) → debugging-team
@@ -339,12 +363,12 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 ## Development Environment
 
 ### Available Tools
-- **Agents** (7): code-review-expert, security-expert, data-integrity-expert, performance-expert, planner, ui-ux-expert, doc-updater
+- **Agents** (14): code-review-expert, security-expert, data-integrity-expert, performance-expert, planner, ui-ux-expert, doc-updater + business/ (market-researcher, product-manager, designer, backend-ops, qa-engineer, marketer, data-analyst)
 - **Commands** (10): /plan, /tdd, /verify, /checkpoint, /update-docs, /wrap-up, /skills-manage, /bridge, /verify-rules, /manage-rules
 - **Skills** (19+): See `.claude/skills/README.md` for full list
 - **Rules** (10): Backend (3), Frontend (1), Common (5), Testing (1)
 - **Standards** (3): rails-backend, tailwind-frontend, testing
-- **Workflows** (4): feature-development, feature-dev-team, review-team, debugging-team
+- **Workflows** (5): feature-development, feature-dev-team, review-team, debugging-team, full-lifecycle-team
 
 ---
 

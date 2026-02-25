@@ -36,20 +36,28 @@ Claude Code의 Agent Teams 기능을 key_box 프로젝트에서 활용하기 위
 | 기능 개발 팀 | [feature-dev-team.md](../workflows/teams/feature-dev-team.md) | 3-4명 | 새 기능 구현 |
 | 리뷰 팀 | [review-team.md](../workflows/teams/review-team.md) | 4명 | PR 전 전문가 병렬 리뷰 |
 | 디버깅 팀 | [debugging-team.md](../workflows/teams/debugging-team.md) | 2-3명 | 경쟁 가설 병렬 조사 |
+| Full Lifecycle 팀 | [full-lifecycle-team.md](../workflows/teams/full-lifecycle-team.md) | 10명 (5 Wave) | 시장조사~런칭 전과정 |
 
 ---
 
 ## 에이전트 → 팀 역할 매핑
 
-| 에이전트 | teamRole | 기능 팀 | 리뷰 팀 | 디버깅 팀 |
-|---------|----------|---------|---------|----------|
-| code-review-expert | quality-guard | quality-guard | - | - |
-| security-expert | security-reviewer | - | security-reviewer | - |
-| data-integrity-expert | data-reviewer | - | data-reviewer | - |
-| performance-expert | performance-reviewer | - | performance-reviewer | - |
-| ui-ux-expert | frontend-dev | frontend-dev | - | tracer-frontend |
-| planner | - | lead 보조 | - | - |
-| doc-updater | - | Phase 3 문서화 | - | - |
+| 에이전트 | teamRole | 기능 팀 | 리뷰 팀 | 디버깅 팀 | Lifecycle 팀 |
+|---------|----------|---------|---------|----------|-------------|
+| code-review-expert | quality-guard | quality-guard | - | - | - |
+| security-expert | security-reviewer | - | security-reviewer | - | - |
+| data-integrity-expert | data-reviewer | - | data-reviewer | - | - |
+| performance-expert | performance-reviewer | - | performance-reviewer | - | - |
+| ui-ux-expert | frontend-dev | frontend-dev | - | tracer-frontend | - |
+| planner | - | lead 보조 | - | - | - |
+| doc-updater | - | Phase 3 문서화 | - | - | - |
+| market-researcher | market-researcher | - | - | - | Wave 1 |
+| data-analyst | data-analyst | - | - | - | Wave 1 |
+| product-manager | product-manager | - | - | - | Wave 2 |
+| designer | designer | - | - | - | Wave 2 |
+| backend-ops | backend-ops | - | - | - | Wave 3 |
+| qa-engineer | qa-engineer | - | - | - | Wave 4 |
+| marketer | marketer | - | - | - | Wave 5 |
 
 ---
 
@@ -79,10 +87,11 @@ Phase 전환 전 반드시 통과:
 2. `bin/rails test` — 테스트
 3. `bundle exec rubocop` — 린트
 
-### 4. 최대 3-4명
+### 4. 최대 3-4명 (동시)
 
-- 비용/효과 최적점은 3-4명
-- 5명 이상은 조율 오버헤드가 생산성을 초과
+- 동시 실행 비용/효과 최적점은 3-4명
+- 5명 이상 동시 실행은 조율 오버헤드가 생산성을 초과
+- **예외**: Full Lifecycle Team은 10명이지만, 5 Wave로 순차 배치하여 동시 최대 3명
 
 ### 5. Lead가 /verify 실행 후에만 완료 선언
 
@@ -146,4 +155,40 @@ Phase 전환 전 반드시 통과:
 
 ---
 
-**Last Updated**: 2026-02-24
+---
+
+## Full Lifecycle Team
+
+10역할 에이전트를 5 Wave로 순차 배치하여 시장조사부터 런칭까지 전 과정을 수행.
+
+### Wave 구조
+
+```
+Wave 1: Research (2명) → Gate 1
+Wave 2: Planning & Design (2명) → Gate 2
+Wave 3: Build (3명) → Quality Gate
+Wave 4: Quality (2명) → Gate 3
+Wave 5: Launch (1명) → Gate 4
+```
+
+### 핵심 원칙
+
+- 각 Wave 완료 후 `shutdown_request`로 에이전트 종료 (비용 절감)
+- Wave 간 산출물은 `docs/` 디렉토리를 통해 전달
+- 동시 실행 에이전트 최대 3명 (Wave 3이 최대)
+- plan 모드 에이전트 4명 (market-researcher, product-manager, security-eng, marketer)
+
+### 사용 기준
+
+| 기준 | feature-dev-team | full-lifecycle-team |
+|------|-----------------|---------------------|
+| 스코프 | 단일 기능 | 새 제품/대형 기능 |
+| 시장조사 | 불필요 | 필요 |
+| 디자인 | 기존 시스템 | 새 디자인 필요 |
+| 마케팅 | 불필요 | 필요 |
+
+상세: [full-lifecycle-team.md](../workflows/teams/full-lifecycle-team.md)
+
+---
+
+**Last Updated**: 2026-02-25
