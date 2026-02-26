@@ -1,6 +1,7 @@
 ---
 name: qa-engineer
 description: "QA 전문가 - 테스트 전략, 테스트 케이스 작성, 버그 검증, 커버리지 분석"
+model: sonnet
 triggers:
   - QA
   - 품질 보증

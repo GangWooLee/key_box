@@ -49,6 +49,14 @@ CLAUDE.md (진입점, 항상 로드)
 └── Commands (10개) ─── 사용자 단축 명령 (/로 호출)
 ```
 
+### Rules 조건부 로딩 (paths)
+
+도메인별 rules는 `paths:` frontmatter로 조건부 로딩됨. 해당 파일 작업 시에만 활성화되어 컨텍스트 효율 향상:
+- `backend/*.md` → `app/models/**`, `app/controllers/**`, `app/services/**`, `db/migrate/**`
+- `frontend/frontend.md` → `app/views/**`, `app/javascript/**`, `app/assets/**`
+- `testing/testing.md` → `test/**`
+- `common/*.md` → paths 없이 항상 로드 (모든 파일에 적용)
+
 ### Rules vs Standards — 이중 체계
 
 | 구분 | Rules | Standards |
@@ -372,9 +380,54 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ---
 
+## Gotchas — 자칫 실수할 수 있는 공식 문서 핵심 사항
+
+### Hook 관련
+- **PreCompact는 차단 불가** — exit 2를 반환해도 압축은 진행됨. 저장만 가능
+- **Stop hook 무한루프** — Stop hook에서 도구를 호출하면 무한루프. `stop_hook_active` 가드 필수
+- **Hook exit code 의미**: 0=허용, 1=비차단 에러(경고만), 2=차단(PreToolUse만 유효)
+- **Hook 입력은 stdin JSON** — `jq -r '.tool_input.command'`로 파싱. `$1`이 아님
+- **PostToolUse matcher 문법** — `Edit|Write` (정규식), `Bash` (단일 도구명)
+
+### Permissions 관련
+- **`Read(.env)` 문법** — 파일 경로는 프로젝트 루트 기준 상대 경로
+- **deny > ask > allow** — 우선순위: deny가 최우선. 같은 패턴이 allow와 deny에 있으면 deny
+- **`settings.local.json`** — 프로젝트 설정보다 높은 우선순위. 반드시 `.gitignore`에 포함
+
+### Agent/Skill 관련
+- **`permissionMode: plan`** — 에이전트가 read-only 모드로 시작. Edit/Write/Bash 불가
+- **`memory: project`** — 프로젝트별 영속 메모리. `.claude/memory/` 디렉토리에 저장
+- **`disable-model-invocation: true`** — AI가 자동으로 스킬 트리거하는 것 방지 (부작용 스킬용)
+- **`model: opus|sonnet|haiku`** — 명시하지 않으면 부모 모델 상속. 비용 관리에 중요
+
+### Context 관련
+- **AUTOCOMPACT 80%** — 기본 95%보다 80%에서 시작하면 요약 품질이 향상
+- **SessionStart 4개 matcher** — `startup`, `resume`, `clear`, `compact`. 각각 다른 시점
+- **`/compact <지시>`** — 지시 없이 compact하면 중요 컨텍스트 유실 위험
+
+---
+
+## Context Management Best Practices (Anthropic 공식)
+
+- `/clear` — 무관한 작업 간 전환 시 컨텍스트 리셋
+- `/compact <지시>` — 특정 주제에 집중하여 압축 (예: `/compact API 변경에 집중`)
+- Subagent 활용 — 탐색/조사는 subagent에 위임하여 메인 컨텍스트 보존
+- 2회 이상 수정 실패 시 → `/clear` 후 더 구체적인 프롬프트로 재시작
+- Rules `paths:` — 도메인별 rules가 조건부 로딩되어 컨텍스트 효율 자동 최적화
+
+---
+
+## Referenced Documents
+
+@.claude/docs/agent-teams-guide.md
+@.claude/skills/README.md
+
+---
+
 ## Project-Specific Notes
 - bkit 플러그인 비활성화 (2026-02-23): 프로젝트 자체 프레임워크(agents/commands/skills/rules)와 충돌. `.claude/settings.json`에서 `false` 처리.
 - ui-ux-pro-max 도입 (2026-02-23): frontend-design 스킬 교체. BM25 검색 엔진 + 24 CSV 데이터셋 + 3 Python 스크립트. 소스: nextlevelbuilder/ui-ux-pro-max-skill.
 - Superpowers 참조 (2026-02-23): 신규 프로젝트에서 커스텀 프레임워크 구축 전 obra/superpowers 플러그인 권장. 설치: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace`.
 - find-skills 설치 (2026-02-24): skills.sh (Vercel Labs) 마켓플레이스 검색 스킬. 기존 skillsmp-search(SkillsMP 대상)와 공존. `npx skills add`는 `.agent/`, `.agents/`, `.claude/`, `.kiro/`, `.windsurf/` 5개 에이전트 디렉토리에 동시 설치. `skills-lock.json`은 스킬 버전 lock 파일로 반드시 커밋.
 - Obsidian MCP 연동 (2026-02-24): `claude-code-mcp` v1.1.8 (iansinnott) 플러그인으로 Obsidian vault 연결. SSE transport `http://localhost:22360/sse`. Vault: `/Users/igangu/Documents/Obsidian Vault`. 도구 7개 (get_workspace_files, get_current_file, view, create, str_replace, insert, obsidian_api) 검증 완료. BRAT 불필요 — `community-plugins.json`에 ID 추가 + 파일 배치로 활성화.
+- Hook 안정성 강화 (2026-02-26): 5개 신규 hook 추가 (compact/PreCompact/Stop/Notification/PostToolUseFailure). stdin 소비 문제 발견 — `jq` 다중 호출 시 `INPUT=$(cat)` 패턴 필수. Read deny 규칙으로 시크릿 노출 차단. 에이전트 14개 전부 model 명시 (opus 5, sonnet 9). AUTOCOMPACT 80%.

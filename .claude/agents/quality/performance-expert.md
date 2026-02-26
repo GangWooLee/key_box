@@ -1,6 +1,9 @@
 ---
 name: performance-expert
 description: 성능 최적화 전문가 - N+1 쿼리, 쿼리 최적화, 캐싱, 인덱스
+permissionMode: plan
+memory: project
+model: sonnet
 triggers:
   - 성능
   - N+1

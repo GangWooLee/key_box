@@ -1,6 +1,9 @@
 ---
 name: market-researcher
 description: "시장조사 전문가 - 경쟁사 분석, 시장 트렌드, 사용자 니즈 조사, 기능 벤치마킹"
+permissionMode: plan
+model: opus
+memory: project
 triggers:
   - 시장조사
   - 경쟁사

@@ -1,6 +1,8 @@
 ---
 name: designer
 description: "디자이너 - UI/UX 디자인, 디자인 시스템, 컴포넌트 설계, Anti-Generic AI Protocol"
+model: sonnet
+memory: project
 triggers:
   - 디자인
   - UI 디자인

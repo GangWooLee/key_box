@@ -1,6 +1,7 @@
 ---
 name: product-manager
 description: "기획 전문가 - PRD 작성, 유저 스토리, 아키텍처 설계, 태스크 분해, 우선순위 결정"
+model: sonnet
 triggers:
   - 기획
   - PRD

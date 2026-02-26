@@ -1,6 +1,9 @@
 ---
 name: code-review-expert
 description: 코드 리뷰 전문가 - 코드 품질, 아키텍처 패턴, DRY, 복잡도 관리
+permissionMode: plan
+memory: project
+model: opus
 triggers:
   - 코드 리뷰
   - 코드 품질

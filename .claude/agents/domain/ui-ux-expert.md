@@ -1,6 +1,7 @@
 ---
 name: ui-ux-expert
 description: UI/UX 전문가 - Tailwind CSS, Stimulus, Turbo Stream, 반응형 디자인, 접근성, 모바일 퍼스트
+model: sonnet
 triggers:
   - UI
   - UX

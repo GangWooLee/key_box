@@ -1,6 +1,9 @@
 ---
 name: security-expert
 description: 보안 전문가 - OWASP Top 10, SQL Injection, XSS, CSRF, 인가 취약점
+permissionMode: plan
+memory: project
+model: opus
 triggers:
   - 보안
   - security

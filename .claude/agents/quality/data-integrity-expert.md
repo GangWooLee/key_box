@@ -1,6 +1,9 @@
 ---
 name: data-integrity-expert
 description: 데이터 안정성 전문가 - Race Condition, 트랜잭션, 동시성, 데이터 정합성
+permissionMode: plan
+memory: project
+model: opus
 triggers:
   - Race Condition
   - 데이터 정합성
