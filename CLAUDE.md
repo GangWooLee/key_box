@@ -399,6 +399,7 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 - **`memory: project`** — 프로젝트별 영속 메모리. `.claude/memory/` 디렉토리에 저장
 - **`disable-model-invocation: true`** — AI가 자동으로 스킬 트리거하는 것 방지 (부작용 스킬용)
 - **`model: opus|sonnet|haiku`** — 명시하지 않으면 부모 모델 상속. 비용 관리에 중요
+- **`npx skills add` symlink 구조** — `.agents/skills/`가 원본, `.claude/skills/` 등은 symlink. 원본 디렉토리 삭제 시 모든 symlink 깨짐. 정리 시 반드시 원본→대상 복사 후 삭제
 
 ### Context 관련
 - **AUTOCOMPACT 80%** — 기본 95%보다 80%에서 시작하면 요약 품질이 향상
@@ -428,6 +429,6 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 - bkit 플러그인 비활성화 (2026-02-23): 프로젝트 자체 프레임워크(agents/commands/skills/rules)와 충돌. `.claude/settings.json`에서 `false` 처리.
 - ui-ux-pro-max 도입 (2026-02-23): frontend-design 스킬 교체. BM25 검색 엔진 + 24 CSV 데이터셋 + 3 Python 스크립트. 소스: nextlevelbuilder/ui-ux-pro-max-skill.
 - Superpowers 참조 (2026-02-23): 신규 프로젝트에서 커스텀 프레임워크 구축 전 obra/superpowers 플러그인 권장. 설치: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace`.
-- find-skills 설치 (2026-02-24): skills.sh (Vercel Labs) 마켓플레이스 검색 스킬. 기존 skillsmp-search(SkillsMP 대상)와 공존. `npx skills add`는 `.agent/`, `.agents/`, `.claude/`, `.kiro/`, `.windsurf/` 5개 에이전트 디렉토리에 동시 설치. `skills-lock.json`은 스킬 버전 lock 파일로 반드시 커밋.
+- find-skills 설치 (2026-02-24): skills.sh (Vercel Labs) 마켓플레이스 검색 스킬. 기존 skillsmp-search(SkillsMP 대상)와 공존. `npx skills add`는 5개 디렉토리에 동시 설치하나, `.claude/skills/`만 유지 (2026-02-26 정리 완료). **주의**: `.agents/`가 원본, 나머지는 symlink — 원본 삭제 시 전부 깨짐. 재설치 후 symlink→실제 파일 교체 필요. `skills-lock.json`은 스킬 버전 lock 파일로 반드시 커밋.
 - Obsidian MCP 연동 (2026-02-24): `claude-code-mcp` v1.1.8 (iansinnott) 플러그인으로 Obsidian vault 연결. SSE transport `http://localhost:22360/sse`. Vault: `/Users/igangu/Documents/Obsidian Vault`. 도구 7개 (get_workspace_files, get_current_file, view, create, str_replace, insert, obsidian_api) 검증 완료. BRAT 불필요 — `community-plugins.json`에 ID 추가 + 파일 배치로 활성화.
 - Hook 안정성 강화 (2026-02-26): 5개 신규 hook 추가 (compact/PreCompact/Stop/Notification/PostToolUseFailure). stdin 소비 문제 발견 — `jq` 다중 호출 시 `INPUT=$(cat)` 패턴 필수. Read deny 규칙으로 시크릿 노출 차단. 에이전트 14개 전부 model 명시 (opus 5, sonnet 9). AUTOCOMPACT 80%.
