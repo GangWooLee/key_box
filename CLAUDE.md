@@ -418,6 +418,38 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ---
 
+## Work Style & Session Rules (Insights 기반, 2026-03-01)
+
+130개 세션 분석에서 도출된 실증적 행동 규칙.
+
+### 세션 이어가기
+- 이전 세션/계획에서 이어질 때, 파일 재읽기/재계획/계획 모드 종료 시도 없이 **즉시 계획 실행 시작**
+- 진정으로 막힌 경우에만 명확화 요청
+
+### 작업 방식
+- 이슈를 **하나씩 세심하게** 처리. 모든 것을 한꺼번에 처리하려 하지 말 것
+- 하나의 변경 완료 → 검증 → 다음으로 이동
+
+### 계획 수립
+- 새 계획/디자인 방향 만들기 전에 **기존 계획 문서/디자인 문서/참조 자료 확인** (Obsidian vault, `docs/`, `planning/`)
+- 기존 계획을 따르고 새로 만들지 말 것
+
+### Pencil MCP 안전 수칙
+1. 색상 일괄 작업 후 **rgba/알파 보존 확인** (replace_all_matching_properties는 알파를 제거함)
+2. 변수 참조는 **Dark vs Light 모드에서 다르게 해석** — 화면 프레임에 테마 설정 확인
+3. 화면 누락 주장 전 **캔버스 위치 확인** (y=8700 같은 높은 오프셋일 수 있음)
+
+### Shell/Bash 안전 수칙
+- 파일/디렉토리 삭제 시 먼저 **심링크가 가리키고 있는지 확인**
+- 심링크 의존성 확인 없이 `rm -rf` 금지
+- 여러 명령에 파이핑 전 `INPUT=$(cat)` 패턴으로 **stdin을 변수에 저장**
+
+### 설정/연동 작업
+- 수동 지시 대신 **설정 파일을 직접 조작**
+- 파일 복사만이 아닌 **End-to-End 작동 검증** 필수
+
+---
+
 ## Referenced Documents
 
 @.claude/docs/agent-teams-guide.md
@@ -430,5 +462,5 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 - ui-ux-pro-max 도입 (2026-02-23): frontend-design 스킬 교체. BM25 검색 엔진 + 24 CSV 데이터셋 + 3 Python 스크립트. 소스: nextlevelbuilder/ui-ux-pro-max-skill.
 - Superpowers 참조 (2026-02-23): 신규 프로젝트에서 커스텀 프레임워크 구축 전 obra/superpowers 플러그인 권장. 설치: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace`.
 - find-skills 설치 (2026-02-24): skills.sh (Vercel Labs) 마켓플레이스 검색 스킬. 기존 skillsmp-search(SkillsMP 대상)와 공존. `npx skills add`는 5개 디렉토리에 동시 설치하나, `.claude/skills/`만 유지 (2026-02-26 정리 완료). **주의**: `.agents/`가 원본, 나머지는 symlink — 원본 삭제 시 전부 깨짐. 재설치 후 symlink→실제 파일 교체 필요. `skills-lock.json`은 스킬 버전 lock 파일로 반드시 커밋.
-- Obsidian MCP 연동 (2026-02-24): `claude-code-mcp` v1.1.8 (iansinnott) 플러그인으로 Obsidian vault 연결. SSE transport `http://localhost:22360/sse`. Vault: `/Users/igangu/Documents/Obsidian Vault`. 도구 7개 (get_workspace_files, get_current_file, view, create, str_replace, insert, obsidian_api) 검증 완료. BRAT 불필요 — `community-plugins.json`에 ID 추가 + 파일 배치로 활성화.
+- Obsidian MCP 연동 (2026-02-24): `claude-code-mcp` v1.1.8 (iansinnott) 플러그인으로 Obsidian vault 연결. SSE transport `http://localhost:22360/sse`. Vault: `key_box/docs/` (프로젝트 내부, 2026-02-26 이전). 도구 7개 (get_workspace_files, get_current_file, view, create, str_replace, insert, obsidian_api) 검증 완료. `.obsidian/workspace.json` 및 `plugins/*/data.json`은 `.gitignore` 처리.
 - Hook 안정성 강화 (2026-02-26): 5개 신규 hook 추가 (compact/PreCompact/Stop/Notification/PostToolUseFailure). stdin 소비 문제 발견 — `jq` 다중 호출 시 `INPUT=$(cat)` 패턴 필수. Read deny 규칙으로 시크릿 노출 차단. 에이전트 14개 전부 model 명시 (opus 5, sonnet 9). AUTOCOMPACT 80%.

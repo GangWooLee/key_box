@@ -42,3 +42,6 @@
 
 # Ignore Claude Code personal settings override
 .claude/settings.local.json
+
+# Obsidian vault settings
+docs/.obsidian/

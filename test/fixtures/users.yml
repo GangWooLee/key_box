@@ -1,0 +1,24 @@
+<% password = "password123" %>
+<% salt_one = Encryption::KeyDerivationService.generate_salt %>
+<% pdk_one = Encryption::KeyDerivationService.derive_key(password: password, salt: salt_one) %>
+<% mek_one = Encryption::MasterKeyService.generate_master_key %>
+<% wrapped_one = Encryption::MasterKeyService.wrap(master_key: mek_one, wrapping_key: pdk_one) %>
+
+<% salt_two = Encryption::KeyDerivationService.generate_salt %>
+<% pdk_two = Encryption::KeyDerivationService.derive_key(password: password, salt: salt_two) %>
+<% mek_two = Encryption::MasterKeyService.generate_master_key %>
+<% wrapped_two = Encryption::MasterKeyService.wrap(master_key: mek_two, wrapping_key: pdk_two) %>
+
+one:
+  email: alice@example.com
+  name: Alice
+  password_digest: <%= BCrypt::Password.create(password, cost: 4) %>
+  master_key_salt: !!binary "<%= Base64.strict_encode64(salt_one) %>"
+  encrypted_master_key: !!binary "<%= Base64.strict_encode64(wrapped_one) %>"
+
+two:
+  email: bob@example.com
+  name: Bob
+  password_digest: <%= BCrypt::Password.create(password, cost: 4) %>
+  master_key_salt: !!binary "<%= Base64.strict_encode64(salt_two) %>"
+  encrypted_master_key: !!binary "<%= Base64.strict_encode64(wrapped_two) %>"

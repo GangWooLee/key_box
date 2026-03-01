@@ -1,3 +1,11 @@
+---
+paths:
+  - "app/models/**"
+  - "app/controllers/**"
+  - "app/services/**"
+  - "db/migrate/**"
+---
+
 # 아키텍처 원칙 — 설계 패턴 · 계층 분리 · SOLID
 
 ## 설계 패턴 선택 가이드

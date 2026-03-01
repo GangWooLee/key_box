@@ -1,6 +1,7 @@
 ---
 name: wrap-up
 description: 작업 완료 시 자동 마무리. 교훈 추출 → CLAUDE.md 업데이트 → 인벤토리 동기화 → 자동 커밋. 기능 구현, 리팩토링, 버그 수정 후 사용하세요.
+disable-model-invocation: true
 ---
 
 # Wrap-Up Skill

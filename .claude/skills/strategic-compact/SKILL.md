@@ -1,6 +1,7 @@
 ---
 name: strategic-compact
 description: "전략적 컨텍스트 압축. 자동 압축 대신 논리적 경계에서 수동으로 컨텍스트를 압축합니다."
+disable-model-invocation: true
 ---
 
 # 전략적 컴팩트 스킬

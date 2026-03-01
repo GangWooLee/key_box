@@ -88,7 +88,7 @@ python3 .claude/skills/ui-ux-pro-max/scripts/search.py "<product_type> <industry
 
 **예시 (key_box):**
 ```bash
-python3 .claude/skills/ui-ux-pro-max/scripts/search.py "education SaaS korean learning" --design-system -p "key_box"
+python3 .claude/skills/ui-ux-pro-max/scripts/search.py "developer tool security credential manager minimal dark" --design-system -p "key_box"
 ```
 
 ### Step 2b: Persist Design System (Master + Overrides Pattern)
@@ -174,35 +174,22 @@ python3 .claude/skills/ui-ux-pro-max/scripts/search.py "fintech crypto" --design
 
 | 항목 | 값 |
 |------|-----|
-| 산업 | Education / EdTech |
-| 대상 | 한국어 학습자, 모바일 우선 |
-| 톤 | (검색으로 결정) |
-| 플랫폼 | Mobile-first (375px 기준) |
-| 아이콘 | Heroicons (SVG) |
+| 산업 | Developer Tool / Security / Credential Manager |
+| 대상 | 인디 개발자, 소규모 팀 (macOS desktop-first) |
+| 톤 | Minimal Professional + High Density + Security-Trust |
+| 플랫폼 | Desktop-first (1440px), Tablet 768px, Mobile 375px |
+| 아이콘 | Lucide Icons (SVG) |
+| 레이아웃 | **2-Column (List 320px + Detail fluid)** |
+| 예시 쿼리 | `"developer tool security credential manager minimal dark"` |
 
-### 톤 선택 가이드 → 검색 키워드 매핑
-
-| 톤 | 검색 키워드 |
-|-----|-----------|
-| Brutally Minimal | `minimalism clean whitespace` |
-| Maximalist Chaos | `maximalism bold layers` |
-| Retro-Futuristic | `retro neon gradient` |
-| Organic/Natural | `organic natural earth` |
-| Luxury/Refined | `luxury elegant refined` |
-| Playful/Toy-like | `playful cartoon animation` |
-| Editorial/Magazine | `editorial magazine layout` |
-| Brutalist/Raw | `brutalism raw border` |
-| Art Deco/Geometric | `geometric symmetry art-deco` |
-
-### 한국어 폰트 페어링
+### 폰트 스택
 
 ```css
-/* 시스템 폰트 기본 (모바일 네이티브 경험) */
-font-family: system-ui, -apple-system, sans-serif;
+/* UI 폰트 — Apple 네이티브 우선, Inter 폴백 */
+--font-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
 
-/* 커스텀 폰트 권장 */
-font-family: 'Pretendard', system-ui, sans-serif; /* 본문 — 고가독성 */
-font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
+/* 코드/시크릿 값 폰트 */
+--font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
 ```
 
 ### ERB / Tailwind 구현 팁
@@ -214,8 +201,8 @@ font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
 <%# 프로젝트 유틸리티 클래스 우선 %>
 <button class="btn-primary">...</button>
 
-<%# Heroicons SVG 아이콘 (이모지 대신) %>
-<%= render "shared/icon", name: "check-circle", class: "w-5 h-5" %>
+<%# Lucide Icons SVG (이모지 대신) %>
+<%= render "shared/icon", name: "check-circle", class: "size-5" %>
 ```
 
 ### Tailwind CSS v4 토큰 활용
@@ -223,6 +210,7 @@ font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
 - `@theme` 변수로 색상/간격/폰트 정의 → `bg-primary`, `text-accent` 사용
 - `dvh` 단위 사용 (`h-screen` 대신 `h-dvh`)
 - 하드코딩 색상값 → `@theme` 변수로 대체
+- `size-6` 사용 (`h-6 w-6` 대신)
 
 ---
 
@@ -232,7 +220,7 @@ font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
 
 | Rule | Do | Don't |
 |------|----|----- |
-| **No emoji icons** | SVG 아이콘 (Heroicons, Lucide) | 이모지 (🎨 🚀 ⚙️) |
+| **No emoji icons** | SVG 아이콘 (Lucide Icons) | 이모지 (🎨 🚀 ⚙️) |
 | **Stable hover** | color/opacity 전환 | scale로 레이아웃 시프트 |
 | **Brand logos** | Simple Icons에서 공식 SVG | 추측하거나 잘못된 경로 |
 | **Consistent sizing** | 고정 viewBox (24x24) w-6 h-6 | 랜덤 사이즈 |
@@ -259,11 +247,11 @@ font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
 
 | 피할 것 | 대안 |
 |---------|------|
-| Inter, Roboto, Arial 폰트 | Pretendard, Noto Sans KR, 시스템 폰트 |
+| Roboto, Arial 폰트 | -apple-system, Inter, 시스템 폰트 |
 | 자주색 그라디언트 | 프로젝트 브랜드 컬러 사용 |
 | 예측 가능한 레이아웃 | 비대칭, 오버랩, stagger 효과 |
 | 균등 분배 색상 | 지배적 색상 (primary) + 악센트 (accent) |
-| 이모지를 아이콘으로 | Heroicons SVG |
+| 이모지를 아이콘으로 | Lucide Icons SVG |
 | `h-screen` | `h-dvh` (dvh 단위) |
 | 하드코딩 색상값 | `@theme` 변수 사용 |
 | "쿠키커터" 디자인 | 프로젝트 컨텍스트 특화 |
@@ -287,7 +275,7 @@ font-family: 'Noto Sans KR', sans-serif;          /* 대안 — Google Fonts */
 | 성능 | CLS 방지 (aspect-ratio) | [ ] |
 | 일관성 | `@theme` 색상 변수 사용 | [ ] |
 | 일관성 | 프로젝트 유틸리티 클래스 | [ ] |
-| 일관성 | Heroicons 아이콘 세트 | [ ] |
+| 일관성 | Lucide Icons 아이콘 세트 | [ ] |
 | 일관성 | 이모지 아이콘 대신 SVG | [ ] |
 
 ---

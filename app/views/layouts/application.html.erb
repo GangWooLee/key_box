@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html class="h-full">
+  <head>
+    <title><%= content_for(:title) || "KeyBox" %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="application-name" content="KeyBox">
+    <meta name="mobile-web-app-capable" content="yes">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%# FOUC prevention: set data-theme before any rendering %>
+    <script>
+      (function() {
+        var theme = localStorage.getItem('theme');
+        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
+
+    <%= yield :head %>
+
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700|jetbrains-mono:400" rel="stylesheet">
+
+    <link rel="icon" href="/icon.png" type="image/png">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icon.png">
+
+    <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body class="h-full bg-[var(--surface-secondary)] text-[var(--text-primary)] antialiased">
+    <% if logged_in? %>
+      <nav class="bg-[var(--surface-primary)] border-b border-[var(--border-primary)]">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div class="flex justify-between items-center h-14">
+            <div class="flex items-center gap-3">
+              <%= link_to root_path, class: "flex items-center gap-2 text-[var(--text-primary)] font-semibold text-lg" do %>
+                <%= lucide_icon(:key_round, size: 6, css_class: "text-brand-600") %>
+                KeyBox
+              <% end %>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <div data-controller="theme">
+                <button type="button"
+                        data-action="theme#toggle"
+                        class="p-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] rounded-md hover:bg-brand-50 dark:hover:bg-[var(--surface-card)] transition-colors"
+                        aria-label="Toggle dark mode">
+                  <%= lucide_icon(:sun, size: 4, css_class: "hidden", data: { theme_target: "lightIcon" }) %>
+                  <%= lucide_icon(:moon, size: 4, data: { theme_target: "darkIcon" }) %>
+                </button>
+              </div>
+              <span class="text-sm text-[var(--text-secondary)]"><%= current_user.email %></span>
+              <%= button_to "Log out", logout_path, method: :delete,
+                class: "text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-2 py-1" %>
+            </div>
+          </div>
+        </div>
+      </nav>
+    <% end %>
+
+    <% if flash[:notice] %>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="rounded-lg bg-brand-50 dark:bg-brand-900/20 p-4 border border-brand-200 dark:border-brand-800/30" role="alert">
+          <p class="text-sm text-brand-800 dark:text-brand-200"><%= flash[:notice] %></p>
+        </div>
+      </div>
+    <% end %>
+
+    <% if flash[:alert] %>
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+        <div class="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800" role="alert">
+          <p class="text-sm text-red-800 dark:text-red-300"><%= flash[:alert] %></p>
+        </div>
+      </div>
+    <% end %>
+
+    <main>
+      <%= yield %>
+    </main>
+
+    <% if logged_in? %>
+      <%= render "shared/command_palette" %>
+    <% end %>
+  </body>
+</html>

@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+/* Dark mode: system preference OR manual toggle via data-theme */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  /* Brand (Olive/Moss Green) */
+  --color-brand-50:  #F0F4E8;
+  --color-brand-100: #E8F0DE;
+  --color-brand-200: #D0E0BC;
+  --color-brand-300: #B4C89A;
+  --color-brand-400: #7DB844;
+  --color-brand-500: #4A7A24;
+  --color-brand-600: #3A5A1C;
+  --color-brand-700: #283618;
+  --color-brand-800: #1E2A12;
+  --color-brand-900: #162212;
+  --color-brand-950: #0C1108;
+
+  /* Fonts */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+  --font-mono: "SF Mono", "JetBrains Mono", "Fira Code", ui-monospace, monospace;
+
+  /* Shadows */
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.12);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Semantic color tokens — light/dark adaptive */
+:root {
+  --surface-primary: #ffffff;
+  --surface-secondary: #F7FAF4;
+  --surface-sidebar: rgba(240,244,232,0.7);
+  --surface-card: #ffffff;
+  --text-primary: #1A2712;
+  --text-secondary: #5A6B4C;
+  --text-tertiary: #7A8C6A;
+  --border-primary: #D0E0BC;
+  --border-subtle: #E8F0DE;
+  --border-strong: #B4C89A;
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.12);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+[data-theme="dark"] {
+  --surface-primary: #0C1108;
+  --surface-secondary: #080C05;
+  --surface-sidebar: rgba(17,26,11,0.25);
+  --surface-card: #1A2712;
+  --text-primary: #E8EDE3;
+  --text-secondary: #9CAF88;
+  --text-tertiary: #7A8C6A;
+  --border-primary: rgba(180,200,160,0.1);
+  --border-subtle: rgba(180,200,160,0.06);
+  --border-strong: rgba(180,200,160,0.25);
+  --glass-bg: rgba(26,39,18,0.55);
+  --glass-border: rgba(180,200,160,0.2);
+  --shadow-card: 0 1px 3px rgba(0,0,0,0.12);
+  --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

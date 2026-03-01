@@ -1,3 +1,11 @@
+---
+paths:
+  - "app/models/**"
+  - "app/controllers/**"
+  - "app/services/**"
+  - "db/migrate/**"
+---
+
 # 모델 패턴 · 에러 처리
 
 ## 모델 선언 순서 (필수 준수)

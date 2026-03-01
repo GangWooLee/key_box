@@ -1,0 +1,70 @@
+<% content_for(:title, "Audit Log — KeyBox") %>
+
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+    <h1 class="text-2xl font-bold text-[var(--text-primary)]">Audit Log</h1>
+    <%= link_to root_path, class: "mt-2 md:mt-0 inline-flex items-center gap-1 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors" do %>
+      <%= lucide_icon(:arrow_left, size: 4) %>
+      Back to Vault
+    <% end %>
+  </div>
+
+  <% if @audit_events.any? %>
+    <div class="bg-[var(--surface-primary)] rounded-lg shadow-card border border-[var(--border-primary)] overflow-hidden">
+      <table class="min-w-full divide-y divide-[var(--border-primary)]">
+        <thead class="bg-[var(--surface-secondary)] dark:bg-[var(--surface-card)]">
+          <tr>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Action</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Details</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">IP</th>
+            <th scope="col" class="px-4 py-2.5 text-left text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Time</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-[var(--border-primary)]">
+          <% @audit_events.each do |event| %>
+            <tr class="hover:bg-brand-50 dark:hover:bg-[var(--surface-card)] transition-colors">
+              <td class="px-4 py-2.5 whitespace-nowrap">
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                  <%= case event.action.split('.').first
+                      when 'secret' then 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-200'
+                      when 'folder' then 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                      when 'vault' then 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      when 'user' then 'bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400'
+                      else 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-200'
+                      end %>">
+                  <%= event.action %>
+                </span>
+              </td>
+              <td class="px-4 py-2.5 text-sm text-[var(--text-primary)]">
+                <% if event.secret %>
+                  <%= event.secret.name %>
+                <% elsif event.metadata.is_a?(Hash) && event.metadata["name"] %>
+                  <%= event.metadata["name"] %>
+                <% end %>
+              </td>
+              <td class="px-4 py-2.5 text-sm text-[var(--text-secondary)] whitespace-nowrap"><%= event.ip_address %></td>
+              <td class="px-4 py-2.5 text-sm text-[var(--text-secondary)] whitespace-nowrap">
+                <%= event.created_at.strftime("%b %d, %H:%M") %>
+              </td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+
+    <% if @audit_events.size == AuditEventsController::EVENTS_PER_PAGE %>
+      <div class="mt-4 flex justify-center">
+        <%= link_to "Next page", vault_audit_events_path(@vault, page: @page + 1),
+          class: "px-3 py-1.5 text-sm font-medium text-[var(--text-primary)] bg-[var(--surface-primary)] border border-[var(--border-primary)] rounded-md hover:bg-brand-50 dark:hover:bg-[var(--surface-card)] transition-colors" %>
+      </div>
+    <% end %>
+  <% else %>
+    <div class="bg-[var(--surface-primary)] rounded-lg shadow-card border border-[var(--border-primary)] p-6">
+      <div class="text-center py-12">
+        <%= lucide_icon(:clock, size: 12, css_class: "mx-auto text-[var(--text-tertiary)]") %>
+        <h3 class="mt-4 text-lg font-semibold text-[var(--text-primary)]">No activity yet</h3>
+        <p class="mt-2 text-sm text-[var(--text-secondary)]">Audit events will appear here as you use your vault.</p>
+      </div>
+    </div>
+  <% end %>
+</div>

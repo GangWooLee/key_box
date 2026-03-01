@@ -1,6 +1,7 @@
 ---
 name: verification-loop
 description: "Rails 코드베이스 종합 검증 루프. 빌드, 린트, 테스트, 보안 순차 검증."
+disable-model-invocation: true
 ---
 
 # 검증 루프 스킬

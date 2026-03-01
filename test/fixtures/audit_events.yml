@@ -1,0 +1,2 @@
+# Audit events are created by services, not fixtures.
+# Tests create them as needed.

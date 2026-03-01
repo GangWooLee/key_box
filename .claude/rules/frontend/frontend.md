@@ -1,3 +1,10 @@
+---
+paths:
+  - "app/views/**"
+  - "app/javascript/**"
+  - "app/assets/**"
+---
+
 # 프론트엔드 — Stimulus · 접근성 · 디자인 · Tailwind
 
 ## Stimulus 컨트롤러 내부 구조 (순서 규칙)

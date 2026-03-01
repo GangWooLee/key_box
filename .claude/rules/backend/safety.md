@@ -1,3 +1,11 @@
+---
+paths:
+  - "app/models/**"
+  - "app/controllers/**"
+  - "app/services/**"
+  - "db/migrate/**"
+---
+
 # 안전 · 보안 규칙 — 안티패턴 방지 + OWASP 기반
 
 ## SQL Injection 방지
