@@ -1,9 +1,0 @@
-alice_personal:
-  user: one
-  vault: personal_one
-  role: 0
-
-bob_personal:
-  user: two
-  vault: personal_two
-  role: 0
