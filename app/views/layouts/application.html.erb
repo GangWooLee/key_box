@@ -34,10 +34,15 @@
     <%= javascript_importmap_tags %>
   </head>
 
-  <body class="h-full bg-[var(--surface-secondary)] text-[var(--text-primary)] antialiased">
-    <% if logged_in? %>
+  <body class="h-full bg-[var(--surface-secondary)] text-[var(--text-primary)] antialiased"
+        <% if vault_unlocked? %>
+          data-controller="auto-lock"
+          data-auto-lock-lock-path-value="<%= lock_path %>"
+          data-auto-lock-timeout-value="900000"
+        <% end %>>
+    <% if vault_unlocked? %>
       <nav class="bg-[var(--surface-primary)] border-b border-[var(--border-primary)]">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="max-w-app mx-auto px-4 sm:px-6 lg:px-8">
           <div class="flex justify-between items-center h-14">
             <div class="flex items-center gap-3">
               <%= link_to root_path, class: "flex items-center gap-2 text-[var(--text-primary)] font-semibold text-lg" do %>
@@ -56,9 +61,11 @@
                   <%= lucide_icon(:moon, size: 4, data: { theme_target: "darkIcon" }) %>
                 </button>
               </div>
-              <span class="text-sm text-[var(--text-secondary)]"><%= current_user.email %></span>
-              <%= button_to "Log out", logout_path, method: :delete,
-                class: "text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-2 py-1" %>
+              <%= button_to lock_path, method: :delete,
+                class: "flex items-center gap-1.5 text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors px-2 py-1" do %>
+                <%= lucide_icon(:lock, size: 4) %>
+                Lock
+              <% end %>
             </div>
           </div>
         </div>
@@ -66,7 +73,7 @@
     <% end %>
 
     <% if flash[:notice] %>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div class="max-w-app mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div class="rounded-lg bg-brand-50 dark:bg-brand-900/20 p-4 border border-brand-200 dark:border-brand-800/30" role="alert">
           <p class="text-sm text-brand-800 dark:text-brand-200"><%= flash[:notice] %></p>
         </div>
@@ -74,7 +81,7 @@
     <% end %>
 
     <% if flash[:alert] %>
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+      <div class="max-w-app mx-auto px-4 sm:px-6 lg:px-8 mt-4">
         <div class="rounded-lg bg-red-50 dark:bg-red-900/20 p-4 border border-red-200 dark:border-red-800" role="alert">
           <p class="text-sm text-red-800 dark:text-red-300"><%= flash[:alert] %></p>
         </div>
@@ -85,7 +92,7 @@
       <%= yield %>
     </main>
 
-    <% if logged_in? %>
+    <% if vault_unlocked? %>
       <%= render "shared/command_palette" %>
     <% end %>
   </body>

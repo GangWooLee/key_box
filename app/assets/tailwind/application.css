@@ -24,6 +24,25 @@
   /* Shadows */
   --shadow-card: 0 1px 3px rgba(0,0,0,0.12);
   --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.15);
+
+  /* Layout — synced with .pen design sizes */
+  --width-sidebar: 240px;
+  --width-list: 320px;
+  --max-width-app: 1440px;
+  --max-width-modal-lg: 800px;
+  --max-width-modal-md: 480px;
+  --max-width-modal-sm: 360px;
+}
+
+/* Layout reference tokens — .pen ↔ code bridge */
+:root {
+  --layout-max-width: 1440px;
+  --layout-nav-height: 56px;
+  --layout-sidebar-width: 240px;
+  --layout-list-width: 320px;
+  --modal-lg: 800px;
+  --modal-md: 480px;
+  --modal-sm: 360px;
 }
 
 /* Semantic color tokens — light/dark adaptive */
