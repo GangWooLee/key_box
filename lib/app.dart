@@ -2,13 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'features/auth/domain/auth_notifier.dart';
 
-class KeyBoxApp extends ConsumerWidget {
+class KeyBoxApp extends ConsumerStatefulWidget {
   const KeyBoxApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = createRouter();
+  ConsumerState<KeyBoxApp> createState() => _KeyBoxAppState();
+}
+
+class _KeyBoxAppState extends ConsumerState<KeyBoxApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Initialize auth state on app start
+    Future.microtask(() => ref.read(authProvider.notifier).initialize());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
       title: 'KeyBox',
