@@ -35,6 +35,7 @@ class SecretList extends ConsumerWidget {
                     final secret = secrets[index];
                     final isSelected = secret.id == selectedId;
                     return _TableRow(
+                      key: ValueKey(secret.id),
                       secret: secret,
                       index: index,
                       isSelected: isSelected,
@@ -66,7 +67,7 @@ class _TableHeader extends StatelessWidget {
     final headerColor = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
 
     return Container(
-      height: 40,
+      height: 36,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkTableHeaderBg : Colors.transparent,
         border: Border(
@@ -107,6 +108,7 @@ class _TableHeader extends StatelessWidget {
 
 class _TableRow extends StatelessWidget {
   const _TableRow({
+    super.key,
     required this.secret,
     required this.index,
     required this.isSelected,
@@ -140,7 +142,7 @@ class _TableRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Container(
-          height: 44,
+          height: 40,
           decoration: BoxDecoration(
             color: isSelected
                 ? (isDark ? AppColors.darkTableRowSelected : AppColors.brand50)
@@ -257,7 +259,7 @@ class _BottomBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Container(
-      height: 48,
+      height: 40,
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkBottomBarBg : Colors.transparent,
         border: Border(
