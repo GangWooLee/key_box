@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/database.dart';
 import '../../../core/encryption/secret_encryption_service.dart';
 import '../../../core/utils/result.dart';
+import '../../../services/clipboard_service.dart';
 import '../../auth/domain/auth_notifier.dart';
 import '../../auth/domain/auth_state.dart';
 
@@ -15,6 +16,24 @@ final foldersProvider = StreamProvider<List<Folder>>((ref) {
   final db = ref.read(databaseProvider);
   return db.folderDao.watchByVaultId(auth.vaultId);
 });
+
+/// Root folders (parentId == null) for the current vault.
+final rootFoldersProvider = StreamProvider<List<Folder>>((ref) {
+  final auth = ref.watch(authProvider);
+  if (auth is! AuthUnlocked) return const Stream.empty();
+  final db = ref.read(databaseProvider);
+  return db.folderDao.watchRootFolders(auth.vaultId);
+});
+
+/// Children of a specific folder.
+final folderChildrenProvider =
+    StreamProvider.family<List<Folder>, int>((ref, parentId) {
+  final db = ref.read(databaseProvider);
+  return db.folderDao.watchChildren(parentId);
+});
+
+/// UI state: set of expanded folder IDs in the sidebar tree.
+final expandedFolderIdsProvider = StateProvider<Set<int>>((ref) => {});
 
 final selectedFolderIdProvider = StateProvider<int?>((ref) => null);
 
@@ -100,8 +119,37 @@ final categoryCountsProvider = Provider<Map<SecretCategory, int>>((ref) {
   );
 });
 
-/// Filtered secrets based on selected category + service.
+/// Folder IDs linked to a secret (M:N via join table).
+final folderIdsBySecretProvider =
+    FutureProvider.autoDispose.family<List<int>, int>((ref, secretId) {
+  final db = ref.read(databaseProvider);
+  return db.folderSecretsDao.getFolderIdsBySecretId(secretId);
+});
+
+/// Secrets for the currently selected folder (M:N via join table).
+final folderSecretsProvider =
+    StreamProvider.family<List<Secret>, int>((ref, folderId) {
+  final db = ref.read(databaseProvider);
+  return db.folderSecretsDao.watchSecretsByFolderId(folderId);
+});
+
+/// Filtered secrets based on selected category + service OR folder.
+/// Folder selection takes priority — when a folder is selected, category
+/// and service filters are ignored.
 final filteredSecretsProvider = Provider<List<Secret>>((ref) {
+  final selectedFolder = ref.watch(selectedFolderIdProvider);
+
+  // Folder mode: use M:N join table
+  if (selectedFolder != null) {
+    final folderSecrets = ref.watch(folderSecretsProvider(selectedFolder));
+    return folderSecrets.when(
+      data: (secrets) => secrets,
+      loading: () => [],
+      error: (_, __) => [],
+    );
+  }
+
+  // Category/service mode: existing logic
   final secretsAsync = ref.watch(secretsProvider);
   final category = ref.watch(selectedCategoryProvider);
   final service = ref.watch(selectedServiceProvider);
@@ -119,6 +167,18 @@ final filteredSecretsProvider = Provider<List<Secret>>((ref) {
   );
 });
 
+// ─── Secret detail (single secret by ID, cached) ───
+
+final secretDetailProvider =
+    FutureProvider.autoDispose.family<Secret?, int>((ref, id) {
+  final db = ref.read(databaseProvider);
+  return db.secretDao.getById(id);
+});
+
+// ─── Sidebar collapse state ───
+
+final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
+
 // ─── Command Palette visibility ───
 
 final showCommandPaletteProvider = StateProvider<bool>((ref) => false);
@@ -134,6 +194,14 @@ final searchResultsProvider = FutureProvider<List<Secret>>((ref) async {
   if (query.trim().isEmpty) return [];
   final db = ref.read(databaseProvider);
   return db.secretDao.search(auth.vaultId, query.trim());
+});
+
+// ─── Clipboard ───
+
+final clipboardServiceProvider = Provider<ClipboardService>((ref) {
+  final service = ClipboardService();
+  ref.onDispose(() => service.dispose());
+  return service;
 });
 
 // ─── Secret operations ───
@@ -175,6 +243,8 @@ class SecretOperations {
         tags: tags,
       );
 
+      // M:N: auto-link to the home folder
+      await _db.folderSecretsDao.link(folderId, secret.id);
       await _db.folderDao.incrementSecretsCount(folderId);
       await _logAudit('secret.create', secret.id, {'name': name});
 
@@ -239,12 +309,36 @@ class SecretOperations {
 
   Future<Result<void>> delete(Secret secret) async {
     try {
+      // M:N: remove all folder links first
+      await _db.folderSecretsDao.unlinkAllForSecret(secret.id);
       await _db.secretDao.deleteSecret(secret.id);
       await _db.folderDao.decrementSecretsCount(secret.folderId);
       await _logAudit('secret.delete', null, {'name': secret.name});
       return const Success(null);
     } catch (e) {
       return Failure('Failed to delete: $e');
+    }
+  }
+
+  /// Link a secret to an additional folder.
+  Future<Result<void>> linkToFolder(int secretId, int folderId) async {
+    try {
+      await _db.folderSecretsDao.link(folderId, secretId);
+      await _logAudit('secret.link', secretId, {'folderId': folderId});
+      return const Success(null);
+    } catch (e) {
+      return Failure('Failed to link: $e');
+    }
+  }
+
+  /// Remove a secret's link to a folder.
+  Future<Result<void>> unlinkFromFolder(int secretId, int folderId) async {
+    try {
+      await _db.folderSecretsDao.unlink(folderId, secretId);
+      await _logAudit('secret.unlink', secretId, {'folderId': folderId});
+      return const Success(null);
+    } catch (e) {
+      return Failure('Failed to unlink: $e');
     }
   }
 

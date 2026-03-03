@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/router/route_names.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/typography.dart';
-import '../../../../core/theme/theme_provider.dart';
 import '../../domain/secrets_providers.dart';
+import 'folder_tree.dart';
 
 class Sidebar extends ConsumerWidget {
   const Sidebar({super.key});
@@ -19,9 +18,12 @@ class Sidebar extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        // Traffic light safe area + collapse button
+        _SidebarHeader(isDark: isDark),
+
         // Search Bar
         Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
           child: _SearchBar(isDark: isDark),
         ),
 
@@ -37,18 +39,55 @@ class Sidebar extends ConsumerWidget {
           ),
         ),
 
-        // Services
+        // Folder Tree
         Expanded(
-          child: _ServiceSection(isDark: isDark),
+          child: FolderTree(isDark: isDark),
         ),
-
-        // Bottom actions
-        Divider(
-          height: 1,
-          color: isDark ? AppColors.darkDividerSubtle : theme.dividerColor,
-        ),
-        _BottomActions(isDark: isDark),
       ],
+    );
+  }
+}
+
+// ─── Sidebar Header (traffic light area + collapse button) ───
+
+class _SidebarHeader extends ConsumerWidget {
+  const _SidebarHeader({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SizedBox(
+      height: AppConstants.trafficLightInset,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Row(
+          children: [
+            // Left ~70px reserved for traffic light buttons
+            const SizedBox(width: 70),
+            const Spacer(),
+            // Collapse sidebar button
+            Tooltip(
+              message: 'Hide sidebar',
+              child: InkWell(
+                onTap: () {
+                  ref.read(sidebarCollapsedProvider.notifier).state = true;
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    LucideIcons.panelLeftClose,
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.lightTextTertiary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -66,10 +105,10 @@ class _SearchBar extends ConsumerWidget {
         ref.read(showCommandPaletteProvider.notifier).state = true;
       },
       child: Container(
-        height: 36,
+        height: 32,
         decoration: BoxDecoration(
           color: isDark ? AppColors.darkSidebarSearchBg : Colors.white,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
           border: Border.all(
             color: isDark
                 ? AppColors.darkSidebarSearchStroke
@@ -84,7 +123,7 @@ class _SearchBar extends ConsumerWidget {
               size: 14,
               color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Search secrets...',
@@ -116,7 +155,6 @@ class _SearchBar extends ConsumerWidget {
       ),
     );
   }
-
 }
 
 // ─── Category Section ───
@@ -154,6 +192,7 @@ class _CategorySection extends ConsumerWidget {
             onTap: () {
               ref.read(selectedCategoryProvider.notifier).state = cat;
               ref.read(selectedServiceProvider.notifier).state = null;
+              ref.read(selectedFolderIdProvider.notifier).state = null;
               ref.read(selectedSecretIdProvider.notifier).state = null;
             },
           );
@@ -238,216 +277,6 @@ class _CategoryItem extends StatelessWidget {
                 ),
               ],
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Service Section ───
-
-class _ServiceSection extends ConsumerWidget {
-  const _ServiceSection({required this.isDark});
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final services = ref.watch(serviceListProvider);
-    final selectedService = ref.watch(selectedServiceProvider);
-
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 8, 8, 6),
-            child: Text(
-              'SERVICES',
-              style: AppTypography.sectionHeader.copyWith(
-                color: isDark ? AppColors.brand500 : AppColors.brand600,
-              ),
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: services.length,
-              padding: EdgeInsets.zero,
-              itemBuilder: (context, index) {
-                final svc = services[index];
-                final isActive = svc.name == selectedService;
-                return _ServiceItem(
-                  name: svc.name,
-                  count: svc.count,
-                  isActive: isActive,
-                  isDark: isDark,
-                  onTap: () {
-                    ref.read(selectedServiceProvider.notifier).state =
-                        isActive ? null : svc.name;
-                    ref.read(selectedSecretIdProvider.notifier).state = null;
-                  },
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ServiceItem extends StatelessWidget {
-  const _ServiceItem({
-    required this.name,
-    required this.count,
-    required this.isActive,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  final String name;
-  final int count;
-  final bool isActive;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final dotColor = AppColors.serviceDotColor(name);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
-          child: Container(
-            height: 30,
-            decoration: BoxDecoration(
-              color: isActive
-                  ? (isDark ? AppColors.darkCategoryActive : AppColors.brand50)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Row(
-              children: [
-                Container(
-                  width: 8,
-                  height: 8,
-                  decoration: BoxDecoration(
-                    color: dotColor,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    name,
-                    style: AppTypography.bodySmall.copyWith(
-                      fontSize: 13,
-                      color: isActive
-                          ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                          : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Text(
-                  '$count',
-                  style: AppTypography.caption.copyWith(
-                    color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
-                    fontSize: 11,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Bottom Actions ───
-
-class _BottomActions extends ConsumerWidget {
-  const _BottomActions({required this.isDark});
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(themeModeProvider);
-
-    final (icon, label) = switch (mode) {
-      ThemeMode.system => (LucideIcons.sunMoon, 'System'),
-      ThemeMode.light => (LucideIcons.sun, 'Light'),
-      ThemeMode.dark => (LucideIcons.moon, 'Dark'),
-    };
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      child: Column(
-        children: [
-          _BottomActionItem(
-            icon: LucideIcons.scrollText,
-            label: 'Audit Log',
-            isDark: isDark,
-            onTap: () => context.goNamed(RouteNames.auditLog),
-          ),
-          _BottomActionItem(
-            icon: icon,
-            label: label,
-            isDark: isDark,
-            onTap: () => ref.read(themeModeProvider.notifier).cycle(),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BottomActionItem extends StatelessWidget {
-  const _BottomActionItem({
-    required this.icon,
-    required this.label,
-    required this.isDark,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final bool isDark;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(6),
-        child: Container(
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                size: 14,
-                color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextSecondary,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: AppTypography.bodySmall.copyWith(
-                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                ),
-              ),
-            ],
           ),
         ),
       ),

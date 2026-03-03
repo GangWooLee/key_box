@@ -1,7 +1,12 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:window_manager/window_manager.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/colors.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/domain/auth_notifier.dart';
@@ -53,85 +58,158 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   Widget _buildLayout(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final collapsed = ref.watch(sidebarCollapsedProvider);
+    final sidebarWidth = collapsed ? 0.0 : AppConstants.sidebarWidth;
 
-    return FocusTraversalGroup(
-      policy: OrderedTraversalPolicy(),
-      child: Row(
-        children: [
-          // Sidebar — lightest in dark mode (200px fixed)
-          FocusTraversalOrder(
-            order: const NumericFocusOrder(1),
-            child: Semantics(
-              label: 'Navigation sidebar',
-              child: SizedBox(
+    return Scaffold(
+      backgroundColor: isDark
+          ? AppColors.darkSurfacePrimary
+          : theme.scaffoldBackgroundColor,
+      body: FocusTraversalGroup(
+        policy: OrderedTraversalPolicy(),
+        child: Stack(
+          children: [
+            // ─── Main content (padded for sidebar + top bar) ───
+            AnimatedPadding(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              padding: EdgeInsets.only(
+                left: sidebarWidth,
+                top: AppConstants.topBarHeight,
+              ),
+              child: Row(
+                children: [
+                  // Table View — fluid middle column
+                  Expanded(
+                    child: FocusTraversalOrder(
+                      order: const NumericFocusOrder(2),
+                      child: Semantics(
+                        label: 'Secret table',
+                        child: Container(
+                          color: isDark ? AppColors.darkSurfaceListTonal : null,
+                          child: const SecretList(),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Detail Panel — 340px fixed, gradient overlay
+                  FocusTraversalOrder(
+                    order: const NumericFocusOrder(3),
+                    child: Semantics(
+                      label: 'Secret details',
+                      child: SizedBox(
+                        width: AppConstants.detailPanelWidth,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color:
+                                isDark ? AppColors.darkSurfaceDetailTonal : null,
+                            gradient: isDark
+                                ? const LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: [
+                                      AppColors.darkDetailGradientStart,
+                                      AppColors.darkDetailGradientEnd,
+                                    ],
+                                  )
+                                : null,
+                            border: Border(
+                              left: BorderSide(
+                                color: isDark
+                                    ? AppColors.darkDetailLeftBorder
+                                    : theme.dividerColor,
+                              ),
+                            ),
+                          ),
+                          child: const SecretDetail(),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ─── Top bar (draggable title bar area) ───
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOutCubic,
+              left: sidebarWidth,
+              top: 0,
+              right: 0,
+              height: AppConstants.topBarHeight,
+              child: _TopBar(isDark: isDark),
+            ),
+
+            // ─── Translucent sidebar overlay ───
+            if (!collapsed)
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
                 width: AppConstants.sidebarWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark
-                        ? AppColors.darkSurfaceSidebarTonal
-                        : AppColors.lightSurfaceSidebar,
-                    border: Border(
-                      right: BorderSide(
-                        color: isDark
-                            ? AppColors.darkBorderSubtle
-                            : theme.dividerColor,
+                child: FocusTraversalOrder(
+                  order: const NumericFocusOrder(1),
+                  child: Semantics(
+                    label: 'Navigation sidebar',
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: isDark
+                            ? ImageFilter.blur(sigmaX: 20, sigmaY: 20)
+                            : ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? AppColors.darkGlassBg
+                                : AppColors.lightSurfaceSidebar,
+                            border: Border(
+                              right: BorderSide(
+                                color: isDark
+                                    ? AppColors.darkGlassBorder
+                                    : theme.dividerColor,
+                              ),
+                            ),
+                          ),
+                          child: const Sidebar(),
+                        ),
                       ),
                     ),
                   ),
-                  child: const Sidebar(),
                 ),
               ),
-            ),
-          ),
 
-          // Table View — fluid middle column
-          FocusTraversalOrder(
-            order: const NumericFocusOrder(2),
-            child: Semantics(
-              label: 'Secret table',
-              child: Expanded(
-                child: Container(
-                  color: isDark ? AppColors.darkSurfaceListTonal : null,
-                  child: const SecretList(),
-                ),
-              ),
-            ),
-          ),
-
-          // Detail Panel — 340px fixed, gradient overlay
-          FocusTraversalOrder(
-            order: const NumericFocusOrder(3),
-            child: Semantics(
-              label: 'Secret details',
-              child: SizedBox(
-                width: AppConstants.detailPanelWidth,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: isDark ? AppColors.darkSurfaceDetailTonal : null,
-                    gradient: isDark
-                        ? const LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              AppColors.darkDetailGradientStart,
-                              AppColors.darkDetailGradientEnd,
-                            ],
-                          )
-                        : null,
-                    border: Border(
-                      left: BorderSide(
-                        color: isDark
-                            ? AppColors.darkDetailLeftBorder
-                            : theme.dividerColor,
+            // ─── Sidebar expand button (when collapsed) ───
+            if (collapsed)
+              Positioned(
+                left: 8,
+                top: 8,
+                child: Tooltip(
+                  message: 'Show sidebar',
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        ref.read(sidebarCollapsedProvider.notifier).state =
+                            false;
+                      },
+                      borderRadius: BorderRadius.circular(4),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          LucideIcons.panelLeftOpen,
+                          size: 16,
+                          color: isDark
+                              ? AppColors.darkTextTertiary
+                              : AppColors.lightTextTertiary,
+                        ),
                       ),
                     ),
                   ),
-                  child: const SecretDetail(),
                 ),
               ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -154,13 +232,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               tween: Tween(begin: 0.95, end: 1.0),
               duration: const Duration(milliseconds: 150),
               curve: Curves.easeOutCubic,
-              builder: (context, scale, child) => Transform.scale(
-                scale: scale,
-                child: child,
-              ),
-              child: CommandPalette(
-                onClose: _closePalette,
-              ),
+              builder: (context, scale, child) =>
+                  Transform.scale(scale: scale, child: child),
+              child: CommandPalette(onClose: _closePalette),
             ),
           ),
         ),
@@ -194,16 +268,29 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       PlatformMenu(
         label: 'KeyBox',
         menus: [
-          PlatformMenuItem(
-            label: 'Lock Vault',
-            shortcut: const SingleActivator(LogicalKeyboardKey.keyL, meta: true),
-            onSelected: () => ref.read(authProvider.notifier).lock(),
+          PlatformMenuItemGroup(
+            members: [
+              PlatformMenuItem(
+                label: 'Lock Vault',
+                shortcut: const SingleActivator(
+                  LogicalKeyboardKey.keyL,
+                  meta: true,
+                ),
+                onSelected: () => ref.read(authProvider.notifier).lock(),
+              ),
+            ],
           ),
-          const PlatformMenuItemGroup(members: []),
-          PlatformMenuItem(
-            label: 'Quit KeyBox',
-            shortcut: const SingleActivator(LogicalKeyboardKey.keyQ, meta: true),
-            onSelected: () => SystemNavigator.pop(),
+          PlatformMenuItemGroup(
+            members: [
+              PlatformMenuItem(
+                label: 'Quit KeyBox',
+                shortcut: const SingleActivator(
+                  LogicalKeyboardKey.keyQ,
+                  meta: true,
+                ),
+                onSelected: () => SystemNavigator.pop(),
+              ),
+            ],
           ),
         ],
       ),
@@ -212,8 +299,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         menus: [
           PlatformMenuItem(
             label: 'Find...',
-            shortcut: const SingleActivator(LogicalKeyboardKey.keyK, meta: true),
-            onSelected: () => ref.read(showCommandPaletteProvider.notifier).state = true,
+            shortcut: const SingleActivator(
+              LogicalKeyboardKey.keyK,
+              meta: true,
+            ),
+            onSelected: () =>
+                ref.read(showCommandPaletteProvider.notifier).state = true,
           ),
         ],
       ),
@@ -224,21 +315,96 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             label: 'Theme',
             menus: [
               PlatformMenuItem(
-                label: 'System',
-                onSelected: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.system),
-              ),
-              PlatformMenuItem(
                 label: 'Light',
-                onSelected: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.light),
+                onSelected: () => ref
+                    .read(themeModeProvider.notifier)
+                    .setThemeMode(ThemeMode.light),
               ),
               PlatformMenuItem(
                 label: 'Dark',
-                onSelected: () => ref.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark),
+                onSelected: () => ref
+                    .read(themeModeProvider.notifier)
+                    .setThemeMode(ThemeMode.dark),
               ),
             ],
           ),
         ],
       ),
     ];
+  }
+}
+
+// ─── Top Bar (draggable, with action buttons) ───
+
+class _TopBar extends ConsumerWidget {
+  const _TopBar({required this.isDark});
+  final bool isDark;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+    final isCurrentlyDark = themeMode == ThemeMode.dark;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onPanStart: (_) => windowManager.startDragging(),
+      child: Container(
+        height: AppConstants.topBarHeight,
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+              color: isDark
+                  ? AppColors.darkDividerSubtle
+                  : AppColors.lightBorderSubtle,
+            ),
+          ),
+        ),
+        padding: const EdgeInsets.only(right: 12),
+        child: Row(
+          children: [
+            const Spacer(),
+            // Audit Log button
+            Tooltip(
+              message: 'Audit Log',
+              child: InkWell(
+                onTap: () => context.pushNamed(RouteNames.auditLog),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    LucideIcons.scrollText,
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.lightTextSecondary,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // Theme toggle button
+            Tooltip(
+              message: isCurrentlyDark
+                  ? 'Switch to light theme'
+                  : 'Switch to dark theme',
+              child: InkWell(
+                onTap: () => ref.read(themeModeProvider.notifier).toggle(),
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: Icon(
+                    isCurrentlyDark ? LucideIcons.moon : LucideIcons.sun,
+                    size: 16,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.lightTextSecondary,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
