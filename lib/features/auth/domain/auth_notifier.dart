@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/database.dart';
 import '../../../core/encryption/key_derivation_service.dart';
@@ -11,7 +12,9 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 });
 
 final databaseProvider = Provider<AppDatabase>((ref) {
-  return AppDatabase();
+  final db = AppDatabase();
+  ref.onDispose(() => db.close());
+  return db;
 });
 
 class AuthNotifier extends StateNotifier<AuthState> {
@@ -48,29 +51,39 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final mek = _mks.generateMasterKey();
     final wrappedMek = _mks.wrap(masterKey: mek, wrappingKey: pdk);
 
-    // Create vault + config + default folder in a batch
-    final vault = await _db.vaultDao.create(name: 'Personal');
-    await _db.vaultConfigDao.create(
-      vaultId: vault.id,
-      masterKeySalt: salt,
-      encryptedMasterKey: wrappedMek,
-      masterPasswordDigest: '', // No BCrypt in Flutter — we verify via unwrap
-    );
-    await _db.folderDao.create(
-      vaultId: vault.id,
-      name: 'General',
-      icon: 'folder',
-      position: 0,
-    );
+    if (kDebugMode) debugPrint('[Auth:setup] salt(${salt.length}B) wrappedMek(${wrappedMek.length}B)');
 
-    // Log setup event
-    await _db.auditEventDao.create(
-      vaultId: vault.id,
-      action: 'vault.setup',
-    );
+    // Create vault + config + default folder atomically
+    late int vaultId;
+    await _db.transaction(() async {
+      final vault = await _db.vaultDao.create(name: 'Personal');
+      vaultId = vault.id;
+      await _db.vaultConfigDao.create(
+        vaultId: vault.id,
+        masterKeySalt: salt,
+        encryptedMasterKey: wrappedMek,
+        masterPasswordDigest: '', // No BCrypt in Flutter — we verify via unwrap
+      );
+      await _db.folderDao.create(
+        vaultId: vault.id,
+        name: 'General',
+        icon: 'folder',
+        position: 0,
+      );
+      await _db.auditEventDao.create(
+        vaultId: vault.id,
+        action: 'vault.setup',
+      );
+    });
 
-    // Transition to unlocked
-    state = AuthUnlocked(masterEncryptionKey: mek, vaultId: vault.id);
+    if (kDebugMode) debugPrint('[Auth:setup] vault $vaultId created');
+
+    // Transition to unlocked (first setup → onboarding)
+    state = AuthUnlocked(
+      masterEncryptionKey: mek,
+      vaultId: vaultId,
+      isFirstSetup: true,
+    );
     return null; // success
   }
 
@@ -82,26 +95,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final config = await _db.vaultConfigDao.getByVaultId(vault.id);
     if (config == null) return 'No vault configuration found';
 
+    final storedSalt = Uint8List.fromList(config.masterKeySalt);
+    final storedEmk = Uint8List.fromList(config.encryptedMasterKey);
+
     // Derive PDK from password + stored salt
-    final pdk = _kds.deriveKey(
-      password: password,
-      salt: Uint8List.fromList(config.masterKeySalt),
-    );
+    final pdk = _kds.deriveKey(password: password, salt: storedSalt);
 
     // Try to unwrap MEK — if it fails, password was wrong
-    final mek = _mks.unwrap(
-      wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
-      wrappingKey: pdk,
-    );
+    final mek = _mks.unwrap(wrappedKey: storedEmk, wrappingKey: pdk);
 
-    if (mek == null) return 'Incorrect password';
-
+    if (mek == null) {
+      if (kDebugMode) debugPrint('[Auth:unlock] unwrap failed');
+      return 'Incorrect password';
+    }
     state = AuthUnlocked(masterEncryptionKey: mek, vaultId: vault.id);
     return null; // success
+  }
+
+  /// Finish onboarding — transition from first-setup to normal unlocked.
+  void completeOnboarding() {
+    final current = state;
+    if (current is AuthUnlocked && current.isFirstSetup) {
+      state = AuthUnlocked(
+        masterEncryptionKey: current.masterEncryptionKey,
+        vaultId: current.vaultId,
+      );
+    }
   }
 
   /// Lock the vault — clear MEK from memory.
   void lock() {
     state = const AuthLocked();
+  }
+
+  /// DEV ONLY: Wipe all vault data and return to first-run state.
+  Future<void> resetAndReinitialize() async {
+    await _db.resetVault();
+    state = const AuthFirstRun();
   }
 }

@@ -18,21 +18,110 @@ final foldersProvider = StreamProvider<List<Folder>>((ref) {
 
 final selectedFolderIdProvider = StateProvider<int?>((ref) => null);
 
-// ─── Secret list provider ───
+// ─── Secret list provider (original folder-based — retained for data layer) ───
 
 final secretsProvider = StreamProvider<List<Secret>>((ref) {
   final auth = ref.watch(authProvider);
   if (auth is! AuthUnlocked) return const Stream.empty();
   final db = ref.read(databaseProvider);
-  final folderId = ref.watch(selectedFolderIdProvider);
 
-  if (folderId == null) {
-    return db.secretDao.watchByFolderId(-1); // empty
-  }
-  return db.secretDao.watchByFolderId(folderId);
+  // Use vault-wide stream for category/service filtering
+  return db.secretDao.watchByVaultId(auth.vaultId);
 });
 
 final selectedSecretIdProvider = StateProvider<int?>((ref) => null);
+
+// ─── Category / Service filtering (V8 sidebar) ───
+
+enum SecretCategory {
+  all('All Keys'),
+  apiKey('API Keys'),
+  token('Tokens'),
+  password('Passwords'),
+  certificate('Certificates');
+
+  const SecretCategory(this.label);
+  final String label;
+
+  /// Matches against the secret_type column values.
+  bool matches(String secretType) {
+    return switch (this) {
+      SecretCategory.all => true,
+      SecretCategory.apiKey => secretType == 'api_key',
+      SecretCategory.token => secretType == 'token',
+      SecretCategory.password => secretType == 'password',
+      SecretCategory.certificate =>
+        secretType == 'certificate' || secretType == 'ssh_key',
+    };
+  }
+}
+
+final selectedCategoryProvider = StateProvider<SecretCategory>(
+  (ref) => SecretCategory.all,
+);
+
+final selectedServiceProvider = StateProvider<String?>((ref) => null);
+
+/// Aggregated service list with counts, derived from all vault secrets.
+final serviceListProvider = Provider<List<({String name, int count})>>((ref) {
+  final secretsAsync = ref.watch(secretsProvider);
+  return secretsAsync.when(
+    data: (secrets) {
+      final map = <String, int>{};
+      for (final s in secrets) {
+        if (s.serviceName != null && s.serviceName!.isNotEmpty) {
+          map[s.serviceName!] = (map[s.serviceName!] ?? 0) + 1;
+        }
+      }
+      final list = map.entries
+          .map((e) => (name: e.key, count: e.value))
+          .toList()
+        ..sort((a, b) => b.count.compareTo(a.count));
+      return list;
+    },
+    loading: () => [],
+    error: (_, __) => [],
+  );
+});
+
+/// Category counts derived from all vault secrets.
+final categoryCountsProvider = Provider<Map<SecretCategory, int>>((ref) {
+  final secretsAsync = ref.watch(secretsProvider);
+  return secretsAsync.when(
+    data: (secrets) {
+      final counts = <SecretCategory, int>{};
+      for (final cat in SecretCategory.values) {
+        counts[cat] = secrets.where((s) => cat.matches(s.secretType)).length;
+      }
+      return counts;
+    },
+    loading: () => {},
+    error: (_, __) => {},
+  );
+});
+
+/// Filtered secrets based on selected category + service.
+final filteredSecretsProvider = Provider<List<Secret>>((ref) {
+  final secretsAsync = ref.watch(secretsProvider);
+  final category = ref.watch(selectedCategoryProvider);
+  final service = ref.watch(selectedServiceProvider);
+
+  return secretsAsync.when(
+    data: (secrets) {
+      var result = secrets.where((s) => category.matches(s.secretType));
+      if (service != null) {
+        result = result.where((s) => s.serviceName == service);
+      }
+      return result.toList();
+    },
+    loading: () => [],
+    error: (_, __) => [],
+  );
+});
+
+// ─── Command Palette visibility ───
+
+final showCommandPaletteProvider = StateProvider<bool>((ref) => false);
 
 // ─── Search ───
 

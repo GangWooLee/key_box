@@ -25,12 +25,16 @@ class AuditEventDao extends DatabaseAccessor<AppDatabase>
     ));
   }
 
-  Future<List<AuditEvent>> getPage(int vaultId, {int page = 0}) {
+  Future<List<AuditEvent>> getPage(
+    int vaultId, {
+    int page = 0,
+    int? limit,
+  }) {
+    final pageSize = limit ?? AppConstants.auditPageSize;
     return (select(auditEvents)
           ..where((t) => t.vaultId.equals(vaultId))
           ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
-          ..limit(AppConstants.auditPageSize,
-              offset: page * AppConstants.auditPageSize))
+          ..limit(pageSize, offset: page * pageSize))
         .get();
   }
 
