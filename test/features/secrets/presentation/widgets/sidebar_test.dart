@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:key_box/core/constants/app_constants.dart';
 import 'package:key_box/core/database/database.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/features/secrets/domain/secrets_providers.dart';
 import 'package:key_box/features/secrets/presentation/widgets/sidebar.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../helpers/widget_test_helpers.dart';
 
@@ -46,33 +45,34 @@ void main() {
   }
 
   group('Sidebar', () {
-    group('header', () {
-      testWidgets('renders sidebar header with traffic light inset height',
+    group('structure', () {
+      testWidgets('renders search bar placeholder', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(),
+          overrides: sidebarOverrides(),
+        );
+
+        expect(find.text('Search secrets...'), findsOneWidget);
+      });
+
+      testWidgets('renders ⌘K badge', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(),
+          overrides: sidebarOverrides(),
+        );
+
+        expect(find.text('\u2318K'), findsOneWidget);
+      });
+
+      testWidgets('renders collapse button with Hide sidebar tooltip',
           (tester) async {
         await tester.pumpProviderWidget(
           const Sidebar(),
           overrides: sidebarOverrides(),
         );
 
-        // The header SizedBox should have trafficLightInset height
-        final sizedBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
-        final headerBox = sizedBoxes.where(
-          (sb) => sb.height == AppConstants.trafficLightInset,
-        );
-        expect(headerBox, isNotEmpty,
-            reason: 'Should have a SizedBox with trafficLightInset height');
-      });
-
-      testWidgets('renders collapse button with tooltip', (tester) async {
-        await tester.pumpProviderWidget(
-          const Sidebar(),
-          overrides: sidebarOverrides(),
-        );
-
-        expect(
-          find.byTooltip('Hide sidebar'),
-          findsOneWidget,
-        );
+        expect(find.byTooltip('Hide sidebar'), findsOneWidget);
+        expect(find.byIcon(LucideIcons.panelLeftClose), findsOneWidget);
       });
 
       testWidgets('collapse button sets sidebarCollapsedProvider to true',
@@ -97,35 +97,6 @@ void main() {
         await tester.pump();
 
         expect(container.read(sidebarCollapsedProvider), isTrue);
-      });
-
-      testWidgets('renders panelLeftClose icon', (tester) async {
-        await tester.pumpProviderWidget(
-          const Sidebar(),
-          overrides: sidebarOverrides(),
-        );
-
-        expect(find.byIcon(LucideIcons.panelLeftClose), findsOneWidget);
-      });
-    });
-
-    group('structure', () {
-      testWidgets('renders search bar placeholder', (tester) async {
-        await tester.pumpProviderWidget(
-          const Sidebar(),
-          overrides: sidebarOverrides(),
-        );
-
-        expect(find.text('Search secrets...'), findsOneWidget);
-      });
-
-      testWidgets('renders ⌘K badge', (tester) async {
-        await tester.pumpProviderWidget(
-          const Sidebar(),
-          overrides: sidebarOverrides(),
-        );
-
-        expect(find.text('\u2318K'), findsOneWidget);
       });
     });
 
@@ -211,6 +182,104 @@ void main() {
 
         expect(find.text('FOLDERS'), findsOneWidget);
         expect(find.text('No folders yet'), findsOneWidget);
+      });
+    });
+
+    group('collapsed mode (icon rail)', () {
+      testWidgets('renders expand button with Show sidebar tooltip',
+          (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(collapsed: true),
+          overrides: sidebarOverrides(sidebarCollapsed: true),
+        );
+
+        expect(find.byTooltip('Show sidebar'), findsOneWidget);
+        expect(find.byIcon(LucideIcons.panelLeftOpen), findsOneWidget);
+      });
+
+      testWidgets('renders 5 category icon tooltips', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(collapsed: true),
+          overrides: sidebarOverrides(sidebarCollapsed: true),
+        );
+
+        for (final cat in SecretCategory.values) {
+          expect(find.byTooltip(cat.label), findsOneWidget);
+        }
+      });
+
+      testWidgets('does not render category labels', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(collapsed: true),
+          overrides: sidebarOverrides(sidebarCollapsed: true),
+        );
+
+        // Text labels should not appear in collapsed mode
+        for (final cat in SecretCategory.values) {
+          expect(find.text(cat.label), findsNothing);
+        }
+      });
+
+      testWidgets('active category icon has active background', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(collapsed: true),
+          overrides: sidebarOverrides(
+            sidebarCollapsed: true,
+            selectedCategory: SecretCategory.apiKey,
+          ),
+        );
+
+        // The API Keys tooltip should be present
+        expect(find.byTooltip('API Keys'), findsOneWidget);
+      });
+
+      testWidgets('icon tap updates selectedCategoryProvider', (tester) async {
+        late ProviderContainer container;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: sidebarOverrides(sidebarCollapsed: true),
+            child: Builder(builder: (context) {
+              return Consumer(builder: (context, ref, _) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  theme: ThemeData.dark(),
+                  home: const Scaffold(body: Sidebar(collapsed: true)),
+                );
+              });
+            }),
+          ),
+        );
+
+        // Tap the Tokens category icon (via tooltip)
+        await tester.tap(find.byTooltip('Tokens'));
+        await tester.pump();
+
+        expect(
+            container.read(selectedCategoryProvider), SecretCategory.token);
+      });
+
+      testWidgets('expand button sets sidebarCollapsed to false',
+          (tester) async {
+        late ProviderContainer container;
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: sidebarOverrides(sidebarCollapsed: true),
+            child: Builder(builder: (context) {
+              return Consumer(builder: (context, ref, _) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  theme: ThemeData.dark(),
+                  home: const Scaffold(body: Sidebar(collapsed: true)),
+                );
+              });
+            }),
+          ),
+        );
+
+        await tester.tap(find.byTooltip('Show sidebar'));
+        await tester.pump();
+
+        expect(container.read(sidebarCollapsedProvider), isFalse);
       });
     });
 
