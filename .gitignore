@@ -52,3 +52,12 @@ docs/.obsidian/
 
 # Skill scripts cache
 .claude/skills/ui-ux-pro-max/scripts/__pycache__/
+
+# 시크릿 매니저 방어선 — 실 DB·키 재료가 리포에 절대 못 들어오게 (실 DB는 Application Support에 있지만 방어적 차단)
+*.db
+*.sqlite
+*.sqlite3
+*.sqlcipher
+*.keychain
+*.pem
+*.p12

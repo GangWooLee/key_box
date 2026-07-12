@@ -1,0 +1,19 @@
+# 기계적 개발 규율 게이트(git 계층). 설치: `lefthook install` (bin/setup 없음 — 수동 1회).
+# 우회(escape hatch): `git <cmd> --no-verify` 또는 `LEFTHOOK=0 git <cmd>`.
+pre-commit:
+  parallel: true
+  commands:
+    dart-format:
+      glob: "*.dart"
+      run: dart format --set-exit-if-changed {staged_files}
+    analyze:
+      glob: "*.dart"
+      run: flutter analyze
+commit-msg:
+  commands:
+    claude-trailers:
+      run: .lefthook/commit-msg-trailers {1}
+pre-push:
+  commands:
+    tests:
+      run: flutter test

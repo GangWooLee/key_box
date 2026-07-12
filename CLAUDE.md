@@ -1,9 +1,104 @@
 # key_box
 
 ## Project Overview
-- **Project**: key_box
-- **Framework**: Ruby on Rails
-- **Language**: Ruby, JavaScript (Stimulus), HTML (ERB), CSS (Tailwind)
+- **Project**: key_box — Secure secrets manager for macOS
+- **Framework**: Flutter 3.41.2 (macOS Desktop)
+- **Language**: Dart
+- **State Management**: Riverpod (StateNotifier + sealed classes)
+- **Database**: Drift + SQLCipher (AES-256 encrypted SQLite)
+- **Encryption**: AES-256-GCM + PBKDF2 (pointycastle)
+- **Router**: GoRouter with redirect guards
+- **UI**: Material 3 + lucide_icons + custom AppTheme (dark olive palette)
+
+---
+
+## AI 개발 도구 스택 (2026-07 COOA 정본 이식 — 이 절이 라우팅 정본)
+
+> 아래 표가 단계별 정본(canonical)이다. 이 문서 하단의 구세대 프레임워크 절(Agent Roles 14종 ·
+> 자체 /plan·/tdd·/verify 등 커맨드 10종 · Development Workflow 의사결정 트리 · Agent Teams)은
+> **deprecated — 참고용으로만 남긴다.** 상충 시 이 절이 이긴다.
+
+| 단계 | 정본 | 스킬/커맨드 |
+|---|---|---|
+| 도전·요구분석 / 계획 / 리뷰 / 실앱QA / 배포 | **gstack** | `/office-hours`·`/spec` / `/autoplan`·`/plan-eng-review` / `/review`·`/codex` / `/qa`·`/investigate` / `/ship` |
+| 코드 장인 규율(TDD·디버깅·완료전검증) | **superpowers** | test-driven-development · systematic-debugging · verification-before-completion |
+| 학습 축적 | **compound-engineering** | `/ce-compound` → `docs/solutions/` |
+| 디자인 | **Figma + shadcn MCP + ui-ux-pro-max** | 신규 디자인=Figma MCP(figma-* 스킬)·컴포넌트=shadcn MCP·추론=ui-ux-pro-max. `key_box_pensil.pen`·docs/design-system은 V8 참조 아카이브(편집 안 함) |
+| 단순화 | code-simplifier | — |
+
+- **정본 규칙**: brainstorm/plan/review는 gstack이 정본. 예외 — TDD·디버깅·검증=superpowers, 학습기록=compound. 중복 loop 스킬(ce-plan·ce-brainstorm 등)은 미사용(컨텍스트 비대 방지).
+- **precedence(key_box가 항상 이김)**: 외부 도구 지시가 key_box 규율과 상충하면 key_box 우선. 진실원천 = 이 문서의 Safety·Gotchas·`.claude/rules/`(flutter)·커버리지 타깃.
+- **미니멀리즘**: 코드 쓰기 전 사다리 — ①필요한가(생략) ②코드베이스에 있나(재사용) ③표준/네이티브 ④한 줄이면 한 줄 ⑤아니면 최소. 단 **암호화·검증·보안·접근성은 삭제 금지**(시크릿 매니저 도메인).
+- **디자인 스코핑**: 새 팔레트/스타일 생성 금지 — 기존 V8 토큰(warm-olive dark, primary `#283618`) 안에서만. 신규 디자인 작업은 Figma MCP로. `key_box_pensil.pen`은 참조 전용 아카이브(Pencil MCP 전역 해제됨 2026-07-12).
+- **학습 저장소 구분**: `docs/solutions/`(compound — 리포 커밋 엔지니어링 교훈) ↔ 세션 메모리(개인 컨텍스트).
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing app behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship
+- Author a backlog-ready spec/issue → invoke /spec
+- TDD/debugging/verification → superpowers skills (test-driven-development, systematic-debugging, verification-before-completion)
+- Record engineering lessons → invoke /ce-compound (→ docs/solutions/)
+
+## 작업 수행 원칙 (2026-07 COOA 이식)
+
+### 모델 역할 분담: Advisor / Worker
+
+> **적용 조건 — 메인 세션 모델이 Fable일 때만.** 메인이 Opus(또는 그 외)면 이 절을 무시하고
+> 메인 세션이 구현을 직접 수행하라. 위임의 유일한 목적은 희소한 Fable 한도 절약이다.
+
+분담 축 = **작업의 성격**. 깊은 사고를 요하는 일(설계·분석)은 Fable, 깊은 생각이 불요하고 분량만 많은 노동은 Opus.
+
+**Fable(깊은 사고·소분량) — 메인 세션이 직접 수행:**
+- 요구사항 분석, 작업 분해, **설계·분석·계획 수립 자체** — 탐색 워커가 모아준 사실 위에서 메인이 직접 설계한다. 설계/계획을 opus 에이전트에 통째 위임 금지.
+- Worker 브리프 작성 · 결과 판정·발견 합성(diff 직접 확인·테스트 직접 실행) · 최종 커밋 승인 · 사용자 보고
+
+**Opus(대량 노동·깊은 생각 불요) — `model:"opus"` + `effort:"xhigh"|"max"` 명시 위임:**
+- 코드 작성·수정, 테스트 작성, 리서치/탐색·자료 수집, 리뷰 파인더, 검증 실행·재현
+- **하네스 함정**: 서브에이전트·워크플로 `agent()`는 model 미지정 시 메인 모델(Fable)을 상속한다 — 모든 위임 호출에 명시하라
+- 서로 독립적인 작업은 병렬로 위임한다
+
+**브리프 기준:**
+- Advisor가 이미 파악한 컨텍스트를 브리프에 동봉해 Worker가 재탐색하지 않게 하라 (브리프 품질이 전부다)
+- 파일 경로, 프로젝트 컨벤션, 완료 기준(통과해야 할 게이트)을 포함하라
+- key_box 특유 함정을 해당 시 명시: `flutter test` 동시 실행 금지(SQLite BusyException — 한 번에 하나) · Drift 스키마 변경 후 `dart run build_runner build --delete-conflicting-outputs` · `pumpAndSettle()`은 무한 애니메이션에서 타임아웃 · sqlcipher/sqlite3 flutter_libs 동시 사용 금지
+
+**경계:**
+- **Worker의 완료 보고를 그대로 믿지 마라.** Advisor가 diff와 테스트로 직접 확인한 뒤 승인하라. "이탈 없음" 보고와 실제 diff가 다른 사례가 실재한다.
+- 검증 실패는 수정 브리프로 재위임하라. 직접 수정은 사소한 마무리에만 허용된다
+- 한두 줄 수정·즉답 조회처럼 위임 오버헤드가 더 큰 작업은 직접 처리해도 된다
+
+### 검증 규율 — "테스트 그린 ≠ 앱 작동"
+
+- DoD(완료 기준) = `dart analyze` 0건 + `flutter test` 전건 green + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` 성공. 테스트가 못 보는 결함(네이티브 의존·entitlements·창 관리)은 실빌드가 잡는다.
+- 증거 없이 완료 선언 금지 — 진실원천은 `.claude/rules/common/verification-discipline.md`(자동 로드). 이 절은 포인터다.
+- 게이트를 새로 만들면 **뮤테이션으로 실증하라**: 결함을 일부러 주입해 게이트가 RED가 되는 것을 확인한 뒤 채택한다(통과만 확인한 게이트는 장식이다).
+
+### git 규율
+
+- **커밋·푸시는 사용자가 명시 지시할 때만.** Claude 커밋은 트레일러 2종(Co-Authored-By·Claude-Session)을 함께 동봉 — commit-msg 훅이 완전성을 강제한다.
+- 훅 우회(`--no-verify`)는 동등한 검증을 로컬에서 직접 완주했을 때만 쓰고, GHA 서버측 결과로 이중 확인하라.
+- 대규모 미커밋 WIP가 있으면 새 작업 변경과 얽지 마라 — 추가형 파일로 분리하고 커밋 단위를 사용자가 고를 수 있게 하라.
+
+### 판단·보고 원칙
+
+- **기계적 정합 금지**: 주변과 맞춘다는 이유만으로 편집하지 마라. 논리적으로 옳고 최적일 때만 편집한다.
+- 서브에이전트가 준 줄번호·수치·주장은 직접 검증 후 사용한다.
+- **정직 보고**: 실패는 출력과 함께 실패라고, 생략은 생략이라고 말한다. 문서·README의 현재 상태 서술은 과장 없이 사실만(정직 배너 문화 — 한계를 아는 것이 읽기의 출발점).
+
+### 문서 원칙 — 포인터, 복제 금지
+
+- CLAUDE.md는 네비게이션이다. 상세 규율의 진실원천은 `.claude/rules/`·`docs/`의 해당 파일이며, **내용을 여기에 복제하지 마라**(이중화가 드리프트를 낳는다). 새 규율이 생기면 진실원천 파일을 만들고 여기엔 포인터만 추가한다.
 
 ---
 
@@ -14,17 +109,16 @@
 ```
 CLAUDE.md (진입점, 항상 로드)
 │
-├── Rules (10개, 자동 로드) ─── 필수 준수 규칙 (간결, 원칙 중심)
-│   ├── backend/   architecture.md, model-and-errors.md, safety.md
-│   ├── frontend/  frontend.md
+├── Rules (9개, 자동 로드) ─── 필수 준수 규칙 (간결, 원칙 중심)
+│   ├── flutter/   architecture.md, widgets-and-state.md, safety.md
 │   ├── common/    code-standards.md, context-management.md,
 │   │              git-workflow.md, skill-enforcement.md, verification-discipline.md
 │   └── testing/   testing.md
 │
 ├── Standards (3개, 수동 참조) ─── 상세 구현 패턴 (코드 예시 풍부)
-│   ├── rails-backend.md        # 백엔드 상세 패턴
-│   ├── tailwind-frontend.md    # Tailwind/Stimulus 상세 패턴
-│   └── testing.md              # 테스트 상세 패턴
+│   ├── flutter-architecture.md   # Riverpod, Drift, GoRouter, 암호화 패턴
+│   ├── flutter-widgets.md        # 위젯, 테마, 폼, 접근성, macOS 특화
+│   └── flutter-testing.md        # flutter_test, mocktail, ProviderContainer
 │
 ├── Agents (14개) ─── 전문가 역할 (Task tool로 호출)
 │   ├── quality/   code-review-expert, security-expert,
@@ -35,7 +129,7 @@ CLAUDE.md (진입점, 항상 로드)
 │   └── business/  market-researcher, product-manager, designer,
 │                  backend-ops, qa-engineer, marketer, data-analyst
 │
-├── Skills (19개 커스텀 + 외부) ─── 실행 가능 스킬 (키워드 자동 감지)
+├── Skills (19+ 커스텀 + 7 Flutter + 외부) ─── 실행 가능 스킬
 │   └── See `.claude/skills/README.md`
 │
 ├── Workflows (5개) ─── 팀 작업 템플릿
@@ -51,9 +145,10 @@ CLAUDE.md (진입점, 항상 로드)
 
 ### Rules 조건부 로딩 (paths)
 
-도메인별 rules는 `paths:` frontmatter로 조건부 로딩됨. 해당 파일 작업 시에만 활성화되어 컨텍스트 효율 향상:
-- `backend/*.md` → `app/models/**`, `app/controllers/**`, `app/services/**`, `db/migrate/**`
-- `frontend/frontend.md` → `app/views/**`, `app/javascript/**`, `app/assets/**`
+도메인별 rules는 `paths:` frontmatter로 조건부 로딩됨:
+- `flutter/architecture.md` → `lib/core/**`, `lib/features/**`, `lib/services/**`
+- `flutter/widgets-and-state.md` → `lib/features/**/presentation/**`, `lib/features/**/domain/**`
+- `flutter/safety.md` → `lib/**`
 - `testing/testing.md` → `test/**`
 - `common/*.md` → paths 없이 항상 로드 (모든 파일에 적용)
 
@@ -65,16 +160,17 @@ CLAUDE.md (진입점, 항상 로드)
 | **분량** | 간결 (원칙 중심) | 상세 (코드 예시 풍부) |
 | **역할** | "반드시 따라야 하는 핵심 원칙" | "구현 시 참조하는 상세 패턴" |
 | **충돌 시** | **Rules 우선** | Standards는 Rules에 종속 |
-| **파일 수** | 10개 (총 ~1,500줄) | 3개 (총 ~1,900줄) |
 
 **Standards 참조 시점**:
-- `rails-backend.md` → 모델, 컨트롤러, 서비스 작성 시
-- `tailwind-frontend.md` → UI 컴포넌트, Stimulus 컨트롤러 작성 시
-- `testing.md` → 테스트 스위트 작성 시
+- `flutter-architecture.md` → Provider, Drift DAO, GoRouter, 암호화 구현 시
+- `flutter-widgets.md` → 화면, 위젯, 테마, 폼, macOS 특화 작업 시
+- `flutter-testing.md` → 테스트 스위트 작성 시
 
 ---
 
 ## Development Workflow — 의사결정 트리
+
+> ⚠️ **Deprecated (2026-07)** — 라우팅 정본은 상단 "AI 개발 도구 스택" 절. 이 절은 참고용.
 
 ### 작업 시작 시 판단 흐름
 
@@ -89,7 +185,7 @@ CLAUDE.md (진입점, 항상 로드)
 │   ├── 명확한 원인 → bugfix 스킬
 │   └── 복잡/3회 실패 → parallel-debugging 스킬
 ├── 리팩토링? → code-review → 수정 → /verify
-├── UI 작업? → ui-ux-pro-max + ui-component
+├── UI 작업? → flutter-expert + flutter-adaptive-ui
 └── PR 준비? → /verify (full) → commit → PR
     ↓
 [도메인 감지] → 해당 Standard 자동 READ (도메인별 자동 라우팅 테이블 참조)
@@ -107,10 +203,12 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ### Commands Quick Reference
 
+> ⚠️ **Deprecated (2026-07)** — 라우팅 정본은 상단 "AI 개발 도구 스택" 절. 이 절은 참고용.
+
 ```
 /plan          — 기능 계획 수립 (Manus 스타일 파일 기반)
 /tdd           — TDD 워크플로우 (RED → GREEN → REFACTOR)
-/verify        — 6단계 검증 (빌드, 린트, 테스트, 보안)
+/verify        — 5단계 검증 (빌드, 분석, 테스트, 품질, Git)
 /checkpoint    — 진행 상태 저장/검증/조회
 /update-docs   — 문서 동기화
 /wrap-up       — 작업 마무리 (교훈 추출 + 커밋)
@@ -124,74 +222,58 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ## Key Rules Summary (Always-Loaded)
 
-10개 Rules 파일의 핵심 요약. 상세 내용은 각 파일 참조.
+9개 Rules 파일의 핵심 요약. 상세 내용은 각 파일 참조.
 
-### Backend (architecture + model-and-errors + safety)
+### Flutter Architecture (architecture.md)
 
 **설계 패턴 선택**:
-- 컨트롤러 10줄+ → Service Object (`.call` + Result 객체)
-- 2+ 모델 동시 저장 → Form Object
-- 복합 쿼리 (JOIN, 3+ 조건) → Query Object
-- View 조건 분기 3+ → Presenter/Decorator
+- 복잡한 상태 전이 (3+ 상태) → StateNotifier + Sealed Class
+- 단순 on/off 상태 → StateProvider
+- DB CRUD 조합 → DAO 메서드 + FutureProvider
+- 위젯 80줄+ → 별도 위젯으로 추출
+- 3+ Provider 조합 → 중간 Provider로 합성
 
-**계층 분리**: Controller → Service → Model → DB. 의존성은 항상 안쪽(Model) 방향.
-- Controller: HTTP 파싱, 인증/인가, 응답 형식만
-- Service: 비즈니스 프로세스 조율, 트랜잭션
-- Model: 데이터 무결성, 유효성, 관계, 스코프만
+**계층 분리**: Presentation → Domain → Data. 의존성은 항상 안쪽(Data) 방향.
+- Presentation: UI 렌더링, 사용자 입력, 내비게이션
+- Domain: 비즈니스 상태 관리 (StateNotifier, Provider)
+- Data: DB 쿼리 (Drift DAO), 암호화 서비스
 
-**모델 규칙**:
-- 선언 순서: 상수 → Concerns → Associations → Validations → Callbacks → Scopes → Methods
-- `dependent:` 필수, 콜백 최대 3개 (데이터 무결성 관련만)
-- 길이 제한 필수 (`validates :bio, length: { maximum: 500 }`)
-- Enum: `prefix: true` 사용
+**Riverpod 규칙**:
+- `ref.watch()` in build, `ref.read()` in callbacks
+- build()에서 ref.read() 금지, 콜백에서 ref.watch() 금지
+- Provider 정의: `camelCase` + `Provider` 접미사
 
-**에러 처리**:
-- rescue는 실패 메서드 내부 (컨트롤러 액션 전체 감싸기 금지)
-- 구체적 예외만 rescue (bare `rescue => e` 금지)
-- 보조 데이터 실패 → 로그 + 계속, 핵심 데이터 실패 → 에러 표시
+### Widgets & State (widgets-and-state.md)
 
-**보안**:
-- SQL injection: 항상 파라미터화 쿼리, `params.permit!` 절대 금지
-- XSS: `raw`/`html_safe` 금지, `sanitize` 또는 자동 이스케이핑 사용
-- IDOR: `current_user.posts.find(params[:id])` — 소유권 확인 필수
-- N+1: `includes`/`joins` 필수, `User.all` 금지 (페이지네이션 필수)
-- 세션: 로그인 시 `reset_session` 필수 (Session Fixation 방지)
+**Widget 선택**: ConsumerWidget (상태 없음) vs ConsumerStatefulWidget (TextController, FocusNode 등)
+- `dispose()`에서 반드시 Controller/FocusNode/Timer cleanup
+- const 생성자 가능하면 항상 사용
+- Key: `ValueKey`/`ObjectKey` (인덱스 단독 금지)
+- `AsyncValue.when(data:, loading:, error:)` 패턴
+- 접근성: `Semantics`, `tooltip`, 터치 타겟 44x44
 
-### Frontend (frontend.md)
+### Safety (safety.md)
 
-**Stimulus**:
-- 1 컨트롤러 = 1 관심사, `disconnect()`에서 반드시 cleanup
-- 선언 순서: targets → values → classes → 상수 → 라이프사이클 → Actions → Callbacks → Private → Getters
-- 전역 변수 금지: `window.*` 대신 Stimulus values 사용
-- XSS: `innerHTML` 금지 → `textContent` 또는 Turbo Stream
-
-**접근성 (CRITICAL)**:
-- 터치 타겟 최소 44x44px, 모바일 본문 최소 16px
-- `aria-label` (아이콘 버튼), `for`/`id` (폼 라벨) 필수
-- 색상 대비: 일반 텍스트 4.5:1, 큰 텍스트 3:1
-- `focus-visible:ring-2` (포커스 링 제거 금지)
-
-**Tailwind**:
-- Mobile-first (`flex flex-col md:flex-row`)
-- `@apply` 금지, `dvh` (not `h-screen`), `size-6` (not `h-6 w-6`)
-- 간격: `space-y-N` 시리즈 (혼합 `mb-2`/`mb-4` 금지)
+- 마스터 키 메모리에만 보유, 디스크 저장 절대 금지
+- 복호화 값 로깅 금지 (`debugPrint`로 컨텍스트만)
+- Drift 파라미터화 쿼리만 (문자열 보간 SQL 금지)
+- 클립보드 30초 후 자동 삭제
+- `Uint8List` 민감 데이터 사용 후 0으로 덮어쓰기
 
 ### Testing (testing.md)
 
-- Minitest + fixtures, BCrypt `cost: 4` (테스트 속도)
-- 커버리지: 모델/인증 100%, 서비스/컨트롤러 80%, 시스템 테스트 60%
-- `sleep` 금지 → `wait:` 옵션 사용
-- ESC 키: `document.dispatchEvent` 사용 (`send_keys(:escape)` 금지)
-- Stimulus 타이밍: `assert_selector "[data-controller='x']", wait: 5`
-- Turbo Stream 후 요소 재참조 (Stale Element 방지)
+- `flutter_test` + `mocktail`, in-memory Drift DB
+- `ProviderContainer` + `overrides:` 패턴
+- Coverage: Encryption 100%, Auth 100%, Providers 80%, Widgets 60%
+- `pumpAndSettle()` 타임아웃 주의 (무한 애니메이션 = 타임아웃)
+- `sleep` 금지 → `pump()` / `pumpAndSettle()` 사용
 
 ### Common (code-standards + verification-discipline + skill-enforcement)
 
 **코드 품질**:
-- 메서드 20줄, 클래스 200줄, 조건문 깊이 3단계, 파라미터 4개 최대
+- 메서드 20줄, 클래스 200줄, 조건문 깊이 3단계, 파라미터 5개 최대
 - Early return 활용, Magic Number 금지 (상수 사용)
-- 디미터 법칙: 최대 1단계 체이닝 (`delegate` 활용)
-- 네이밍: `snake_case` 변수/메서드, `CamelCase` 클래스, 축약 금지
+- 네이밍: `camelCase` 변수/함수, `PascalCase` 클래스, `_` 접두사 private
 
 **검증 규율**:
 - 증거 없이 완료 선언 금지 (Evidence before claims, always)
@@ -204,54 +286,48 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ## Skill Routing Guide
 
+> ⚠️ **Deprecated (2026-07)** — 라우팅 정본은 상단 "AI 개발 도구 스택" 절. 이 절은 참고용.
+
 ### 작업 유형별 핵심 스킬
 
 | 작업 유형 | 필수 스킬 | 비고 |
 |----------|----------|------|
 | 새 기능 시작 | `/plan` | 5줄 이하 면제 |
-| 기능 구현 | `implement` (rails-resource, service-object 등) | Phase 0 설계 합의 필수 |
+| 기능 구현 | `implement` + `flutter-architecture` | Phase 0 설계 합의 필수 |
 | 버그 수정 | `bugfix` | 근본 원인 추적 의무 |
 | 리팩토링 | `code-review` → 수정 → `/verify` | |
-| 테스트 추가 | `/tdd` 또는 `test-gen` | RED→GREEN→REFACTOR |
-| UI 작업 | `ui-ux-pro-max` + `ui-component` | |
-| Rails 리소스 | `rails-resource` (자동 라우팅) | 모델/컨트롤러/뷰/테스트 |
+| 테스트 추가 | `/tdd` + `flutter-testing` | RED→GREEN→REFACTOR |
+| 위젯/UI | `flutter-expert` + `flutter-adaptive-ui` | |
+| Riverpod 상태 | `flutter-riverpod-expert` | Provider 패턴 준수 |
+| Drift DB | `dart-drift` | 테이블/DAO/마이그레이션 |
 | 보안 점검 | `security-audit` | PR 전 또는 주기적 |
-| PR 전 검증 | `/verify` (전체 6단계) | |
+| PR 전 검증 | `/verify` (전체 5단계) | |
 | 작업 완료 | `/wrap-up` | 교훈 추출 + 커밋 |
 
 ### 워크플로우별 스킬 조합
 
-**새 기능 개발**: `rails-resource` → `test-gen` → `stimulus-controller` → `ui-component` → `doc-sync`
+**새 기능 개발**: `flutter-architecture` → `dart-drift` → `flutter-riverpod-expert` → `flutter-testing` → `doc-sync`
 
-**코드 품질 검수**: `code-review` (통합) 또는 개별 (`security-audit` + `performance-check` + `database-maintenance`)
-
-**UI 개선**: `bridge` (UI 주석) → `ui-ux-pro-max` (디자인 시스템) → `ui-component` (컴포넌트)
+**코드 품질 검수**: `code-review` (통합) 또는 개별 (`security-audit` + `performance-check`)
 
 **팀 기반 개발**: `parallel-feature-development` + `dispatching-parallel-agents` + `team-communication-protocols`
 
-전체 스킬 목록 및 결정 가이드: `.claude/skills/README.md`
-
 ### 도메인별 자동 라우팅
-
-작업 유형 결정 후, 요청의 **도메인 키워드**를 감지하여 해당 도메인의 전체 툴킷을 활성화한다.
 
 | 도메인 | 감지 키워드 | 스킬 | 에이전트 | Standard (자동 READ) |
 |--------|-----------|------|---------|---------------------|
-| **Frontend** | UI, 화면, 컴포넌트, Stimulus, Tailwind, 접근성, 반응형, 디자인 | `ui-ux-pro-max` `ui-component` `stimulus-controller` | ui-ux-expert | `tailwind-frontend.md` |
-| **Backend** | 모델, 컨트롤러, 서비스, API, 마이그레이션, 라우트, 비즈니스 로직 | `rails-resource` `service-object` `query-object` `rails-dev` | planner, code-review-expert | `rails-backend.md` |
-| **Database** | 데이터베이스, DB, 쿼리, 인덱스, N+1, 트랜잭션, 성능 최적화 | `database-maintenance` `query-object` `performance-check` | data-integrity-expert, performance-expert | `rails-backend.md` |
-| **Security** | 보안, 취약점, XSS, CSRF, SQL injection, 인증, 인가 | `security-audit` | security-expert | `rails-backend.md` |
-| **Testing** | 테스트, 커버리지, TDD, fixture, 시스템 테스트 | `test-gen` `/tdd` | code-review-expert | `testing.md` |
-| **Quality** | 리뷰, 리팩토링, 코드 품질, 클린 코드 | `code-review` `performance-check` | code-review-expert, performance-expert | `rails-backend.md` |
-
-**적용 규칙**:
-1. 도메인 감지 시 → 해당 Standard 파일을 **즉시 READ**하여 상세 패턴 참조
-2. 복수 도메인 감지 시 (예: "모델 + 테스트") → 관련 Standard 모두 READ
-3. 에이전트는 팀 워크플로우 또는 리뷰 시 활성화 (단독 작업 시 선택적)
+| **Widget/UI** | 위젯, 화면, 스크린, UI, Theme, 접근성, 애니메이션 | `flutter-expert` `flutter-adaptive-ui` `flutter-animations` | ui-ux-expert | `flutter-widgets.md` |
+| **Architecture** | Provider, Notifier, 아키텍처, 상태관리, Riverpod, GoRouter | `flutter-architecture` `flutter-riverpod-expert` | planner, code-review-expert | `flutter-architecture.md` |
+| **Database** | Drift, DAO, 테이블, 쿼리, SQLCipher, 마이그레이션 | `dart-drift` | data-integrity-expert | `flutter-architecture.md` |
+| **Security** | 암호화, 보안, 마스터키, AES, 복호화, encryption | `security-audit` | security-expert | `flutter-architecture.md` |
+| **Testing** | 테스트, 커버리지, TDD, mocktail, flutter_test | `/tdd` `flutter-testing` | qa-engineer | `flutter-testing.md` |
+| **Performance** | 성능, 리빌드, const, select, 메모리 | `performance-check` | performance-expert | `flutter-architecture.md` |
 
 ---
 
 ## Agent Roles
+
+> ⚠️ **Deprecated (2026-07)** — 라우팅 정본은 상단 "AI 개발 도구 스택" 절. 이 절은 참고용. (14 에이전트 · Full Lifecycle Team 등 Agent Teams 관련 내용 포함)
 
 14개 전문가 에이전트. Task tool로 호출하여 병렬 리뷰 가능.
 
@@ -260,10 +336,10 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 | 에이전트 | 역할 | 팀 역할 | 핵심 관심사 |
 |---------|------|---------|-----------|
 | **code-review-expert** | 코드 품질 리뷰 | code-reviewer | 아키텍처, DRY, 복잡도 |
-| **security-expert** | 보안 취약점 분석 | security-reviewer | OWASP, SQL Injection, XSS, CSRF |
-| **data-integrity-expert** | 데이터 정합성 검증 | data-reviewer | Race Condition, 트랜잭션, 동시성 |
-| **performance-expert** | 성능 최적화 | performance-reviewer | N+1, 캐싱, 인덱스, 페이지네이션 |
-| **ui-ux-expert** | UI/UX 품질 | frontend-dev | 접근성, 터치, 반응형, Tailwind |
+| **security-expert** | 보안 취약점 분석 | security-reviewer | 암호화, SQLCipher, 키 관리 |
+| **data-integrity-expert** | 데이터 정합성 검증 | data-reviewer | Drift 트랜잭션, 스키마 무결성 |
+| **performance-expert** | 성능 최적화 | performance-reviewer | 위젯 리빌드, const, Riverpod select |
+| **ui-ux-expert** | UI/UX 품질 | frontend-dev | 접근성, Material 3, 애니메이션 |
 | **planner** | 기능 설계 | architect | 계획 수립, 리스크 평가 |
 | **doc-updater** | 문서 관리 | docs-writer | 코드맵, 문서-코드 동기화 |
 
@@ -307,6 +383,8 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ## Workflow Templates
 
+> ⚠️ **Deprecated (2026-07)** — 라우팅 정본은 상단 "AI 개발 도구 스택" 절. 이 절은 참고용.
+
 5개 워크플로우 템플릿. 팀 기반 작업 시 `.claude/workflows/` 참조.
 
 | 워크플로우 | 파일 | 사용 시점 |
@@ -340,113 +418,92 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 
 ## Quality Gates
 
+### 기계적 강제 — lefthook + GHA CI (2026-07)
+- **lefthook 하네스**(`lefthook.yml` · 설치 `lefthook install` 1회): pre-commit=`dart format --set-exit-if-changed`+`flutter analyze` / commit-msg=Claude 트레일러 완전성(`.lefthook/commit-msg-trailers`) / pre-push=`flutter test`. 우회 = `git <cmd> --no-verify` 또는 `LEFTHOOK=0 git <cmd>`.
+- **GHA CI**(`.github/workflows/ci.yml` · runs-on macos-14): push·PR마다 `flutter pub get → flutter analyze → flutter test`. 포맷 게이트는 CI에서 제외(현재 포맷 드리프트 — 적색 방지).
+
 ### Phase-Based TDD
 - 각 Phase는 독립적 RED/GREEN/REFACTOR 사이클
 - Phase 간 전환 시 Quality Gate 필수 통과
 - Quality Gate 실패 상태에서 다음 Phase 진행 금지
 
 ### Quality Gate (Phase 간 체크포인트)
-1. `bin/rails runner "puts 'OK'"` — 빌드 통과
-2. `bin/rails test` — 전체 테스트 통과
-3. `bundle exec rubocop` — 린트 통과
+1. `flutter build macos --debug` — 빌드 통과
+2. `flutter test` — 전체 테스트 통과
+3. `dart analyze` — 정적 분석 통과
 4. TDD 준수 — 테스트가 구현보다 먼저 작성됨
-5. 수동 테스트 — Phase 기능 동작 확인
 
 ### Test Coverage Targets
 | 영역 | 최소 커버리지 |
 |------|-------------|
-| 모델 (Validations/Associations) | 100% |
-| 인증/결제 | 100% |
-| 서비스 객체 | 80% |
-| 컨트롤러 | 80% |
-| 시스템 테스트 | 60% |
-
-### Risk-First Planning
-- 새 기능 계획 시 Risk Assessment 포함
-- Probability x Impact 매트릭스
-- Phase별 Rollback 전략 문서화
+| Encryption (core/encryption/) | 100% |
+| Auth (features/auth/domain/) | 100% |
+| Database (core/database/) | 80% |
+| Providers (features/*/domain/) | 80% |
+| Widgets (features/*/presentation/) | 60% |
+| Services (services/) | 70% |
 
 ---
 
 ## Development Environment
 
 ### Available Tools
-- **Agents** (14): code-review-expert, security-expert, data-integrity-expert, performance-expert, planner, ui-ux-expert, doc-updater + business/ (market-researcher, product-manager, designer, backend-ops, qa-engineer, marketer, data-analyst)
+- **Agents** (14): code-review-expert, security-expert, data-integrity-expert, performance-expert, planner, ui-ux-expert, doc-updater + business/ (7개)
 - **Commands** (10): /plan, /tdd, /verify, /checkpoint, /update-docs, /wrap-up, /skills-manage, /bridge, /verify-rules, /manage-rules
-- **Skills** (19+): See `.claude/skills/README.md` for full list
-- **Rules** (10): Backend (3), Frontend (1), Common (5), Testing (1)
-- **Standards** (3): rails-backend, tailwind-frontend, testing
+- **Skills** (26+): 7 Flutter (`flutter-expert`, `flutter-riverpod-expert`, `dart-drift`, `flutter-architecture`, `flutter-testing`, `flutter-adaptive-ui`, `flutter-animations`) + 19 기존
+- **Rules** (9): Flutter (3), Common (5), Testing (1)
+- **Standards** (3): flutter-architecture, flutter-widgets, flutter-testing
 - **Workflows** (5): feature-development, feature-dev-team, review-team, debugging-team, full-lifecycle-team
 
 ---
 
-## Gotchas — 자칫 실수할 수 있는 공식 문서 핵심 사항
+## Gotchas — Flutter 프로젝트 핵심 주의사항
+
+### Flutter/Dart 관련
+- **Drift 코드 생성**: 테이블/DAO 변경 후 `dart run build_runner build --delete-conflicting-outputs` 필수
+- **sqlcipher_flutter_libs vs sqlite3_flutter_libs**: 둘 다 SQLite 번들 → 충돌. SQLCipher 사용 시 `sqlite3_flutter_libs` 제거
+- **macOS deployment target**: Podfile + project.pbxproj 모두 일치 필수
+- **pointycastle GCM**: `getOutputSize()`는 최대 버퍼 크기. 실제 길이는 `processBytes() + doFinal()` 반환값 합
+- **pumpAndSettle 타임아웃**: 무한 애니메이션(CircularProgressIndicator) 있으면 타임아웃 → `pump()` 사용
 
 ### Hook 관련
 - **PreCompact는 차단 불가** — exit 2를 반환해도 압축은 진행됨. 저장만 가능
 - **Stop hook 무한루프** — Stop hook에서 도구를 호출하면 무한루프. `stop_hook_active` 가드 필수
 - **Hook exit code 의미**: 0=허용, 1=비차단 에러(경고만), 2=차단(PreToolUse만 유효)
-- **Hook 입력은 stdin JSON** — `jq -r '.tool_input.command'`로 파싱. `$1`이 아님
-- **PostToolUse matcher 문법** — `Edit|Write` (정규식), `Bash` (단일 도구명)
-
-### Permissions 관련
-- **`Read(.env)` 문법** — 파일 경로는 프로젝트 루트 기준 상대 경로
-- **deny > ask > allow** — 우선순위: deny가 최우선. 같은 패턴이 allow와 deny에 있으면 deny
-- **`settings.local.json`** — 프로젝트 설정보다 높은 우선순위. 반드시 `.gitignore`에 포함
+- **PostToolUse `Edit|Write` hook**: `.dart` 파일에서만 `dart fix --apply` 실행
 
 ### Agent/Skill 관련
-- **`permissionMode: plan`** — 에이전트가 read-only 모드로 시작. Edit/Write/Bash 불가
-- **`memory: project`** — 프로젝트별 영속 메모리. `.claude/memory/` 디렉토리에 저장
-- **`disable-model-invocation: true`** — AI가 자동으로 스킬 트리거하는 것 방지 (부작용 스킬용)
-- **`model: opus|sonnet|haiku`** — 명시하지 않으면 부모 모델 상속. 비용 관리에 중요
-- **`npx skills add` symlink 구조** — `.agents/skills/`가 원본, `.claude/skills/` 등은 symlink. 원본 디렉토리 삭제 시 모든 symlink 깨짐. 정리 시 반드시 원본→대상 복사 후 삭제
-
-### Context 관련
+- **`npx skills add` symlink 구조** — `.agents/skills/`가 원본, `.claude/skills/` 등은 symlink
 - **AUTOCOMPACT 80%** — 기본 95%보다 80%에서 시작하면 요약 품질이 향상
-- **SessionStart 4개 matcher** — `startup`, `resume`, `clear`, `compact`. 각각 다른 시점
-- **`/compact <지시>`** — 지시 없이 compact하면 중요 컨텍스트 유실 위험
+
+### Pencil (deprecated 2026-07-12 — 참조 전용)
+Pencil MCP는 전역 해제됨(`~/.claude.json`). `key_box_pensil.pen` + `docs/design-system/`은 V8 디자인 시스템 참조 아카이브로 **보존만**(편집 안 함). 신규 디자인은 Figma MCP 사용. (과거 Pencil 작업 교훈은 memory에 참조용으로 남김.)
 
 ---
 
 ## Context Management Best Practices (Anthropic 공식)
 
 - `/clear` — 무관한 작업 간 전환 시 컨텍스트 리셋
-- `/compact <지시>` — 특정 주제에 집중하여 압축 (예: `/compact API 변경에 집중`)
-- Subagent 활용 — 탐색/조사는 subagent에 위임하여 메인 컨텍스트 보존
+- `/compact <지시>` — 특정 주제에 집중하여 압축
+- Subagent 활용 — 탐색/조사는 subagent에 위임
 - 2회 이상 수정 실패 시 → `/clear` 후 더 구체적인 프롬프트로 재시작
-- Rules `paths:` — 도메인별 rules가 조건부 로딩되어 컨텍스트 효율 자동 최적화
 
 ---
 
-## Work Style & Session Rules (Insights 기반, 2026-03-01)
-
-130개 세션 분석에서 도출된 실증적 행동 규칙.
+## Work Style & Session Rules (Insights 기반)
 
 ### 세션 이어가기
-- 이전 세션/계획에서 이어질 때, 파일 재읽기/재계획/계획 모드 종료 시도 없이 **즉시 계획 실행 시작**
-- 진정으로 막힌 경우에만 명확화 요청
+- 이전 세션/계획에서 이어질 때, 파일 재읽기/재계획 없이 **즉시 계획 실행 시작**
 
 ### 작업 방식
-- 이슈를 **하나씩 세심하게** 처리. 모든 것을 한꺼번에 처리하려 하지 말 것
-- 하나의 변경 완료 → 검증 → 다음으로 이동
+- 이슈를 **하나씩 세심하게** 처리. 하나의 변경 완료 → 검증 → 다음으로 이동
 
 ### 계획 수립
-- 새 계획/디자인 방향 만들기 전에 **기존 계획 문서/디자인 문서/참조 자료 확인** (Obsidian vault, `docs/`, `planning/`)
-- 기존 계획을 따르고 새로 만들지 말 것
-
-### Pencil MCP 안전 수칙
-1. 색상 일괄 작업 후 **rgba/알파 보존 확인** (replace_all_matching_properties는 알파를 제거함)
-2. 변수 참조는 **Dark vs Light 모드에서 다르게 해석** — 화면 프레임에 테마 설정 확인
-3. 화면 누락 주장 전 **캔버스 위치 확인** (y=8700 같은 높은 오프셋일 수 있음)
+- 새 계획 전에 **기존 계획 문서/참조 자료 확인** (Obsidian vault, `docs/`)
 
 ### Shell/Bash 안전 수칙
-- 파일/디렉토리 삭제 시 먼저 **심링크가 가리키고 있는지 확인**
 - 심링크 의존성 확인 없이 `rm -rf` 금지
-- 여러 명령에 파이핑 전 `INPUT=$(cat)` 패턴으로 **stdin을 변수에 저장**
-
-### 설정/연동 작업
-- 수동 지시 대신 **설정 파일을 직접 조작**
-- 파일 복사만이 아닌 **End-to-End 작동 검증** 필수
+- `INPUT=$(cat)` 패턴으로 **stdin을 변수에 저장**
 
 ---
 
@@ -458,9 +515,8 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 ---
 
 ## Project-Specific Notes
-- bkit 플러그인 비활성화 (2026-02-23): 프로젝트 자체 프레임워크(agents/commands/skills/rules)와 충돌. `.claude/settings.json`에서 `false` 처리.
-- ui-ux-pro-max 도입 (2026-02-23): frontend-design 스킬 교체. BM25 검색 엔진 + 24 CSV 데이터셋 + 3 Python 스크립트. 소스: nextlevelbuilder/ui-ux-pro-max-skill.
-- Superpowers 참조 (2026-02-23): 신규 프로젝트에서 커스텀 프레임워크 구축 전 obra/superpowers 플러그인 권장. 설치: `/plugin marketplace add obra/superpowers-marketplace` → `/plugin install superpowers@superpowers-marketplace`.
-- find-skills 설치 (2026-02-24): skills.sh (Vercel Labs) 마켓플레이스 검색 스킬. 기존 skillsmp-search(SkillsMP 대상)와 공존. `npx skills add`는 5개 디렉토리에 동시 설치하나, `.claude/skills/`만 유지 (2026-02-26 정리 완료). **주의**: `.agents/`가 원본, 나머지는 symlink — 원본 삭제 시 전부 깨짐. 재설치 후 symlink→실제 파일 교체 필요. `skills-lock.json`은 스킬 버전 lock 파일로 반드시 커밋.
-- Obsidian MCP 연동 (2026-02-24): `claude-code-mcp` v1.1.8 (iansinnott) 플러그인으로 Obsidian vault 연결. SSE transport `http://localhost:22360/sse`. Vault: `key_box/docs/` (프로젝트 내부, 2026-02-26 이전). 도구 7개 (get_workspace_files, get_current_file, view, create, str_replace, insert, obsidian_api) 검증 완료. `.obsidian/workspace.json` 및 `plugins/*/data.json`은 `.gitignore` 처리.
-- Hook 안정성 강화 (2026-02-26): 5개 신규 hook 추가 (compact/PreCompact/Stop/Notification/PostToolUseFailure). stdin 소비 문제 발견 — `jq` 다중 호출 시 `INPUT=$(cat)` 패턴 필수. Read deny 규칙으로 시크릿 노출 차단. 에이전트 14개 전부 model 명시 (opus 5, sonnet 9). AUTOCOMPACT 80%.
+- Rails→Flutter 마이그레이션 완료 (2026-03-03): Phase 0-3 완료, 102+ 테스트 통과. `.claude/` 프레임워크 전체 Flutter용으로 전환.
+- Rails 아카이브: `.claude/rules/_archived-rails/`, `.claude/standards/_archived-rails/` — 참조용 보존
+- Flutter Skills 설치 (2026-03-03): 7개 Flutter 스킬 설치 (`flutter-expert`, `flutter-riverpod-expert`, `dart-drift`, `flutter-architecture`, `flutter-testing`, `flutter-adaptive-ui`, `flutter-animations`)
+- Obsidian MCP 연동: `claude-code-mcp` 플러그인. Vault: `key_box/docs/`
+- 디자인 정본 전환 (2026-07-12): Pencil MCP 전역 해제(`~/.claude.json` mcpServers + `~/.claude/settings.json` 권한) → **Figma + shadcn MCP + ui-ux-pro-max**. `key_box_pensil.pen`·`docs/design-system/`은 V8 참조 아카이브로 보존.

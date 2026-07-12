@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  analyze-and-test:
+    # 개발 플랫폼(macOS) 일치 — sqlcipher_flutter_libs 등 네이티브 의존 빌드 대비.
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze
+        run: flutter analyze
+
+      # NOTE: `dart format` 게이트는 CI에서 의도적으로 제외한다.
+      # 현재 53개 파일에 포맷 드리프트가 있어 도입 즉시 CI가 적색이 된다.
+      # 포맷은 로컬 lefthook pre-commit(dart format --set-exit-if-changed)이 점진 수렴시킨다.
+
+      - name: Test
+        run: flutter test
