@@ -8,17 +8,16 @@ part 'vault_dao.g.dart';
 class VaultDao extends DatabaseAccessor<AppDatabase> with _$VaultDaoMixin {
   VaultDao(super.db);
 
-  Future<Vault> create({
-    required String name,
-    String? description,
-  }) {
+  Future<Vault> create({required String name, String? description}) {
     final now = DateTime.now();
-    return into(vaults).insertReturning(VaultsCompanion.insert(
-      name: name,
-      description: Value(description),
-      createdAt: now,
-      updatedAt: now,
-    ));
+    return into(vaults).insertReturning(
+      VaultsCompanion.insert(
+        name: name,
+        description: Value(description),
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
   }
 
   Future<Vault?> getFirst() {

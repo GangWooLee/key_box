@@ -35,29 +35,35 @@ void main() {
           salt: kds.generateSalt(),
         );
 
-        final wrapped = service.wrap(
-          masterKey: mek,
-          wrappingKey: wrappingKey,
-        );
+        final wrapped = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
 
         // IV(12) + AuthTag(16) + Ciphertext(32) = 60
         expect(wrapped.length, equals(CryptoConstants.wrappedMekLength));
         expect(wrapped.length, equals(60));
       });
 
-      test('different wraps of same key produce different output (random IV)', () {
-        final mek = service.generateMasterKey();
-        final wrappingKey = kds.deriveKey(
-          password: 'testpassword',
-          salt: kds.generateSalt(),
-        );
+      test(
+        'different wraps of same key produce different output (random IV)',
+        () {
+          final mek = service.generateMasterKey();
+          final wrappingKey = kds.deriveKey(
+            password: 'testpassword',
+            salt: kds.generateSalt(),
+          );
 
-        final wrapped1 = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
-        final wrapped2 = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
+          final wrapped1 = service.wrap(
+            masterKey: mek,
+            wrappingKey: wrappingKey,
+          );
+          final wrapped2 = service.wrap(
+            masterKey: mek,
+            wrappingKey: wrappingKey,
+          );
 
-        // Different IVs → different wrapped outputs
-        expect(wrapped1, isNot(equals(wrapped2)));
-      });
+          // Different IVs → different wrapped outputs
+          expect(wrapped1, isNot(equals(wrapped2)));
+        },
+      );
     });
 
     group('unwrap', () {
@@ -127,24 +133,30 @@ void main() {
     });
 
     group('byte layout compatibility', () {
-      test('wrapped MEK has correct structure: IV(12) + AuthTag(16) + Ciphertext(32)', () {
-        final mek = service.generateMasterKey();
-        final wrappingKey = kds.deriveKey(
-          password: 'testpassword',
-          salt: kds.generateSalt(),
-        );
+      test(
+        'wrapped MEK has correct structure: IV(12) + AuthTag(16) + Ciphertext(32)',
+        () {
+          final mek = service.generateMasterKey();
+          final wrappingKey = kds.deriveKey(
+            password: 'testpassword',
+            salt: kds.generateSalt(),
+          );
 
-        final wrapped = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
+          final wrapped = service.wrap(
+            masterKey: mek,
+            wrappingKey: wrappingKey,
+          );
 
-        // Verify we can decompose the structure
-        final iv = wrapped.sublist(0, 12);
-        final authTag = wrapped.sublist(12, 28);
-        final ciphertext = wrapped.sublist(28, 60);
+          // Verify we can decompose the structure
+          final iv = wrapped.sublist(0, 12);
+          final authTag = wrapped.sublist(12, 28);
+          final ciphertext = wrapped.sublist(28, 60);
 
-        expect(iv.length, equals(12));
-        expect(authTag.length, equals(16));
-        expect(ciphertext.length, equals(32));
-      });
+          expect(iv.length, equals(12));
+          expect(authTag.length, equals(16));
+          expect(ciphertext.length, equals(32));
+        },
+      );
     });
 
     group('full flow integration', () {
@@ -154,7 +166,10 @@ void main() {
         const password = 'mypassword123';
         final wrappingKey = kds.deriveKey(password: password, salt: salt);
         final mek = service.generateMasterKey();
-        final wrappedMek = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
+        final wrappedMek = service.wrap(
+          masterKey: mek,
+          wrappingKey: wrappingKey,
+        );
 
         // Simulate app restart (only salt + wrappedMek persisted)
         // Unlock: re-derive wrapping key, unwrap
@@ -171,7 +186,10 @@ void main() {
         final salt = kds.generateSalt();
         final wrappingKey = kds.deriveKey(password: 'correct', salt: salt);
         final mek = service.generateMasterKey();
-        final wrappedMek = service.wrap(masterKey: mek, wrappingKey: wrappingKey);
+        final wrappedMek = service.wrap(
+          masterKey: mek,
+          wrappingKey: wrappingKey,
+        );
 
         // Try to unlock with wrong password
         final wrongKey = kds.deriveKey(password: 'wrongpass', salt: salt);

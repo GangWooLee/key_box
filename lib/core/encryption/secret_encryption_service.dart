@@ -24,10 +24,7 @@ class SecretEncryptionService {
   /// Encrypt a plaintext value using AES-256-GCM.
   ///
   /// Returns separate encrypted_value, iv, and auth_tag (matching Rails columns).
-  EncryptedSecret encrypt({
-    required String value,
-    required Uint8List key,
-  }) {
+  EncryptedSecret encrypt({required String value, required Uint8List key}) {
     final iv = secureRandomBytes(CryptoConstants.ivLength);
     final plaintext = Uint8List.fromList(utf8.encode(value));
 

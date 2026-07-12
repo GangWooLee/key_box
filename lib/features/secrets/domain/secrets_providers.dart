@@ -26,8 +26,10 @@ final rootFoldersProvider = StreamProvider<List<Folder>>((ref) {
 });
 
 /// Children of a specific folder.
-final folderChildrenProvider =
-    StreamProvider.family<List<Folder>, int>((ref, parentId) {
+final folderChildrenProvider = StreamProvider.family<List<Folder>, int>((
+  ref,
+  parentId,
+) {
   final db = ref.read(databaseProvider);
   return db.folderDao.watchChildren(parentId);
 });
@@ -92,10 +94,9 @@ final serviceListProvider = Provider<List<({String name, int count})>>((ref) {
           map[s.serviceName!] = (map[s.serviceName!] ?? 0) + 1;
         }
       }
-      final list = map.entries
-          .map((e) => (name: e.key, count: e.value))
-          .toList()
-        ..sort((a, b) => b.count.compareTo(a.count));
+      final list =
+          map.entries.map((e) => (name: e.key, count: e.value)).toList()
+            ..sort((a, b) => b.count.compareTo(a.count));
       return list;
     },
     loading: () => [],
@@ -120,15 +121,17 @@ final categoryCountsProvider = Provider<Map<SecretCategory, int>>((ref) {
 });
 
 /// Folder IDs linked to a secret (M:N via join table).
-final folderIdsBySecretProvider =
-    FutureProvider.autoDispose.family<List<int>, int>((ref, secretId) {
-  final db = ref.read(databaseProvider);
-  return db.folderSecretsDao.getFolderIdsBySecretId(secretId);
-});
+final folderIdsBySecretProvider = FutureProvider.autoDispose
+    .family<List<int>, int>((ref, secretId) {
+      final db = ref.read(databaseProvider);
+      return db.folderSecretsDao.getFolderIdsBySecretId(secretId);
+    });
 
 /// Secrets for the currently selected folder (M:N via join table).
-final folderSecretsProvider =
-    StreamProvider.family<List<Secret>, int>((ref, folderId) {
+final folderSecretsProvider = StreamProvider.family<List<Secret>, int>((
+  ref,
+  folderId,
+) {
   final db = ref.read(databaseProvider);
   return db.folderSecretsDao.watchSecretsByFolderId(folderId);
 });
@@ -169,8 +172,10 @@ final filteredSecretsProvider = Provider<List<Secret>>((ref) {
 
 // ─── Secret detail (single secret by ID, cached) ───
 
-final secretDetailProvider =
-    FutureProvider.autoDispose.family<Secret?, int>((ref, id) {
+final secretDetailProvider = FutureProvider.autoDispose.family<Secret?, int>((
+  ref,
+  id,
+) {
   final db = ref.read(databaseProvider);
   return db.secretDao.getById(id);
 });
@@ -227,7 +232,10 @@ class SecretOperations {
     String? tags,
   }) async {
     try {
-      final encrypted = _crypto.encrypt(value: value, key: _auth.masterEncryptionKey);
+      final encrypted = _crypto.encrypt(
+        value: value,
+        key: _auth.masterEncryptionKey,
+      );
 
       final secret = await _db.secretDao.create(
         vaultId: _auth.vaultId,
@@ -255,12 +263,14 @@ class SecretOperations {
   }
 
   Future<String?> decrypt(Secret secret) {
-    return Future.value(_crypto.decrypt(
-      encryptedValue: Uint8List.fromList(secret.encryptedValue),
-      iv: Uint8List.fromList(secret.encryptedValueIv),
-      authTag: Uint8List.fromList(secret.encryptedValueAuthTag),
-      key: _auth.masterEncryptionKey,
-    ));
+    return Future.value(
+      _crypto.decrypt(
+        encryptedValue: Uint8List.fromList(secret.encryptedValue),
+        iv: Uint8List.fromList(secret.encryptedValueIv),
+        authTag: Uint8List.fromList(secret.encryptedValueAuthTag),
+        key: _auth.masterEncryptionKey,
+      ),
+    );
   }
 
   Future<Result<void>> update(
@@ -280,7 +290,10 @@ class SecretOperations {
       Uint8List? authTag;
 
       if (value != null) {
-        final encrypted = _crypto.encrypt(value: value, key: _auth.masterEncryptionKey);
+        final encrypted = _crypto.encrypt(
+          value: value,
+          key: _auth.masterEncryptionKey,
+        );
         encryptedValue = encrypted.encryptedValue;
         iv = encrypted.iv;
         authTag = encrypted.authTag;
@@ -348,7 +361,11 @@ class SecretOperations {
     return decrypt(secret);
   }
 
-  Future<void> _logAudit(String action, int? secretId, Map<String, dynamic> meta) {
+  Future<void> _logAudit(
+    String action,
+    int? secretId,
+    Map<String, dynamic> meta,
+  ) {
     return _db.auditEventDao.create(
       vaultId: _auth.vaultId,
       action: action,

@@ -16,20 +16,18 @@ class AuditEventDao extends DatabaseAccessor<AppDatabase>
     int? secretId,
     String? metadata,
   }) {
-    return into(auditEvents).insertReturning(AuditEventsCompanion.insert(
-      vaultId: vaultId,
-      action: action,
-      secretId: Value(secretId),
-      metadata: Value(metadata),
-      createdAt: DateTime.now(),
-    ));
+    return into(auditEvents).insertReturning(
+      AuditEventsCompanion.insert(
+        vaultId: vaultId,
+        action: action,
+        secretId: Value(secretId),
+        metadata: Value(metadata),
+        createdAt: DateTime.now(),
+      ),
+    );
   }
 
-  Future<List<AuditEvent>> getPage(
-    int vaultId, {
-    int page = 0,
-    int? limit,
-  }) {
+  Future<List<AuditEvent>> getPage(int vaultId, {int page = 0, int? limit}) {
     final pageSize = limit ?? AppConstants.auditPageSize;
     return (select(auditEvents)
           ..where((t) => t.vaultId.equals(vaultId))

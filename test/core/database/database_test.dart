@@ -112,7 +112,10 @@ void main() {
         vaultId: vaultId,
         name: 'Old Name',
       );
-      final updated = await db.folderDao.updateFolder(folder.id, name: 'New Name');
+      final updated = await db.folderDao.updateFolder(
+        folder.id,
+        name: 'New Name',
+      );
       expect(updated, isTrue);
     });
 
@@ -134,7 +137,10 @@ void main() {
     setUp(() async {
       final vault = await db.vaultDao.create(name: 'Test');
       vaultId = vault.id;
-      final folder = await db.folderDao.create(vaultId: vaultId, name: 'General');
+      final folder = await db.folderDao.create(
+        vaultId: vaultId,
+        name: 'General',
+      );
       folderId = folder.id;
     });
 
@@ -263,10 +269,7 @@ void main() {
 
     test('getPage returns paginated results', () async {
       for (var i = 0; i < 5; i++) {
-        await db.auditEventDao.create(
-          vaultId: vaultId,
-          action: 'secret.read',
-        );
+        await db.auditEventDao.create(vaultId: vaultId, action: 'secret.read');
       }
 
       final page = await db.auditEventDao.getPage(vaultId);

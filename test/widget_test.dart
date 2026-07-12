@@ -4,9 +4,7 @@ import 'package:key_box/app.dart';
 
 void main() {
   testWidgets('KeyBoxApp renders without error', (tester) async {
-    await tester.pumpWidget(
-      const ProviderScope(child: KeyBoxApp()),
-    );
+    await tester.pumpWidget(const ProviderScope(child: KeyBoxApp()));
     // Just pump once — don't settle because auth init might not complete in test
     await tester.pump();
 

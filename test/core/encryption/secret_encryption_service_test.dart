@@ -163,24 +163,27 @@ MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWop5LMYf
     });
 
     group('integration with MasterKeyService', () {
-      test('full flow: derive key → generate MEK → wrap → unwrap → encrypt/decrypt secret', () {
-        // Simulate the full key hierarchy
-        final mek = mks.generateMasterKey();
+      test(
+        'full flow: derive key → generate MEK → wrap → unwrap → encrypt/decrypt secret',
+        () {
+          // Simulate the full key hierarchy
+          final mek = mks.generateMasterKey();
 
-        // Encrypt a secret with MEK
-        const secretValue = 'sk-proj-abc123def456';
-        final encrypted = service.encrypt(value: secretValue, key: mek);
+          // Encrypt a secret with MEK
+          const secretValue = 'sk-proj-abc123def456';
+          final encrypted = service.encrypt(value: secretValue, key: mek);
 
-        // Decrypt with the same MEK
-        final decrypted = service.decrypt(
-          encryptedValue: encrypted.encryptedValue,
-          iv: encrypted.iv,
-          authTag: encrypted.authTag,
-          key: mek,
-        );
+          // Decrypt with the same MEK
+          final decrypted = service.decrypt(
+            encryptedValue: encrypted.encryptedValue,
+            iv: encrypted.iv,
+            authTag: encrypted.authTag,
+            key: mek,
+          );
 
-        expect(decrypted, equals(secretValue));
-      });
+          expect(decrypted, equals(secretValue));
+        },
+      );
     });
   });
 }
