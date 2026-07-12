@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import '../constants/crypto_constants.dart';
 import '../encryption/key_derivation_service.dart';
+import '../encryption/key_hierarchy_service.dart';
 import '../encryption/master_key_service.dart';
 import '../encryption/secret_encryption_service.dart';
 
@@ -27,31 +28,42 @@ class VaultBackupRecord {
   final EncryptedSecret encrypted;
 }
 
-/// Backup / recovery net for the vault (PR-A).
+/// Backup / recovery net for the vault (PR-A, archive format v2 since PR-B).
 ///
 /// Provides verifiable integrity checks and export/import round-trips
 /// so a user can trust their data survives migration and disk failure.
 ///
-/// NOTE(PR-B/B2): this path is NOT AAD-bound. It operates on
-/// [EncryptedSecret] without record identity (id/recordVersion), so archives
-/// carry and verify empty-AAD ciphertext. Records written by the live app
-/// since schema v3 ARE AAD-bound and will not authenticate here — the
-/// archive format v2 update in B4 binds records and closes this gap.
+/// Archive record canonical form: EMPTY-AAD ciphertext under the MEK.
+/// Archives carry no row identity (ids change on restore), so per-record
+/// AAD binding does not apply here — producers holding AAD-bound rows (the
+/// plaintext→encrypted VaultMigrator) normalize by decrypt→re-encrypt before
+/// export, and the restore wiring re-binds AAD when inserting rows.
+///
+/// MEK wrap semantics by format version:
+/// - v2 (written today): `wrappedMek` is the MEK wrapped under the HKDF KEK
+///   derived from the PDK ([KeyHierarchyService.deriveKek]) — labelled by
+///   the `mekWrap` field.
+/// - v1 (legacy, import only): `wrappedMek` is wrapped under the raw PDK.
 class VaultBackupService {
   VaultBackupService({
     SecretEncryptionService? encryptionService,
     KeyDerivationService? keyDerivationService,
     MasterKeyService? masterKeyService,
+    KeyHierarchyService? keyHierarchyService,
   }) : _enc = encryptionService ?? SecretEncryptionService(),
        _kdf = keyDerivationService ?? KeyDerivationService(),
-       _mks = masterKeyService ?? MasterKeyService();
+       _mks = masterKeyService ?? MasterKeyService(),
+       _keyHierarchy = keyHierarchyService ?? KeyHierarchyService();
 
   final SecretEncryptionService _enc;
   final KeyDerivationService _kdf;
   final MasterKeyService _mks;
+  final KeyHierarchyService _keyHierarchy;
 
   static const String _archiveFormat = 'keybox-vault-archive';
-  static const int _archiveFormatVersion = 1;
+  static const int _archiveFormatVersion = 2;
+  static const int _legacyFormatVersion = 1;
+  static const String _mekWrapKekV1 = 'hkdf-kek-v1';
   static const String _kdfAlgorithm = 'PBKDF2-HMAC-SHA256';
   static const String _cipherAlgorithm = 'AES-256-GCM';
 
@@ -74,7 +86,11 @@ class VaultBackupService {
     return true;
   }
 
-  /// Serializes [records] into a versioned JSON vault archive (format v1).
+  /// Serializes [records] into a versioned JSON vault archive (format v2).
+  ///
+  /// [wrappedMek] MUST be the MEK wrapped under the HKDF KEK
+  /// ([KeyHierarchyService.deriveKek]) — v2 semantics; the raw-PDK wrap of
+  /// v1 is no longer written.
   ///
   /// Runs [verifyIntegrity] first and returns null if any record fails to
   /// authenticate under [mek] — a corrupt backup is never produced. On success
@@ -93,6 +109,7 @@ class VaultBackupService {
     return jsonEncode({
       'format': _archiveFormat,
       'formatVersion': _archiveFormatVersion,
+      'mekWrap': _mekWrapKekV1,
       'kdf': {
         'algorithm': _kdfAlgorithm,
         'iterations': CryptoConstants.pbkdf2Iterations,
@@ -114,11 +131,16 @@ class VaultBackupService {
   /// Parses a vault [archive] JSON, unwraps the MEK with [password], and
   /// re-encrypts every record under [destinationMek].
   ///
-  /// Returns null on any failure: malformed JSON, format/version mismatch, KDF
-  /// parameters diverging from [CryptoConstants], wrong password (unwrap null),
-  /// record-count mismatch, or a record failing GCM authentication. On success
-  /// each record is re-encrypted with a fresh IV under [destinationMek]
-  /// (plaintext-equivalent; ciphertext may differ from the original).
+  /// Format switch: v2 archives unwrap via the HKDF KEK derived from the
+  /// PDK; legacy v1 archives unwrap under the raw PDK (backward
+  /// compatibility). Unknown versions are rejected.
+  ///
+  /// Returns null on any failure: malformed JSON, format/version/mekWrap
+  /// mismatch, KDF parameters diverging from [CryptoConstants], wrong
+  /// password (unwrap null), record-count mismatch, or a record failing GCM
+  /// authentication. On success each record is re-encrypted with a fresh IV
+  /// under [destinationMek] (plaintext-equivalent; ciphertext may differ
+  /// from the original).
   List<VaultBackupRecord>? importArchive({
     required String archive,
     required String password,
@@ -129,17 +151,21 @@ class VaultBackupService {
     final body = _parseBinaryFields(json);
     if (body == null) return null;
     final (salt, wrappedMek, rawRecords) = body;
+    final isV2 = json['formatVersion'] == _archiveFormatVersion;
 
     Uint8List? pdk;
+    Uint8List? kek;
     Uint8List? sourceMek;
     try {
       pdk = _kdf.deriveKey(password: password, salt: salt);
-      sourceMek = _mks.unwrap(wrappedKey: wrappedMek, wrappingKey: pdk);
+      final wrappingKey = isV2 ? (kek = _keyHierarchy.deriveKek(pdk)) : pdk;
+      sourceMek = _mks.unwrap(wrappedKey: wrappedMek, wrappingKey: wrappingKey);
       if (sourceMek == null) return null;
       return _reencryptRecords(rawRecords, sourceMek, destinationMek);
     } finally {
       // Key material must not linger in memory (project security rule).
       if (pdk != null) _zeroOut(pdk);
+      if (kek != null) _zeroOut(kek);
       if (sourceMek != null) _zeroOut(sourceMek);
     }
   }
@@ -164,7 +190,15 @@ class VaultBackupService {
       return null;
     }
     if (json['format'] != _archiveFormat) return null;
-    if (json['formatVersion'] != _archiveFormatVersion) return null;
+    final version = json['formatVersion'];
+    if (version != _archiveFormatVersion && version != _legacyFormatVersion) {
+      return null;
+    }
+    // v2 must carry the known MEK-wrap label; anything else means an
+    // incompatible (or tampered) wrap scheme.
+    if (version == _archiveFormatVersion && json['mekWrap'] != _mekWrapKekV1) {
+      return null;
+    }
     if (!_isValidKdf(json['kdf'])) return null;
     return json;
   }

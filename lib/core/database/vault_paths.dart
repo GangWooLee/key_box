@@ -13,6 +13,20 @@ abstract final class VaultPaths {
   static const dbShmFileName = 'key_box.db-shm';
   static const sidecarFileName = 'key_box.vault.json';
 
+  // Plaintext→encrypted migration artifacts (VaultMigrator).
+  /// In-flight encrypted copy — incomplete or already swapped in, so always
+  /// safe to delete during interrupted-migration recovery.
+  static const dbMigratingFileName = 'key_box.db.migrating';
+
+  /// Plaintext source parked during the atomic swap — the rollback anchor
+  /// until final verification passes.
+  static const dbPreEncryptionFileName = 'key_box.db.pre-encryption';
+
+  /// Automatic pre-migration backup archive:
+  /// `key_box.backup-<epochSeconds>.kbx`.
+  static const backupFilePrefix = 'key_box.backup-';
+  static const backupFileSuffix = '.kbx';
+
   /// Injectable for tests; defaults to [getApplicationSupportDirectory].
   static Future<Directory> Function() supportDir = _defaultSupportDir;
 

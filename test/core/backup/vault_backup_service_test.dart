@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/backup/vault_backup_service.dart';
 import 'package:key_box/core/constants/crypto_constants.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
+import 'package:key_box/core/encryption/key_hierarchy_service.dart';
 import 'package:key_box/core/encryption/master_key_service.dart';
 import 'package:key_box/core/encryption/secret_encryption_service.dart';
 import 'package:pointycastle/export.dart';
@@ -45,7 +46,8 @@ VaultBackupRecord _record(
   );
 }
 
-/// Wraps [mek] under a KDF-derived key and exports the [records] archive.
+/// Wraps [mek] under the HKDF-KEK (v2 semantics) and exports the [records]
+/// archive.
 String _buildArchive({
   required VaultBackupService service,
   required KeyDerivationService kdf,
@@ -56,7 +58,8 @@ String _buildArchive({
 }) {
   final salt = Uint8List(32)..fillRange(0, 32, 3);
   final pdk = kdf.deriveKey(password: password, salt: salt);
-  final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: pdk);
+  final kek = KeyHierarchyService().deriveKek(pdk);
+  final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: kek);
   final archive = service.exportArchive(
     salt: salt,
     wrappedMek: wrappedMek,
@@ -64,6 +67,55 @@ String _buildArchive({
     mek: mek,
   );
   return archive!;
+}
+
+/// Builds a legacy v1 archive JSON by hand: `formatVersion: 1`, no `mekWrap`
+/// field, and the MEK wrapped directly under the raw PDK (pre-KEK semantics).
+/// This is the frozen backward-compatibility fixture — v1 archives in the
+/// wild must stay importable.
+String _buildLegacyV1Archive({
+  required KeyDerivationService kdf,
+  required MasterKeyService mks,
+  required SecretEncryptionService enc,
+  required String password,
+  required Uint8List mek,
+  required String plaintext,
+}) {
+  final salt = Uint8List(32)..fillRange(0, 32, 3);
+  final pdk = kdf.deriveKey(password: password, salt: salt);
+  final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: pdk);
+  final record = enc.encrypt(value: plaintext, key: mek);
+  return jsonEncode({
+    'format': 'keybox-vault-archive',
+    'formatVersion': 1,
+    'kdf': {
+      'algorithm': 'PBKDF2-HMAC-SHA256',
+      'iterations': CryptoConstants.pbkdf2Iterations,
+      'saltLength': CryptoConstants.saltLength,
+      'keyLength': CryptoConstants.keyLength,
+    },
+    'cipher': {
+      'algorithm': 'AES-256-GCM',
+      'ivLength': CryptoConstants.ivLength,
+      'authTagLength': CryptoConstants.authTagLength,
+    },
+    'salt': base64Encode(salt),
+    'wrappedMek': base64Encode(wrappedMek),
+    'recordCount': 1,
+    'records': [
+      {
+        'name': 'Legacy',
+        'secretType': 'apiKey',
+        'serviceName': null,
+        'environment': null,
+        'notes': null,
+        'tags': null,
+        'encryptedValue': base64Encode(record.encryptedValue),
+        'iv': base64Encode(record.iv),
+        'authTag': base64Encode(record.authTag),
+      },
+    ],
+  });
 }
 
 void main() {
@@ -110,11 +162,12 @@ void main() {
   });
 
   group('VaultBackupService.exportArchive', () {
-    test('returns archive JSON matching the v1 contract', () {
+    test('returns archive JSON matching the v2 contract '
+        '(formatVersion 2 + mekWrap label)', () {
       final mks = MasterKeyService();
       final salt = Uint8List(32)..fillRange(0, 32, 3);
-      final pdk = Uint8List(32)..fillRange(0, 32, 5);
-      final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: pdk);
+      final kek = Uint8List(32)..fillRange(0, 32, 5);
+      final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: kek);
       final records = [
         _record(
           enc,
@@ -135,7 +188,8 @@ void main() {
       expect(archive, isNotNull);
       final json = jsonDecode(archive!) as Map<String, dynamic>;
       expect(json['format'], 'keybox-vault-archive');
-      expect(json['formatVersion'], 1);
+      expect(json['formatVersion'], 2);
+      expect(json['mekWrap'], 'hkdf-kek-v1');
       expect(json['recordCount'], 1);
       expect(
         (json['kdf'] as Map)['iterations'],
@@ -354,7 +408,7 @@ void main() {
       );
     });
 
-    test('returns null on unsupported formatVersion (2)', () {
+    test('returns null on unknown formatVersion (3)', () {
       final archive = _buildArchive(
         service: fakeService,
         kdf: fakeKdf,
@@ -366,7 +420,7 @@ void main() {
         ],
       );
       final map = jsonDecode(archive) as Map<String, dynamic>;
-      map['formatVersion'] = 2;
+      map['formatVersion'] = 3;
       final tampered = jsonEncode(map);
 
       expect(
@@ -376,6 +430,89 @@ void main() {
           destinationMek: destMek,
         ),
         isNull,
+      );
+    });
+
+    test(
+      'returns null when a v2 archive carries a mismatched mekWrap label',
+      () {
+        final archive = _buildArchive(
+          service: fakeService,
+          kdf: fakeKdf,
+          mks: mks,
+          password: password,
+          mek: mek,
+          records: [
+            _record(enc, mek, name: 'x', secretType: 'apiKey', plaintext: 'v'),
+          ],
+        );
+        final map = jsonDecode(archive) as Map<String, dynamic>;
+        map['mekWrap'] = 'something-else';
+        final tampered = jsonEncode(map);
+
+        expect(
+          fakeService.importArchive(
+            archive: tampered,
+            password: password,
+            destinationMek: destMek,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test('returns null when a v2 archive wrappedMek was wrapped under the '
+        'raw PDK (KEK derivation is really used)', () {
+      // Build a v2-labelled archive whose MEK is wrapped with v1 semantics
+      // (raw PDK). Import must derive the KEK and therefore fail to unwrap.
+      final salt = Uint8List(32)..fillRange(0, 32, 3);
+      final pdk = fakeKdf.deriveKey(password: password, salt: salt);
+      final wrappedWithRawPdk = mks.wrap(masterKey: mek, wrappingKey: pdk);
+      final archive = fakeService.exportArchive(
+        salt: salt,
+        wrappedMek: wrappedWithRawPdk,
+        records: [
+          _record(enc, mek, name: 'x', secretType: 'apiKey', plaintext: 'v'),
+        ],
+        mek: mek,
+      );
+
+      expect(
+        fakeService.importArchive(
+          archive: archive!,
+          password: password,
+          destinationMek: destMek,
+        ),
+        isNull,
+      );
+    });
+
+    test('still imports a legacy v1 archive (raw-PDK unwrap semantics)', () {
+      final archive = _buildLegacyV1Archive(
+        kdf: fakeKdf,
+        mks: mks,
+        enc: enc,
+        password: password,
+        mek: mek,
+        plaintext: 'legacy-value',
+      );
+
+      final imported = fakeService.importArchive(
+        archive: archive,
+        password: password,
+        destinationMek: destMek,
+      );
+
+      expect(imported, isNotNull);
+      expect(imported!.single.name, 'Legacy');
+      expect(
+        enc.decrypt(
+          encryptedValue: imported.single.encrypted.encryptedValue,
+          iv: imported.single.encrypted.iv,
+          authTag: imported.single.encrypted.authTag,
+          key: destMek,
+        ),
+        'legacy-value',
       );
     });
 

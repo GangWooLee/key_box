@@ -17,6 +17,9 @@ dependencies:
   # Database (encrypted SQLite)
   drift: ^2.22.0
   sqlcipher_flutter_libs: ^0.6.0
+  # Raw sqlite3 access: VaultMigrator drives sqlcipher_export/ATTACH on
+  # temporary copies that drift's fixed-path connection cannot address.
+  sqlite3: ^2.4.0
 
   # Routing
   go_router: ^14.0.0
@@ -45,9 +48,8 @@ dev_dependencies:
   riverpod_generator: ^2.6.0
   flutter_lints: ^4.0.0
   mocktail: ^1.0.0
-  # SPIKE(sqlite3-multiple-ciphers): direct import for cipher verification test — remove after spike
-  sqlite3: ^2.4.0
-  # SPIKE(sqlite3-multiple-ciphers): positive-control integration test on real macOS app — remove after spike
+  # Integration tests: cipher-dependent gates must run in the real macOS app
+  # (cipher_positive_test, encrypted_vault_test).
   integration_test:
     sdk: flutter
 
