@@ -48,10 +48,8 @@ void main() {
     ];
   }
 
-  AuthState unlockedState() => AuthUnlocked(
-        masterEncryptionKey: Uint8List(32),
-        vaultId: 1,
-      );
+  AuthState unlockedState() =>
+      AuthUnlocked(masterEncryptionKey: Uint8List(32), vaultId: 1);
 
   /// Pumps dashboard inside a large-enough surface.
   Future<void> pumpDashboard(
@@ -89,8 +87,9 @@ void main() {
         expect(find.byType(Stack), findsWidgets);
       });
 
-      testWidgets('Content Row has 2 children (table + detail)',
-          (tester) async {
+      testWidgets('Content Row has 2 children (table + detail)', (
+        tester,
+      ) async {
         await pumpDashboard(tester, authState: unlockedState());
 
         final rowFinder = find.descendant(
@@ -100,16 +99,17 @@ void main() {
         final rows = tester
             .widgetList<Row>(rowFinder)
             .where((r) => r.children.length == 2);
-        expect(rows, isNotEmpty,
-            reason: 'Should have a Row with 2 children (table + detail)');
+        expect(
+          rows,
+          isNotEmpty,
+          reason: 'Should have a Row with 2 children (table + detail)',
+        );
       });
 
-      testWidgets('Detail SizedBox width = detailPanelWidth',
-          (tester) async {
+      testWidgets('Detail SizedBox width = detailPanelWidth', (tester) async {
         await pumpDashboard(tester, authState: unlockedState());
 
-        final detailBoxes =
-            tester.widgetList<SizedBox>(find.byType(SizedBox));
+        final detailBoxes = tester.widgetList<SizedBox>(find.byType(SizedBox));
         final detailBox = detailBoxes.where(
           (sb) => sb.width == AppConstants.detailPanelWidth,
         );
@@ -154,15 +154,33 @@ void main() {
       testWidgets('top bar has topBarHeight', (tester) async {
         await pumpDashboard(tester, authState: unlockedState());
 
-        // Find Container in AnimatedPositioned with topBarHeight
-        final animatedPositioned = tester
-            .widgetList<AnimatedPositioned>(find.byType(AnimatedPositioned));
-        final topBarPositioned = animatedPositioned.where(
-          (ap) => ap.height == AppConstants.topBarHeight,
+        // Find Positioned with topBarHeight (full-width, no longer animated)
+        final positioned = tester.widgetList<Positioned>(
+          find.byType(Positioned),
         );
-        expect(topBarPositioned, isNotEmpty,
-            reason:
-                'Should have an AnimatedPositioned with topBarHeight height');
+        final topBarPositioned = positioned.where(
+          (p) => p.height == AppConstants.topBarHeight,
+        );
+        expect(
+          topBarPositioned,
+          isNotEmpty,
+          reason: 'Should have a Positioned with topBarHeight height',
+        );
+      });
+
+      testWidgets('top bar has no expand button (moved to sidebar)', (
+        tester,
+      ) async {
+        await pumpDashboard(
+          tester,
+          authState: unlockedState(),
+          sidebarCollapsed: true,
+        );
+
+        // Expand button is now inside the collapsed sidebar, not in top bar.
+        // Verify top bar's Row doesn't contain a panelLeftOpen icon directly.
+        // The icon should exist (in sidebar), but not duplicated in top bar.
+        expect(find.byTooltip('Show sidebar'), findsOneWidget);
       });
 
       testWidgets('top bar has GestureDetector for dragging', (tester) async {
@@ -181,25 +199,42 @@ void main() {
         expect(find.byTooltip('Show sidebar'), findsNothing);
       });
 
-      testWidgets('sidebar hidden when collapsed', (tester) async {
+      testWidgets('sidebar renders in collapsed mode (icon rail)', (
+        tester,
+      ) async {
         await pumpDashboard(
           tester,
           authState: unlockedState(),
           sidebarCollapsed: true,
         );
 
-        expect(find.byType(Sidebar), findsNothing);
+        // Sidebar still renders (as icon rail), not hidden
+        expect(find.byType(Sidebar), findsOneWidget);
       });
 
-      testWidgets('expand button shown when collapsed', (tester) async {
+      testWidgets('collapsed sidebar shows expand button', (tester) async {
         await pumpDashboard(
           tester,
           authState: unlockedState(),
           sidebarCollapsed: true,
         );
 
+        // Expand button is inside the collapsed sidebar
         expect(find.byTooltip('Show sidebar'), findsOneWidget);
         expect(find.byIcon(LucideIcons.panelLeftOpen), findsOneWidget);
+      });
+
+      testWidgets('collapsed sidebar shows category icons', (tester) async {
+        await pumpDashboard(
+          tester,
+          authState: unlockedState(),
+          sidebarCollapsed: true,
+        );
+
+        // All 5 category icons should be present as tooltips
+        for (final cat in SecretCategory.values) {
+          expect(find.byTooltip(cat.label), findsOneWidget);
+        }
       });
     });
 
@@ -240,15 +275,17 @@ void main() {
     });
 
     group('Semantics widgets', () {
-      testWidgets('Semantics widgets are present in the widget tree',
-          (tester) async {
+      testWidgets('Semantics widgets are present in the widget tree', (
+        tester,
+      ) async {
         await pumpDashboard(tester, authState: unlockedState());
 
         expect(find.byType(Semantics), findsWidgets);
       });
 
-      testWidgets('three Semantics children inside the main Row',
-          (tester) async {
+      testWidgets('three Semantics children inside the main Row', (
+        tester,
+      ) async {
         await pumpDashboard(tester, authState: unlockedState());
 
         expect(find.byType(Sidebar), findsOneWidget);

@@ -70,7 +70,9 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                       child: Text(
                         secret.name,
                         style: AppTypography.detailName.copyWith(
-                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                          color: isDark
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary,
                         ),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
@@ -85,7 +87,8 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                 // Service + Time
                 Row(
                   children: [
-                    if (secret.serviceName != null && secret.serviceName!.isNotEmpty) ...[
+                    if (secret.serviceName != null &&
+                        secret.serviceName!.isNotEmpty) ...[
                       Container(
                         width: 10,
                         height: 10,
@@ -98,7 +101,9 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                       Text(
                         secret.serviceName!,
                         style: AppTypography.bodySmall.copyWith(
-                          color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
                         ),
                       ),
                       const Spacer(),
@@ -108,7 +113,9 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                       DateFormatters.timeAgo(secret.updatedAt),
                       style: AppTypography.caption.copyWith(
                         fontSize: 12,
-                        color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.lightTextTertiary,
                       ),
                     ),
                   ],
@@ -129,7 +136,9 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                 // Divider
                 Divider(
                   height: 1,
-                  color: isDark ? AppColors.darkDividerMedium : AppColors.lightBorderSubtle,
+                  color: isDark
+                      ? AppColors.darkDividerMedium
+                      : AppColors.lightBorderSubtle,
                 ),
                 const SizedBox(height: 4),
 
@@ -138,18 +147,43 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                   title: 'Details',
                   isDark: isDark,
                   isExpanded: _detailsExpanded,
-                  onToggle: () => setState(() => _detailsExpanded = !_detailsExpanded),
+                  onToggle: () =>
+                      setState(() => _detailsExpanded = !_detailsExpanded),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _DetailRow(label: 'Type', value: secret.secretType.replaceAll('_', ' '), isDark: isDark),
-                      _DetailRow(label: 'Created', value: DateFormatters.full(secret.createdAt), isDark: isDark),
-                      _DetailRow(label: 'Updated', value: DateFormatters.full(secret.updatedAt), isDark: isDark),
-                      _DetailRow(label: 'Accessed', value: '${secret.accessCount} times', isDark: isDark),
+                      _DetailRow(
+                        label: 'Type',
+                        value: secret.secretType.replaceAll('_', ' '),
+                        isDark: isDark,
+                      ),
+                      _DetailRow(
+                        label: 'Created',
+                        value: DateFormatters.full(secret.createdAt),
+                        isDark: isDark,
+                      ),
+                      _DetailRow(
+                        label: 'Updated',
+                        value: DateFormatters.full(secret.updatedAt),
+                        isDark: isDark,
+                      ),
+                      _DetailRow(
+                        label: 'Accessed',
+                        value: '${secret.accessCount} times',
+                        isDark: isDark,
+                      ),
                       if (secret.notes != null && secret.notes!.isNotEmpty)
-                        _DetailRow(label: 'Notes', value: secret.notes!, isDark: isDark),
+                        _DetailRow(
+                          label: 'Notes',
+                          value: secret.notes!,
+                          isDark: isDark,
+                        ),
                       if (secret.tags != null && secret.tags!.isNotEmpty)
-                        _DetailRow(label: 'Tags', value: secret.tags!, isDark: isDark),
+                        _DetailRow(
+                          label: 'Tags',
+                          value: secret.tags!,
+                          isDark: isDark,
+                        ),
                     ],
                   ),
                 ),
@@ -159,7 +193,8 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
                   title: 'Folders',
                   isDark: isDark,
                   isExpanded: _foldersExpanded,
-                  onToggle: () => setState(() => _foldersExpanded = !_foldersExpanded),
+                  onToggle: () =>
+                      setState(() => _foldersExpanded = !_foldersExpanded),
                   child: _FolderLinksSection(
                     secretId: secret.id,
                     homeFolderId: secret.folderId,
@@ -271,13 +306,17 @@ class _EmptyDetail extends StatelessWidget {
           Icon(
             LucideIcons.keyRound,
             size: 48,
-            color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+            color: isDark
+                ? AppColors.darkTextQuaternary
+                : AppColors.lightTextTertiary,
           ),
           const SizedBox(height: 16),
           Text(
             'Select a secret to view details',
             style: AppTypography.bodySmall.copyWith(
-              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+              color: isDark
+                  ? AppColors.darkTextTertiary
+                  : AppColors.lightTextTertiary,
             ),
           ),
         ],
@@ -314,7 +353,9 @@ class _ValueBox extends StatelessWidget {
         color: isDark ? AppColors.darkValueBoxBg : AppColors.lightSurfaceCard,
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: isDark ? AppColors.darkValueBoxStroke : AppColors.lightBorderPrimary,
+          color: isDark
+              ? AppColors.darkValueBoxStroke
+              : AppColors.lightBorderPrimary,
         ),
       ),
       child: Column(
@@ -325,7 +366,9 @@ class _ValueBox extends StatelessWidget {
                 ? decryptedValue!
                 : '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022',
             style: AppTypography.mono.copyWith(
-              color: isDark ? AppColors.darkRowText2 : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkRowText2
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const SizedBox(height: 8),
@@ -372,9 +415,7 @@ class _SmallButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: isSuccess
-          ? AppColors.success
-          : AppColors.buttonPrimary,
+      color: isSuccess ? AppColors.success : AppColors.buttonPrimary,
       borderRadius: BorderRadius.circular(6),
       child: InkWell(
         onTap: onTap,
@@ -488,7 +529,9 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               label,
               style: AppTypography.caption.copyWith(
-                color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary,
               ),
             ),
           ),
@@ -496,7 +539,9 @@ class _DetailRow extends StatelessWidget {
             child: Text(
               value,
               style: AppTypography.bodySmall.copyWith(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ),
@@ -526,7 +571,9 @@ class _FooterBar extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: isDark ? AppColors.darkDividerStrong : AppColors.lightBorderPrimary,
+            color: isDark
+                ? AppColors.darkDividerStrong
+                : AppColors.lightBorderPrimary,
           ),
         ),
       ),
@@ -540,9 +587,13 @@ class _FooterBar extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.buttonPrimary,
                 foregroundColor: AppColors.buttonPrimaryText,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                textStyle: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w500),
+                textStyle: AppTypography.bodySmall.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
               child: const Text('Edit'),
             ),
@@ -590,18 +641,20 @@ class _FolderLinksSection extends ConsumerWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ...linked.map((folder) => _FolderChip(
-                      folder: folder,
-                      isHome: folder.id == homeFolderId,
-                      isDark: isDark,
-                      onRemove: folder.id == homeFolderId
-                          ? null
-                          : () {
-                              ref
-                                  .read(secretOpsProvider)
-                                  .unlinkFromFolder(secretId, folder.id);
-                            },
-                    )),
+                ...linked.map(
+                  (folder) => _FolderChip(
+                    folder: folder,
+                    isHome: folder.id == homeFolderId,
+                    isDark: isDark,
+                    onRemove: folder.id == homeFolderId
+                        ? null
+                        : () {
+                            ref
+                                .read(secretOpsProvider)
+                                .unlinkFromFolder(secretId, folder.id);
+                          },
+                  ),
+                ),
                 const SizedBox(height: 4),
                 _AddFolderButton(
                   secretId: secretId,
@@ -643,14 +696,18 @@ class _FolderChip extends StatelessWidget {
           Icon(
             isHome ? LucideIcons.home : LucideIcons.folder,
             size: 12,
-            color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+            color: isDark
+                ? AppColors.darkTextTertiary
+                : AppColors.lightTextTertiary,
           ),
           const SizedBox(width: 6),
           Expanded(
             child: Text(
               folder.name,
               style: AppTypography.caption.copyWith(
-                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                color: isDark
+                    ? AppColors.darkTextSecondary
+                    : AppColors.lightTextSecondary,
               ),
             ),
           ),
@@ -663,7 +720,9 @@ class _FolderChip extends StatelessWidget {
                 icon: Icon(
                   LucideIcons.x,
                   size: 10,
-                  color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+                  color: isDark
+                      ? AppColors.darkTextQuaternary
+                      : AppColors.lightTextTertiary,
                 ),
                 padding: EdgeInsets.zero,
                 tooltip: 'Unlink from folder',
@@ -719,8 +778,9 @@ class _AddFolderButton extends ConsumerWidget {
   void _showFolderPicker(BuildContext context, WidgetRef ref) {
     final allFolders = ref.read(foldersProvider);
     final folders = allFolders.valueOrNull ?? [];
-    final unlinked =
-        folders.where((f) => !linkedFolderIds.contains(f.id)).toList();
+    final unlinked = folders
+        .where((f) => !linkedFolderIds.contains(f.id))
+        .toList();
 
     if (unlinked.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -763,9 +823,7 @@ class _AddFolderButton extends ConsumerWidget {
                   ),
                 ),
                 onTap: () {
-                  ref
-                      .read(secretOpsProvider)
-                      .linkToFolder(secretId, folder.id);
+                  ref.read(secretOpsProvider).linkToFolder(secretId, folder.id);
                   Navigator.pop(ctx);
                 },
               );

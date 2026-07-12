@@ -10,6 +10,7 @@ abstract final class AppConstants {
 
   // Layout — 3-Column Dashboard
   static const double sidebarWidth = 200;
+  static const double sidebarCollapsedWidth = 48; // icon rail
   static const double detailPanelWidth = 340;
   static const double navHeight = 56;
   static const double topBarHeight = 38; // macOS standard title bar height

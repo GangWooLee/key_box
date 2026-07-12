@@ -64,9 +64,7 @@ class _ExpandedSidebar extends ConsumerWidget {
         ),
 
         // Folder Tree
-        Expanded(
-          child: FolderTree(isDark: isDark),
-        ),
+        Expanded(child: FolderTree(isDark: isDark)),
       ],
     );
   }
@@ -141,8 +139,8 @@ class _CollapsedSidebar extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: isActive
                         ? (isDark
-                            ? AppColors.darkCategoryActive
-                            : AppColors.brand50)
+                              ? AppColors.darkCategoryActive
+                              : AppColors.brand50)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -151,11 +149,11 @@ class _CollapsedSidebar extends ConsumerWidget {
                     size: 16,
                     color: isActive
                         ? (isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary)
+                              ? AppColors.darkTextPrimary
+                              : AppColors.lightTextPrimary)
                         : (isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.lightTextSecondary),
+                              ? AppColors.darkTextTertiary
+                              : AppColors.lightTextSecondary),
                   ),
                 ),
               ),
@@ -226,14 +224,18 @@ class _SearchBar extends ConsumerWidget {
             Icon(
               LucideIcons.search,
               size: 14,
-              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+              color: isDark
+                  ? AppColors.darkTextTertiary
+                  : AppColors.lightTextTertiary,
             ),
             const SizedBox(width: 6),
             Expanded(
               child: Text(
                 'Search secrets...',
                 style: AppTypography.bodySmall.copyWith(
-                  color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                  color: isDark
+                      ? AppColors.darkTextTertiary
+                      : AppColors.lightTextTertiary,
                 ),
               ),
             ),
@@ -251,7 +253,9 @@ class _SearchBar extends ConsumerWidget {
                 '\u2318K',
                 style: AppTypography.caption.copyWith(
                   fontSize: 10,
-                  color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+                  color: isDark
+                      ? AppColors.darkTextQuaternary
+                      : AppColors.lightTextTertiary,
                 ),
               ),
             ),
@@ -350,8 +354,12 @@ class _CategoryItem extends StatelessWidget {
                   icon,
                   size: 14,
                   color: isActive
-                      ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                      : (isDark ? AppColors.darkTextTertiary : AppColors.lightTextSecondary),
+                      ? (isDark
+                            ? AppColors.darkTextPrimary
+                            : AppColors.lightTextPrimary)
+                      : (isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.lightTextSecondary),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
@@ -360,15 +368,21 @@ class _CategoryItem extends StatelessWidget {
                     style: AppTypography.bodySmall.copyWith(
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
                       color: isActive
-                          ? (isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
-                          : (isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                          ? (isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary)
+                          : (isDark
+                                ? AppColors.darkTextSecondary
+                                : AppColors.lightTextSecondary),
                     ),
                   ),
                 ),
                 Text(
                   '$count',
                   style: AppTypography.caption.copyWith(
-                    color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+                    color: isDark
+                        ? AppColors.darkTextQuaternary
+                        : AppColors.lightTextTertiary,
                     fontSize: 11,
                   ),
                 ),

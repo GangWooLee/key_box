@@ -30,9 +30,6 @@ dependencies:
   # Icons
   lucide_icons: ^0.257.0
 
-  # Fonts
-  google_fonts: ^6.0.0
-
   # Utils
   shared_preferences: ^2.3.0
   path_provider: ^2.1.0
@@ -48,6 +45,36 @@ dev_dependencies:
   riverpod_generator: ^2.6.0
   flutter_lints: ^4.0.0
   mocktail: ^1.0.0
+  # SPIKE(sqlite3-multiple-ciphers): direct import for cipher verification test — remove after spike
+  sqlite3: ^2.4.0
+  # SPIKE(sqlite3-multiple-ciphers): positive-control integration test on real macOS app — remove after spike
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: JetBrains Mono
+      fonts:
+        - asset: assets/fonts/JetBrainsMono-Regular.ttf
+        - asset: assets/fonts/JetBrainsMono-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/JetBrainsMono-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/JetBrainsMono-Bold.ttf
+          weight: 700
+    - family: IBM Plex Mono
+      fonts:
+        - asset: assets/fonts/IBMPlexMono-Regular.ttf
+        - asset: assets/fonts/IBMPlexMono-Medium.ttf
+          weight: 500

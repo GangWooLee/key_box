@@ -64,8 +64,9 @@ void main() {
         expect(find.text('\u2318K'), findsOneWidget);
       });
 
-      testWidgets('renders collapse button with Hide sidebar tooltip',
-          (tester) async {
+      testWidgets('renders collapse button with Hide sidebar tooltip', (
+        tester,
+      ) async {
         await tester.pumpProviderWidget(
           const Sidebar(),
           overrides: sidebarOverrides(),
@@ -75,21 +76,26 @@ void main() {
         expect(find.byIcon(LucideIcons.panelLeftClose), findsOneWidget);
       });
 
-      testWidgets('collapse button sets sidebarCollapsedProvider to true',
-          (tester) async {
+      testWidgets('collapse button sets sidebarCollapsedProvider to true', (
+        tester,
+      ) async {
         late ProviderContainer container;
         await tester.pumpWidget(
           ProviderScope(
             overrides: sidebarOverrides(),
-            child: Builder(builder: (context) {
-              return Consumer(builder: (context, ref, _) {
-                container = ProviderScope.containerOf(context);
-                return MaterialApp(
-                  theme: ThemeData.dark(),
-                  home: const Scaffold(body: Sidebar()),
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, _) {
+                    container = ProviderScope.containerOf(context);
+                    return MaterialApp(
+                      theme: ThemeData.dark(),
+                      home: const Scaffold(body: Sidebar()),
+                    );
+                  },
                 );
-              });
-            }),
+              },
+            ),
           ),
         );
 
@@ -136,21 +142,26 @@ void main() {
         expect(find.text('1'), findsOneWidget); // certificate
       });
 
-      testWidgets('category tap updates selectedCategoryProvider',
-          (tester) async {
+      testWidgets('category tap updates selectedCategoryProvider', (
+        tester,
+      ) async {
         late ProviderContainer container;
         await tester.pumpWidget(
           ProviderScope(
             overrides: sidebarOverrides(),
-            child: Builder(builder: (context) {
-              return Consumer(builder: (context, ref, _) {
-                container = ProviderScope.containerOf(context);
-                return MaterialApp(
-                  theme: ThemeData.dark(),
-                  home: const Scaffold(body: Sidebar()),
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, _) {
+                    container = ProviderScope.containerOf(context);
+                    return MaterialApp(
+                      theme: ThemeData.dark(),
+                      home: const Scaffold(body: Sidebar()),
+                    );
+                  },
                 );
-              });
-            }),
+              },
+            ),
           ),
         );
 
@@ -158,8 +169,7 @@ void main() {
         await tester.tap(find.text('Tokens'));
         await tester.pump();
 
-        expect(
-            container.read(selectedCategoryProvider), SecretCategory.token);
+        expect(container.read(selectedCategoryProvider), SecretCategory.token);
       });
     });
 
@@ -186,8 +196,9 @@ void main() {
     });
 
     group('collapsed mode (icon rail)', () {
-      testWidgets('renders expand button with Show sidebar tooltip',
-          (tester) async {
+      testWidgets('renders expand button with Show sidebar tooltip', (
+        tester,
+      ) async {
         await tester.pumpProviderWidget(
           const Sidebar(collapsed: true),
           overrides: sidebarOverrides(sidebarCollapsed: true),
@@ -238,15 +249,19 @@ void main() {
         await tester.pumpWidget(
           ProviderScope(
             overrides: sidebarOverrides(sidebarCollapsed: true),
-            child: Builder(builder: (context) {
-              return Consumer(builder: (context, ref, _) {
-                container = ProviderScope.containerOf(context);
-                return MaterialApp(
-                  theme: ThemeData.dark(),
-                  home: const Scaffold(body: Sidebar(collapsed: true)),
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, _) {
+                    container = ProviderScope.containerOf(context);
+                    return MaterialApp(
+                      theme: ThemeData.dark(),
+                      home: const Scaffold(body: Sidebar(collapsed: true)),
+                    );
+                  },
                 );
-              });
-            }),
+              },
+            ),
           ),
         );
 
@@ -254,25 +269,29 @@ void main() {
         await tester.tap(find.byTooltip('Tokens'));
         await tester.pump();
 
-        expect(
-            container.read(selectedCategoryProvider), SecretCategory.token);
+        expect(container.read(selectedCategoryProvider), SecretCategory.token);
       });
 
-      testWidgets('expand button sets sidebarCollapsed to false',
-          (tester) async {
+      testWidgets('expand button sets sidebarCollapsed to false', (
+        tester,
+      ) async {
         late ProviderContainer container;
         await tester.pumpWidget(
           ProviderScope(
             overrides: sidebarOverrides(sidebarCollapsed: true),
-            child: Builder(builder: (context) {
-              return Consumer(builder: (context, ref, _) {
-                container = ProviderScope.containerOf(context);
-                return MaterialApp(
-                  theme: ThemeData.dark(),
-                  home: const Scaffold(body: Sidebar(collapsed: true)),
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, _) {
+                    container = ProviderScope.containerOf(context);
+                    return MaterialApp(
+                      theme: ThemeData.dark(),
+                      home: const Scaffold(body: Sidebar(collapsed: true)),
+                    );
+                  },
                 );
-              });
-            }),
+              },
+            ),
           ),
         );
 
@@ -284,21 +303,26 @@ void main() {
     });
 
     group('interactions', () {
-      testWidgets('search bar tap sets showCommandPaletteProvider to true',
-          (tester) async {
+      testWidgets('search bar tap sets showCommandPaletteProvider to true', (
+        tester,
+      ) async {
         late ProviderContainer container;
         await tester.pumpWidget(
           ProviderScope(
             overrides: sidebarOverrides(),
-            child: Builder(builder: (context) {
-              return Consumer(builder: (context, ref, _) {
-                container = ProviderScope.containerOf(context);
-                return MaterialApp(
-                  theme: ThemeData.dark(),
-                  home: const Scaffold(body: Sidebar()),
+            child: Builder(
+              builder: (context) {
+                return Consumer(
+                  builder: (context, ref, _) {
+                    container = ProviderScope.containerOf(context);
+                    return MaterialApp(
+                      theme: ThemeData.dark(),
+                      home: const Scaffold(body: Sidebar()),
+                    );
+                  },
                 );
-              });
-            }),
+              },
+            ),
           ),
         );
 

@@ -59,7 +59,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final collapsed = ref.watch(sidebarCollapsedProvider);
-    final sidebarWidth = collapsed ? 0.0 : AppConstants.sidebarWidth;
+    final sidebarWidth = collapsed
+        ? AppConstants.sidebarCollapsedWidth
+        : AppConstants.sidebarWidth;
 
     return Scaffold(
       backgroundColor: isDark
@@ -102,8 +104,9 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         width: AppConstants.detailPanelWidth,
                         child: Container(
                           decoration: BoxDecoration(
-                            color:
-                                isDark ? AppColors.darkSurfaceDetailTonal : null,
+                            color: isDark
+                                ? AppColors.darkSurfaceDetailTonal
+                                : null,
                             gradient: isDark
                                 ? const LinearGradient(
                                     begin: Alignment.topCenter,
@@ -131,83 +134,52 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ─── Top bar (draggable title bar area) ───
+            // ─── Translucent sidebar overlay ───
             AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
-              left: sidebarWidth,
+              left: 0,
+              top: AppConstants.topBarHeight,
+              bottom: 0,
+              width: sidebarWidth,
+              child: FocusTraversalOrder(
+                order: const NumericFocusOrder(1),
+                child: Semantics(
+                  label: 'Navigation sidebar',
+                  child: ClipRect(
+                    child: BackdropFilter(
+                      filter: isDark
+                          ? ImageFilter.blur(sigmaX: 20, sigmaY: 20)
+                          : ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? AppColors.darkGlassBg
+                              : AppColors.lightSurfaceSidebar,
+                          border: Border(
+                            right: BorderSide(
+                              color: isDark
+                                  ? AppColors.darkGlassBorder
+                                  : theme.dividerColor,
+                            ),
+                          ),
+                        ),
+                        child: Sidebar(collapsed: collapsed),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+            // ─── Top bar (draggable, full-width, z-order topmost) ───
+            Positioned(
+              left: 0,
               top: 0,
               right: 0,
               height: AppConstants.topBarHeight,
               child: _TopBar(isDark: isDark),
             ),
-
-            // ─── Translucent sidebar overlay ───
-            if (!collapsed)
-              Positioned(
-                left: 0,
-                top: 0,
-                bottom: 0,
-                width: AppConstants.sidebarWidth,
-                child: FocusTraversalOrder(
-                  order: const NumericFocusOrder(1),
-                  child: Semantics(
-                    label: 'Navigation sidebar',
-                    child: ClipRect(
-                      child: BackdropFilter(
-                        filter: isDark
-                            ? ImageFilter.blur(sigmaX: 20, sigmaY: 20)
-                            : ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.darkGlassBg
-                                : AppColors.lightSurfaceSidebar,
-                            border: Border(
-                              right: BorderSide(
-                                color: isDark
-                                    ? AppColors.darkGlassBorder
-                                    : theme.dividerColor,
-                              ),
-                            ),
-                          ),
-                          child: const Sidebar(),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-            // ─── Sidebar expand button (when collapsed) ───
-            if (collapsed)
-              Positioned(
-                left: 8,
-                top: 8,
-                child: Tooltip(
-                  message: 'Show sidebar',
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () {
-                        ref.read(sidebarCollapsedProvider.notifier).state =
-                            false;
-                      },
-                      borderRadius: BorderRadius.circular(4),
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          LucideIcons.panelLeftOpen,
-                          size: 16,
-                          color: isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.lightTextTertiary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
           ],
         ),
       ),
@@ -362,6 +334,8 @@ class _TopBar extends ConsumerWidget {
         padding: const EdgeInsets.only(right: 12),
         child: Row(
           children: [
+            // Traffic light safe area
+            const SizedBox(width: 70),
             const Spacer(),
             // Audit Log button
             Tooltip(

@@ -64,7 +64,9 @@ class _TableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headerColor = isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary;
+    final headerColor = isDark
+        ? AppColors.darkTextTertiary
+        : AppColors.lightTextTertiary;
 
     return Container(
       height: 36,
@@ -72,7 +74,9 @@ class _TableHeader extends StatelessWidget {
         color: isDark ? AppColors.darkTableHeaderBg : Colors.transparent,
         border: Border(
           bottom: BorderSide(
-            color: isDark ? AppColors.darkTableHeaderStroke : AppColors.lightBorderSubtle,
+            color: isDark
+                ? AppColors.darkTableHeaderStroke
+                : AppColors.lightBorderSubtle,
           ),
         ),
       ),
@@ -80,15 +84,24 @@ class _TableHeader extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text('Name', style: AppTypography.tableHeader.copyWith(color: headerColor)),
+            child: Text(
+              'Name',
+              style: AppTypography.tableHeader.copyWith(color: headerColor),
+            ),
           ),
           SizedBox(
             width: 180,
-            child: Text('Service', style: AppTypography.tableHeader.copyWith(color: headerColor)),
+            child: Text(
+              'Service',
+              style: AppTypography.tableHeader.copyWith(color: headerColor),
+            ),
           ),
           SizedBox(
             width: 120,
-            child: Text('Env', style: AppTypography.tableHeader.copyWith(color: headerColor)),
+            child: Text(
+              'Env',
+              style: AppTypography.tableHeader.copyWith(color: headerColor),
+            ),
           ),
           SizedBox(
             width: 100,
@@ -179,7 +192,9 @@ class _TableRow extends StatelessWidget {
                 child: Text(
                   secret.serviceName ?? '',
                   style: AppTypography.bodySmall.copyWith(
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -199,7 +214,9 @@ class _TableRow extends StatelessWidget {
                       : '—',
                   style: AppTypography.caption.copyWith(
                     letterSpacing: 0.2,
-                    color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.lightTextTertiary,
                   ),
                   textAlign: TextAlign.right,
                 ),
@@ -227,20 +244,26 @@ class _EmptyState extends StatelessWidget {
           Icon(
             LucideIcons.keyRound,
             size: 48,
-            color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+            color: isDark
+                ? AppColors.darkTextQuaternary
+                : AppColors.lightTextTertiary,
           ),
           const SizedBox(height: 12),
           Text(
             'No secrets yet',
             style: AppTypography.bodySmall.copyWith(
-              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+              color: isDark
+                  ? AppColors.darkTextTertiary
+                  : AppColors.lightTextTertiary,
             ),
           ),
           const SizedBox(height: 4),
           Text(
             'Click "+ Add Secret" below to get started',
             style: AppTypography.caption.copyWith(
-              color: isDark ? AppColors.darkTextQuaternary : AppColors.lightTextTertiary,
+              color: isDark
+                  ? AppColors.darkTextQuaternary
+                  : AppColors.lightTextTertiary,
             ),
           ),
         ],
@@ -264,7 +287,9 @@ class _BottomBar extends ConsumerWidget {
         color: isDark ? AppColors.darkBottomBarBg : Colors.transparent,
         border: Border(
           top: BorderSide(
-            color: isDark ? AppColors.darkBottomBarStroke : AppColors.lightBorderSubtle,
+            color: isDark
+                ? AppColors.darkBottomBarStroke
+                : AppColors.lightBorderSubtle,
           ),
         ),
       ),
@@ -281,9 +306,13 @@ class _BottomBar extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.buttonPrimary,
                 foregroundColor: AppColors.buttonPrimaryText,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
-                textStyle: AppTypography.bodySmall.copyWith(fontWeight: FontWeight.w500),
+                textStyle: AppTypography.bodySmall.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
               ),
             ),
           ),
@@ -292,7 +321,9 @@ class _BottomBar extends ConsumerWidget {
             '$count secret${count != 1 ? 's' : ''}',
             style: AppTypography.caption.copyWith(
               fontSize: 12,
-              color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+              color: isDark
+                  ? AppColors.darkTextTertiary
+                  : AppColors.lightTextTertiary,
             ),
           ),
         ],

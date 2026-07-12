@@ -52,117 +52,136 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             color: isDark ? AppColors.darkSurfaceCard : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isDark ? AppColors.darkBorderStrong : AppColors.lightBorderPrimary,
+              color: isDark
+                  ? AppColors.darkBorderStrong
+                  : AppColors.lightBorderPrimary,
             ),
           ),
           child: KeyboardListener(
             focusNode: _keyFocusNode,
             onKeyEvent: (event) => _handleKeyNav(event, results),
             child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Search input
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      LucideIcons.search,
-                      size: 18,
-                      color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextField(
-                        controller: _controller,
-                        autofocus: true,
-                        style: AppTypography.bodySmall.copyWith(
-                          color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: 'Search secrets...',
-                          hintStyle: AppTypography.bodySmall.copyWith(
-                            color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
-                          ),
-                          border: InputBorder.none,
-                          enabledBorder: InputBorder.none,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: EdgeInsets.zero,
-                          isDense: true,
-                          filled: false,
-                        ),
-                        onChanged: (value) {
-                          _debouncer.call(() {
-                            ref.read(searchQueryProvider.notifier).state = value;
-                          });
-                        },
-                        onSubmitted: (_) => _selectCurrent(results),
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Search input
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Row(
+                    children: [
+                      Icon(
+                        LucideIcons.search,
+                        size: 18,
+                        color: isDark
+                            ? AppColors.darkTextTertiary
+                            : AppColors.lightTextTertiary,
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              Divider(
-                height: 1,
-                color: isDark ? AppColors.darkDividerMedium : AppColors.lightBorderSubtle,
-              ),
-
-              // Results
-              results.when(
-                data: (secrets) {
-                  if (secrets.isEmpty) {
-                    return Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Text(
-                        _controller.text.isEmpty ? 'Type to search...' : 'No results found',
-                        style: AppTypography.bodySmall.copyWith(
-                          color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          controller: _controller,
+                          autofocus: true,
+                          style: AppTypography.bodySmall.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextPrimary
+                                : AppColors.lightTextPrimary,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: 'Search secrets...',
+                            hintStyle: AppTypography.bodySmall.copyWith(
+                              color: isDark
+                                  ? AppColors.darkTextTertiary
+                                  : AppColors.lightTextTertiary,
+                            ),
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            contentPadding: EdgeInsets.zero,
+                            isDense: true,
+                            filled: false,
+                          ),
+                          onChanged: (value) {
+                            _debouncer.call(() {
+                              ref.read(searchQueryProvider.notifier).state =
+                                  value;
+                            });
+                          },
+                          onSubmitted: (_) => _selectCurrent(results),
                         ),
+                      ),
+                    ],
+                  ),
+                ),
+                Divider(
+                  height: 1,
+                  color: isDark
+                      ? AppColors.darkDividerMedium
+                      : AppColors.lightBorderSubtle,
+                ),
+
+                // Results
+                results.when(
+                  data: (secrets) {
+                    if (secrets.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Text(
+                          _controller.text.isEmpty
+                              ? 'Type to search...'
+                              : 'No results found',
+                          style: AppTypography.bodySmall.copyWith(
+                            color: isDark
+                                ? AppColors.darkTextTertiary
+                                : AppColors.lightTextTertiary,
+                          ),
+                        ),
+                      );
+                    }
+
+                    return Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: secrets.length,
+                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        itemBuilder: (context, index) {
+                          final secret = secrets[index];
+                          final isSelected = index == _selectedIndex;
+
+                          return _ResultRow(
+                            secret: secret,
+                            isSelected: isSelected,
+                            isDark: isDark,
+                            onTap: () {
+                              ref
+                                      .read(selectedSecretIdProvider.notifier)
+                                      .state =
+                                  secret.id;
+                              widget.onClose();
+                            },
+                          );
+                        },
                       ),
                     );
-                  }
-
-                  return Flexible(
-                    child: ListView.builder(
-                      shrinkWrap: true,
-                      itemCount: secrets.length,
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      itemBuilder: (context, index) {
-                        final secret = secrets[index];
-                        final isSelected = index == _selectedIndex;
-
-                        return _ResultRow(
-                          secret: secret,
-                          isSelected: isSelected,
-                          isDark: isDark,
-                          onTap: () {
-                            ref.read(selectedSecretIdProvider.notifier).state =
-                                secret.id;
-                            widget.onClose();
-                          },
-                        );
-                      },
+                  },
+                  loading: () => const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
                     ),
-                  );
-                },
-                loading: () => const Padding(
-                  padding: EdgeInsets.all(24),
-                  child: SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                  ),
+                  error: (err, _) => Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Text(
+                      'Error: $err',
+                      style: AppTypography.caption.copyWith(
+                        color: AppColors.errorText,
+                      ),
+                    ),
                   ),
                 ),
-                error: (err, _) => Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(
-                    'Error: $err',
-                    style: AppTypography.caption.copyWith(color: AppColors.errorText),
-                  ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
           ),
         ),
       ),
@@ -188,7 +207,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
   void _selectCurrent(AsyncValue<List<Secret>> results) {
     results.whenData((secrets) {
       if (secrets.isNotEmpty && _selectedIndex < secrets.length) {
-        ref.read(selectedSecretIdProvider.notifier).state = secrets[_selectedIndex].id;
+        ref.read(selectedSecretIdProvider.notifier).state =
+            secrets[_selectedIndex].id;
         widget.onClose();
       }
     });
@@ -225,7 +245,9 @@ class _ResultRow extends StatelessWidget {
                 child: Text(
                   secret.name,
                   style: AppTypography.bodySmall.copyWith(
-                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -237,7 +259,9 @@ class _ResultRow extends StatelessWidget {
                   secret.serviceName!,
                   style: AppTypography.caption.copyWith(
                     fontSize: 12,
-                    color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
                   ),
                 ),
               ],
@@ -254,7 +278,9 @@ class _ResultRow extends StatelessWidget {
                   secret.secretType.replaceAll('_', ' '),
                   style: AppTypography.caption.copyWith(
                     fontSize: 11,
-                    color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                    color: isDark
+                        ? AppColors.darkTextTertiary
+                        : AppColors.lightTextTertiary,
                   ),
                 ),
               ),

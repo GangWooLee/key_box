@@ -23,9 +23,7 @@ void showSecretSheetModal({
     barrierColor: Colors.black54,
     transitionDuration: const Duration(milliseconds: 200),
     pageBuilder: (context, animation, secondaryAnimation) {
-      return Center(
-        child: _SecretSheetModal(secret: secret),
-      );
+      return Center(child: _SecretSheetModal(secret: secret));
     },
     transitionBuilder: (context, animation, secondaryAnimation, child) {
       return FadeTransition(
@@ -67,7 +65,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
     super.initState();
     _nameController = TextEditingController(text: widget.secret?.name ?? '');
     _valueController = TextEditingController();
-    _serviceController = TextEditingController(text: widget.secret?.serviceName ?? '');
+    _serviceController = TextEditingController(
+      text: widget.secret?.serviceName ?? '',
+    );
     _notesController = TextEditingController(text: widget.secret?.notes ?? '');
     _escFocusNode = FocusNode();
     _secretType = widget.secret?.secretType ?? 'api_key';
@@ -105,7 +105,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
             color: isDark ? AppColors.authCardBg : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isDark ? AppColors.authCardStroke : AppColors.lightBorderPrimary,
+              color: isDark
+                  ? AppColors.authCardStroke
+                  : AppColors.lightBorderPrimary,
             ),
             boxShadow: [
               BoxShadow(
@@ -141,9 +143,13 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                       ),
                       const SizedBox(height: 20),
                       _ModalInput(
-                        label: _isEdit ? 'New Value (leave empty to keep current)' : 'Key Value',
+                        label: _isEdit
+                            ? 'New Value (leave empty to keep current)'
+                            : 'Key Value',
                         controller: _valueController,
-                        hint: _isEdit ? 'Enter new value...' : 'Paste your secret here...',
+                        hint: _isEdit
+                            ? 'Enter new value...'
+                            : 'Paste your secret here...',
                         isDark: isDark,
                         maxLines: 4,
                         isMono: true,
@@ -154,7 +160,8 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                       Material(
                         color: Colors.transparent,
                         child: InkWell(
-                          onTap: () => setState(() => _showAdvanced = !_showAdvanced),
+                          onTap: () =>
+                              setState(() => _showAdvanced = !_showAdvanced),
                           borderRadius: BorderRadius.circular(4),
                           child: Padding(
                             padding: const EdgeInsets.symmetric(vertical: 6),
@@ -166,7 +173,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                                   child: Icon(
                                     LucideIcons.chevronRight,
                                     size: 14,
-                                    color: isDark ? AppColors.brand500 : AppColors.brand600,
+                                    color: isDark
+                                        ? AppColors.brand500
+                                        : AppColors.brand600,
                                   ),
                                 ),
                                 const SizedBox(width: 6),
@@ -174,7 +183,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                                   'Advanced Options',
                                   style: AppTypography.bodySmall.copyWith(
                                     fontWeight: FontWeight.w500,
-                                    color: isDark ? AppColors.brand500 : AppColors.brand600,
+                                    color: isDark
+                                        ? AppColors.brand500
+                                        : AppColors.brand600,
                                   ),
                                 ),
                               ],
@@ -205,7 +216,8 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                             'ssh_key': 'SSH Key',
                             'other': 'Other',
                           },
-                          onChanged: (v) => setState(() => _secretType = v ?? _secretType),
+                          onChanged: (v) =>
+                              setState(() => _secretType = v ?? _secretType),
                         ),
                         const SizedBox(height: 16),
                         _ModalDropdown(
@@ -259,7 +271,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
     final ops = ref.read(secretOpsProvider);
 
     if (_isEdit) {
-      final newValue = _valueController.text.isNotEmpty ? _valueController.text : null;
+      final newValue = _valueController.text.isNotEmpty
+          ? _valueController.text
+          : null;
       await ops.update(
         widget.secret!.id,
         name: name,
@@ -281,7 +295,10 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
       final folders = await db.folderDao.getByVaultId(auth.vaultId);
       int folderId;
       if (folders.isEmpty) {
-        final folder = await db.folderDao.create(vaultId: auth.vaultId, name: 'Default');
+        final folder = await db.folderDao.create(
+          vaultId: auth.vaultId,
+          name: 'Default',
+        );
         folderId = folder.id;
       } else {
         folderId = folders.first.id;
@@ -326,7 +343,9 @@ class _ModalHeader extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: isDark ? AppColors.darkDividerMedium : AppColors.lightBorderSubtle,
+            color: isDark
+                ? AppColors.darkDividerMedium
+                : AppColors.lightBorderSubtle,
           ),
         ),
       ),
@@ -336,7 +355,9 @@ class _ModalHeader extends StatelessWidget {
             title,
             style: AppTypography.titleSmall.copyWith(
               fontSize: 18,
-              color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
             ),
           ),
           const Spacer(),
@@ -348,7 +369,9 @@ class _ModalHeader extends StatelessWidget {
               icon: Icon(
                 LucideIcons.x,
                 size: 16,
-                color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary,
               ),
               padding: EdgeInsets.zero,
             ),
@@ -381,7 +404,9 @@ class _ModalFooter extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
-            color: isDark ? AppColors.darkDividerMedium : AppColors.lightBorderSubtle,
+            color: isDark
+                ? AppColors.darkDividerMedium
+                : AppColors.lightBorderSubtle,
           ),
         ),
       ),
@@ -393,7 +418,9 @@ class _ModalFooter extends StatelessWidget {
             child: Text(
               'Cancel',
               style: AppTypography.bodySmall.copyWith(
-                color: isDark ? AppColors.darkTextTertiary : AppColors.lightTextTertiary,
+                color: isDark
+                    ? AppColors.darkTextTertiary
+                    : AppColors.lightTextTertiary,
               ),
             ),
           ),
@@ -405,7 +432,9 @@ class _ModalFooter extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.buttonPrimary,
                 foregroundColor: AppColors.buttonPrimaryText,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 padding: const EdgeInsets.symmetric(horizontal: 20),
               ),
               child: isSaving
@@ -420,13 +449,19 @@ class _ModalFooter extends StatelessWidget {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text('Save', style: AppTypography.bodySmall.copyWith(
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.buttonPrimaryText,
-                        )),
+                        Text(
+                          'Save',
+                          style: AppTypography.bodySmall.copyWith(
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.buttonPrimaryText,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 4,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(3),
                             color: Colors.white.withValues(alpha: 0.15),
@@ -435,7 +470,9 @@ class _ModalFooter extends StatelessWidget {
                             '\u2318\u21A9',
                             style: AppTypography.caption.copyWith(
                               fontSize: 10,
-                              color: AppColors.buttonPrimaryText.withValues(alpha: 0.7),
+                              color: AppColors.buttonPrimaryText.withValues(
+                                alpha: 0.7,
+                              ),
                             ),
                           ),
                         ),
@@ -479,7 +516,9 @@ class _ModalInput extends StatelessWidget {
           label,
           style: AppTypography.authInputLabel.copyWith(
             fontFamily: AppTypography.interFamily,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary,
           ),
         ),
         const SizedBox(height: 6),
@@ -487,16 +526,22 @@ class _ModalInput extends StatelessWidget {
           controller: controller,
           autofocus: autofocus,
           maxLines: maxLines,
-          style: (isMono ? AppTypography.mono : AppTypography.bodySmall).copyWith(
-            color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-          ),
+          style: (isMono ? AppTypography.mono : AppTypography.bodySmall)
+              .copyWith(
+                color: isDark
+                    ? AppColors.darkTextPrimary
+                    : AppColors.lightTextPrimary,
+              ),
           decoration: InputDecoration(
             filled: true,
             fillColor: isDark
                 ? AppColors.darkSurfaceSecondary.withValues(alpha: 0.5)
                 : null,
             hintText: hint,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
@@ -546,7 +591,9 @@ class _ModalDropdown extends StatelessWidget {
           label,
           style: AppTypography.authInputLabel.copyWith(
             fontFamily: AppTypography.interFamily,
-            color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+            color: isDark
+                ? AppColors.darkTextSecondary
+                : AppColors.lightTextSecondary,
           ),
         ),
         const SizedBox(height: 6),
@@ -557,7 +604,10 @@ class _ModalDropdown extends StatelessWidget {
             fillColor: isDark
                 ? AppColors.darkSurfaceSecondary.withValues(alpha: 0.5)
                 : null,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
               borderSide: BorderSide(
@@ -577,15 +627,19 @@ class _ModalDropdown extends StatelessWidget {
           ),
           dropdownColor: isDark ? AppColors.darkSurfaceCard : null,
           items: items.entries
-              .map((e) => DropdownMenuItem(
-                    value: e.key,
-                    child: Text(
-                      e.value,
-                      style: AppTypography.bodySmall.copyWith(
-                        color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                      ),
+              .map(
+                (e) => DropdownMenuItem(
+                  value: e.key,
+                  child: Text(
+                    e.value,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
                     ),
-                  ))
+                  ),
+                ),
+              )
               .toList(),
           onChanged: onChanged,
         ),

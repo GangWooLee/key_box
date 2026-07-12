@@ -5,7 +5,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/encryption/master_key_service.dart';
-import 'package:key_box/core/encryption/secret_encryption_service.dart';
 import 'package:key_box/core/utils/result.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
@@ -43,10 +42,9 @@ void main() {
       overrides: [
         databaseProvider.overrideWithValue(db),
         authProvider.overrideWith(
-          (ref) => _FakeAuthNotifier(AuthUnlocked(
-            masterEncryptionKey: mek,
-            vaultId: vaultId,
-          )),
+          (ref) => _FakeAuthNotifier(
+            AuthUnlocked(masterEncryptionKey: mek, vaultId: vaultId),
+          ),
         ),
       ],
     );

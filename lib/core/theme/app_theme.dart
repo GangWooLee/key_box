@@ -21,8 +21,14 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: AppColors.lightSurfaceSecondary,
       cardColor: AppColors.lightSurfaceCard,
       dividerColor: AppColors.lightBorderSubtle,
-      textTheme: _textTheme(AppColors.lightTextPrimary, AppColors.lightTextSecondary),
-      iconTheme: const IconThemeData(color: AppColors.lightTextSecondary, size: 20),
+      textTheme: _textTheme(
+        AppColors.lightTextPrimary,
+        AppColors.lightTextSecondary,
+      ),
+      iconTheme: const IconThemeData(
+        color: AppColors.lightTextSecondary,
+        size: 20,
+      ),
       inputDecorationTheme: _inputTheme(Brightness.light),
       elevatedButtonTheme: _elevatedButtonTheme(),
       outlinedButtonTheme: _outlinedButtonTheme(),
@@ -53,8 +59,14 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: AppColors.darkSurfaceSecondary,
       cardColor: AppColors.darkSurfaceCard,
       dividerColor: AppColors.darkBorderSubtle,
-      textTheme: _textTheme(AppColors.darkTextPrimary, AppColors.darkTextSecondary),
-      iconTheme: const IconThemeData(color: AppColors.darkTextSecondary, size: 20),
+      textTheme: _textTheme(
+        AppColors.darkTextPrimary,
+        AppColors.darkTextSecondary,
+      ),
+      iconTheme: const IconThemeData(
+        color: AppColors.darkTextSecondary,
+        size: 20,
+      ),
       inputDecorationTheme: _inputTheme(Brightness.dark),
       elevatedButtonTheme: _elevatedButtonTheme(),
       outlinedButtonTheme: _outlinedButtonTheme(),
@@ -87,17 +99,23 @@ abstract final class AppTheme {
     final isLight = brightness == Brightness.light;
     return InputDecorationTheme(
       filled: true,
-      fillColor: isLight ? AppColors.lightSurfacePrimary : AppColors.darkSurfaceCard,
+      fillColor: isLight
+          ? AppColors.lightSurfacePrimary
+          : AppColors.authInputBg,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(
-          color: isLight ? AppColors.lightBorderPrimary : AppColors.darkBorderStrong,
+          color: isLight
+              ? AppColors.lightBorderPrimary
+              : AppColors.darkBorderStrong,
         ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(
-          color: isLight ? AppColors.lightBorderPrimary : AppColors.darkBorderPrimary,
+          color: isLight
+              ? AppColors.lightBorderPrimary
+              : AppColors.darkBorderPrimary,
         ),
       ),
       focusedBorder: OutlineInputBorder(
@@ -108,17 +126,36 @@ abstract final class AppTheme {
         ),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      hintStyle: TextStyle(
+        fontFamily: AppTypography.interFamily,
+        fontSize: 14,
+        color: isLight
+            ? AppColors.lightTextTertiary
+            : AppColors.darkTextTertiary,
+      ),
+      labelStyle: TextStyle(
+        fontFamily: AppTypography.interFamily,
+        fontSize: 14,
+        color: isLight
+            ? AppColors.lightTextSecondary
+            : AppColors.darkTextSecondary,
+      ),
     );
   }
 
   static ElevatedButtonThemeData _elevatedButtonTheme() {
     return ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.brand600,
-        foregroundColor: AppColors.brand100,
+        backgroundColor: AppColors.buttonPrimary,
+        foregroundColor: AppColors.buttonPrimaryText,
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        minimumSize: const Size(44, 44), // Accessibility: min touch target
+        minimumSize: const Size(44, 44),
+        textStyle: const TextStyle(
+          fontFamily: AppTypography.interFamily,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -129,6 +166,11 @@ abstract final class AppTheme {
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         minimumSize: const Size(44, 44),
+        textStyle: const TextStyle(
+          fontFamily: AppTypography.interFamily,
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
