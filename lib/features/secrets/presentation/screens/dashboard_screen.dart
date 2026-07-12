@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -222,10 +223,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         final notifier = ref.read(showCommandPaletteProvider.notifier);
         notifier.state = !notifier.state;
       }
-      // Cmd+L → lock
+      // Cmd+L → lock (fire-and-forget: state flips synchronously, only the
+      // encrypted-connection close is awaited internally)
       if (event.logicalKey == LogicalKeyboardKey.keyL &&
           HardwareKeyboard.instance.isMetaPressed) {
-        ref.read(authProvider.notifier).lock();
+        unawaited(ref.read(authProvider.notifier).lock());
       }
       // Escape → close command palette
       if (ref.read(showCommandPaletteProvider) &&
@@ -248,7 +250,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   LogicalKeyboardKey.keyL,
                   meta: true,
                 ),
-                onSelected: () => ref.read(authProvider.notifier).lock(),
+                onSelected: () =>
+                    unawaited(ref.read(authProvider.notifier).lock()),
               ),
             ],
           ),

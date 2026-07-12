@@ -44,6 +44,20 @@ enum VaultErrorReason {
 
   /// Database exists but holds no vault configuration.
   configMissing,
+
+  /// The database is encrypted but its salt sidecar is gone — the KDF salt
+  /// is unrecoverable, so no password can ever derive the key. Backup
+  /// restore (or reset) is the only exit.
+  sidecarMissing,
+
+  /// The plaintext→encrypted migration failed for a non-password reason
+  /// (disk space, integrity, export, verification). The original plaintext
+  /// vault is preserved on disk.
+  migrationFailed,
+
+  /// The keyed database open succeeded (password proven correct) but the
+  /// stored wrapped MEK failed to unwrap — the config row is corrupted.
+  mekUnwrapFailed,
 }
 
 /// MEK is available in memory — full access granted.

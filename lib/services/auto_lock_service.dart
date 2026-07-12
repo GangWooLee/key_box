@@ -49,6 +49,8 @@ class AutoLockService {
   }
 
   void _onTimeout() {
-    _ref.read(authProvider.notifier).lock();
+    // Fire-and-forget: lock() zeroes the MEK and flips the state
+    // synchronously; only the connection close is awaited internally.
+    unawaited(_ref.read(authProvider.notifier).lock());
   }
 }

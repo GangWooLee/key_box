@@ -117,6 +117,24 @@ class VaultErrorScreen extends ConsumerWidget {
       'The vault data file exists but holds no configuration. Resetting '
           'will delete all data and return to initial setup.',
     ),
+    VaultErrorReason.sidecarMissing => (
+      'Vault metadata is missing',
+      'The vault is encrypted but its metadata file is gone, so no '
+          'password can unlock it. Restore from a backup if you have one; '
+          'otherwise resetting is the only way forward.',
+    ),
+    VaultErrorReason.migrationFailed => (
+      'Vault encryption upgrade failed',
+      'The upgrade to an encrypted vault could not be completed. Your '
+          'original data is untouched — free up disk space or try again by '
+          'restarting the app before considering a reset.',
+    ),
+    VaultErrorReason.mekUnwrapFailed => (
+      'Vault master key is corrupted',
+      'Your password is correct, but the stored master key data is '
+          'damaged and cannot be recovered. Restore from a backup if you '
+          'have one before resetting.',
+    ),
   };
 
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {

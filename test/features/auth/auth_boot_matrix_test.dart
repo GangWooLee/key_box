@@ -8,6 +8,7 @@ import 'package:key_box/core/database/vault_paths.dart';
 import 'package:key_box/core/vault/sidecar_store.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../../helpers/widget_test_helpers.dart';
 
@@ -72,8 +73,17 @@ void main() {
     return AuthNotifier.lazy(
       sidecar: sidecar,
       dbFileExists: () async => dbExists,
-      openDatabase: () => db,
+      openDatabase: ({Uint8List? dbKey}) => db,
     );
+  }
+
+  /// Creates a real plaintext SQLite file at the vault path — post-flip
+  /// initialize() probes it to decide between legacy heal and the
+  /// unhealable encrypted-without-sidecar cell.
+  void writePlaintextDbFile() {
+    final raw = sqlite.sqlite3.open('${tempDir.path}/${VaultPaths.dbFileName}');
+    raw.execute('CREATE TABLE IF NOT EXISTS marker (v TEXT);');
+    raw.dispose();
   }
 
   group('boot matrix — initialize()', () {
@@ -95,35 +105,52 @@ void main() {
       expect(notifier.state, isA<AuthLocked>());
     });
 
-    test(
-      '3. no sidecar + db with config → legacy heal writes sidecar, Locked',
-      () async {
-        final db = makeDb();
-        final dbSalt = await seedConfig(db);
-        final sidecar = InMemorySidecarStore();
+    test('3. no sidecar + PLAINTEXT db with config → legacy heal writes '
+        'sidecar, Locked', () async {
+      writePlaintextDbFile();
+      final db = makeDb();
+      final dbSalt = await seedConfig(db);
+      final sidecar = InMemorySidecarStore();
 
-        final notifier = makeLazy(sidecar: sidecar, dbExists: true, db: db);
-        await notifier.initialize();
+      final notifier = makeLazy(sidecar: sidecar, dbExists: true, db: db);
+      await notifier.initialize();
 
-        expect(notifier.state, isA<AuthLocked>());
-        final healed = await sidecar.read();
-        expect(healed, isA<SidecarFound>());
-        expect((healed as SidecarFound).salt, equals(dbSalt));
-      },
-    );
+      expect(notifier.state, isA<AuthLocked>());
+      final healed = await sidecar.read();
+      expect(healed, isA<SidecarFound>());
+      expect((healed as SidecarFound).salt, equals(dbSalt));
+    });
 
-    test(
-      '4. no sidecar + db file without config → FirstRun (setup debris)',
-      () async {
-        final notifier = makeLazy(
-          sidecar: InMemorySidecarStore(),
-          dbExists: true,
-          db: makeDb(), // empty: crash between file creation and setup commit
-        );
-        await notifier.initialize();
-        expect(notifier.state, isA<AuthFirstRun>());
-      },
-    );
+    test('4. no sidecar + PLAINTEXT db file without config → FirstRun '
+        '(setup debris)', () async {
+      writePlaintextDbFile();
+      final notifier = makeLazy(
+        sidecar: InMemorySidecarStore(),
+        dbExists: true,
+        db: makeDb(), // empty: crash between file creation and setup commit
+      );
+      await notifier.initialize();
+      expect(notifier.state, isA<AuthFirstRun>());
+    });
+
+    test('4b. no sidecar + ENCRYPTED db file → VaultError(sidecarMissing) — '
+        'the salt is unrecoverable', () async {
+      File(
+        '${tempDir.path}/${VaultPaths.dbFileName}',
+      ).writeAsBytesSync(List.generate(128, (i) => (i * 59 + 3) & 0xFF));
+      final notifier = makeLazy(
+        sidecar: InMemorySidecarStore(),
+        dbExists: true,
+        db: makeDb(),
+      );
+      await notifier.initialize();
+
+      expect(notifier.state, isA<AuthVaultError>());
+      expect(
+        (notifier.state as AuthVaultError).reason,
+        VaultErrorReason.sidecarMissing,
+      );
+    });
 
     test('5. sidecar + no db file → VaultError(vaultFileMissing)', () async {
       final sidecar = InMemorySidecarStore();
@@ -158,6 +185,7 @@ void main() {
     });
 
     test('7. heal is idempotent across boots and re-entry guarded', () async {
+      writePlaintextDbFile();
       final db = makeDb();
       final dbSalt = await seedConfig(db);
       final sidecar = InMemorySidecarStore();
@@ -180,36 +208,9 @@ void main() {
   });
 
   group('unlock — salt sources and recovery', () {
-    test(
-      '8. sidecar/db salt mismatch → db-salt fallback + sidecar rewrite',
-      () async {
-        final sidecar = InMemorySidecarStore();
-        final db = makeDb();
-        final notifier = makeLazy(sidecar: sidecar, dbExists: true, db: db);
-
-        final setupError = await notifier.setup(
-          password: 'testpass1',
-          confirmation: 'testpass1',
-        );
-        expect(setupError, isNull);
-        final vaultId = (notifier.state as AuthUnlocked).vaultId;
-
-        // Diverge the sidecar (partial restore / manual copy scenario).
-        await sidecar.write(salt32(0x77));
-        notifier.lock();
-
-        final error = await notifier.unlock(password: 'testpass1');
-        expect(error, isNull);
-        expect(notifier.state, isA<AuthUnlocked>());
-
-        // Sidecar must be healed back to the authoritative DB salt.
-        final config = await db.vaultConfigDao.getByVaultId(vaultId);
-        expect(
-          (await sidecar.read() as SidecarFound).salt,
-          equals(Uint8List.fromList(config!.masterKeySalt)),
-        );
-      },
-    );
+    // (Former test 8 — sidecar/db salt-mismatch fallback — was removed with
+    // the encryption flip: the DB salt is unreadable before the keyed open,
+    // so the sidecar is the sole salt source. PR-B design decision.)
 
     test('10. db without config → unlock transitions to '
         'VaultError(configMissing)', () async {
