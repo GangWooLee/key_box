@@ -1,5 +1,5 @@
 ---
-description: "코드베이스 종합 검증을 실행합니다. 빌드, 린트, 테스트, 보안을 순차 검증합니다. 옵션: quick, full, pre-pr"
+description: "코드베이스 종합 검증을 실행합니다. 빌드, 정적 분석, 테스트, 코드 품질을 순차 검증합니다. 옵션: quick, full, pre-pr"
 ---
 
 # 종합 검증 워크플로우
@@ -12,34 +12,33 @@ description: "코드베이스 종합 검증을 실행합니다. 빌드, 린트, 
 
 ### 1. 빌드 검증
 ```bash
-bin/rails runner "puts 'OK'"
+flutter build macos --debug
 ```
 
-### 2. 린트 검사 (quick 모드에서는 생략)
+### 2. 정적 분석 (quick 모드에서는 생략)
 ```bash
-# RuboCop이 설치된 경우
-bundle exec rubocop --format simple
+dart analyze
 ```
 
 ### 3. 테스트 실행
 ```bash
 # quick 모드
-bin/rails test test/models/ test/services/
+flutter test test/core/
 
 # full 모드
-bin/rails test
+flutter test
 
 # pre-pr 모드
-bin/rails test && bin/rails test:system
+flutter test --coverage
 ```
 
-### 4. 보안 스캔 (pre-pr 모드만)
+### 4. 코드 품질 (pre-pr 모드만)
 ```bash
-# Brakeman이 설치된 경우
-bundle exec brakeman -q --no-pager
+# 자동 수정 가능한 이슈 확인
+dart fix --dry-run
 
 # 하드코딩된 시크릿 검색
-grep -rn "password\|secret\|api_key\|token" --include="*.rb" app/ config/ | grep -v "\.example\|test\|spec\|password_digest\|has_secure_password\|password_params\|password_confirmation"
+grep -rn "password\|secret\|api_key\|token" --include="*.dart" lib/ | grep -v "test\|mock\|example\|\.g\.dart"
 ```
 
 ### 5. Git 상태 확인
@@ -51,17 +50,17 @@ git diff --stat
 ## 결과 보고서
 
 ```
-📋 검증 결과 (모드: full)
+검증 결과 (모드: full)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
-빌드:    ✅ / ❌
-린트:    ✅ / ❌ / ⏭️ (건너뜀)
-테스트:  ✅ X개 통과 / ❌ Y개 실패
-보안:    ✅ / ❌ / ⏭️ (건너뜀)
+빌드:      ✅ / ❌
+정적 분석: ✅ / ❌ / ⏭️ (건너뜀)
+테스트:    ✅ X개 통과 / ❌ Y개 실패
+코드 품질: ✅ / ❌ / ⏭️ (건너뜀)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 PR 준비: ✅ 가능 / ❌ 수정 필요
 ```
 
 ## 이슈 보고 기준
-- 린트 오류: 파일 경로와 라인 번호
+- 정적 분석 오류: 파일 경로와 라인 번호
 - 테스트 실패: 테스트명과 에러 메시지
-- 보안: 파일 위치와 위험 수준
+- 코드 품질: dart fix 제안 목록

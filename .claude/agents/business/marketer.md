@@ -1,7 +1,7 @@
 ---
 name: marketer
 description: "마케팅 전문가 - 마케팅 전략, ASO, 사용자 획득, 콘텐츠 전략, SNS, 런칭 계획"
-model: sonnet
+model: opus
 triggers:
   - 마케팅
   - 런칭

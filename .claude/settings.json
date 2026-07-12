@@ -1,22 +1,29 @@
 {
-  "enabledPlugins": {
-    "bkit@bkit-marketplace": false,
-    "context7@claude-plugins-official": true,
-    "frontend-design@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true,
-    "github@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": true,
-    "agent-sdk-dev@claude-plugins-official": true,
-    "figma@claude-plugins-official": true,
-    "explanatory-output-style@claude-plugins-official": true,
-    "vercel@claude-plugins-official": true,
-    "marketingskills@coreyhaines31": true
-  },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_AUTOCOMPACT_PCT_OVERRIDE": "80"
   },
-  "teammateMode": "tmux",
+  "permissions": {
+    "allow": [
+      "Bash(flutter test*)",
+      "Bash(flutter build*)",
+      "Bash(dart analyze*)",
+      "Bash(dart fix*)",
+      "Bash(dart run build_runner*)",
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)"
+    ],
+    "deny": [
+      "Bash(git reset --hard*)",
+      "Bash(rm -rf*)",
+      "Read(.env)",
+      "Read(.env.*)"
+    ],
+    "ask": [
+      "Bash(git push*)"
+    ]
+  },
   "hooks": {
     "SessionStart": [
       {
@@ -24,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo \"Git branch: $(git branch --show-current 2>/dev/null || echo 'N/A') | Last commit: $(git log --oneline -1 2>/dev/null || echo 'N/A') | Pending migrations: $(ls db/migrate/*.rb 2>/dev/null | wc -l | tr -d ' ') files\"",
+            "command": "echo \"Git branch: $(git branch --show-current 2>/dev/null || echo 'N/A') | Last commit: $(git log --oneline -1 2>/dev/null || echo 'N/A') | Flutter: $(flutter --version 2>/dev/null | head -1 || echo 'N/A') | Tests: $(find test -name '*_test.dart' 2>/dev/null | wc -l | tr -d ' ') files\"",
             "timeout": 15
           }
         ]
@@ -58,7 +65,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bundle exec rubocop --autocorrect-all --force-exclusion \"$CLAUDE_FILE_PATH\" 2>/dev/null || true",
+            "command": "if echo \"$CLAUDE_FILE_PATH\" | grep -q '\\.dart$'; then dart fix --apply \"$CLAUDE_FILE_PATH\" 2>/dev/null || true; fi",
             "timeout": 30
           }
         ]
@@ -113,8 +120,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bin/rails test 2>&1 | tail -5",
-            "timeout": 120
+            "command": "flutter test 2>&1 | tail -10",
+            "timeout": 180
           }
         ]
       }
@@ -124,34 +131,27 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '=== Rubocop ===' && bundle exec rubocop --force-exclusion 2>&1 | tail -3 && echo '=== Tests ===' && bin/rails test 2>&1 | tail -5",
-            "timeout": 180
+            "command": "echo '=== Dart Analyze ===' && dart analyze 2>&1 | tail -5 && echo '=== Flutter Test ===' && flutter test 2>&1 | tail -10",
+            "timeout": 300
           }
         ]
       }
     ]
   },
-  "permissions": {
-    "allow": [
-      "Bash(bin/rails test*)",
-      "Bash(bin/rails runner*)",
-      "Bash(bundle exec rubocop*)",
-      "Bash(git status*)",
-      "Bash(git diff*)",
-      "Bash(git log*)"
-    ],
-    "ask": [
-      "Bash(git push*)"
-    ],
-    "deny": [
-      "Bash(git reset --hard*)",
-      "Bash(rm -rf*)",
-      "Bash(rails db:drop*)",
-      "Bash(rails db:reset*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Read(config/master.key)",
-      "Read(config/credentials.yml.enc)"
-    ]
-  }
+  "enabledPlugins": {
+    "bkit@bkit-marketplace": false,
+    "context7@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "security-guidance@claude-plugins-official": true,
+    "agent-sdk-dev@claude-plugins-official": true,
+    "figma@claude-plugins-official": true,
+    "explanatory-output-style@claude-plugins-official": true,
+    "vercel@claude-plugins-official": true,
+    "marketingskills@coreyhaines31": true,
+    "superpowers@claude-plugins-official": true,
+    "compound-engineering@compound-engineering-plugin": true
+  },
+  "teammateMode": "tmux"
 }

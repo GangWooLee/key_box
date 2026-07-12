@@ -2,7 +2,7 @@
 name: data-analyst
 description: "데이터 분석 전문가 - 이벤트 트래킹 설계, 사용자 행동 분석, A/B 테스트 설계, 핵심 지표 정의"
 permissionMode: plan
-model: sonnet
+model: opus
 memory: project
 triggers:
   - 데이터 분석

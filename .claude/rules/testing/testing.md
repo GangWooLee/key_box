@@ -3,215 +3,173 @@ paths:
   - "test/**"
 ---
 
-# 테스팅 — 규칙 · CI 트러블슈팅
+# 테스팅 — flutter_test · mocktail · Drift in-memory
 
 ## 테스트 파일 구조
 
-```ruby
-require "test_helper"
+```dart
+import 'package:flutter_test/flutter_test.dart';
+import 'package:key_box/core/encryption/key_derivation_service.dart';
 
-class UserTest < ActiveSupport::TestCase
-  fixtures :users
+void main() {
+  group('KeyDerivationService', () {
+    late KeyDerivationService service;
 
-  setup do
-    @user = users(:one)
-  end
+    setUp(() {
+      service = KeyDerivationService();
+    });
 
-  # ===== Validations =====
-  test "should be valid with valid attributes" do
-    assert @user.valid?
-  end
+    // ===== 정상 동작 =====
+    test('derives key from password and salt', () async {
+      final key = await service.deriveKey('password', salt);
+      expect(key.length, equals(32));
+    });
 
-  test "should require email" do
-    @user.email = nil
-    assert_not @user.valid?
-    assert_includes @user.errors[:email], "can't be blank"
-  end
-
-  # ===== Associations =====
-  # ===== Scopes =====
-end
+    // ===== 엣지 케이스 =====
+    test('throws on empty password', () {
+      expect(() => service.deriveKey('', salt), throwsArgumentError);
+    });
+  });
+}
 ```
 
-## 네이밍 규칙
+## 테스트 유형
 
-```ruby
-# 파일명
-test/models/user_test.rb
-test/controllers/posts_controller_test.rb
-test/services/users/deletion_service_test.rb
+| 유형 | 위치 | 도구 | 용도 |
+|------|------|------|------|
+| Unit | `test/core/`, `test/features/*/domain/` | `flutter_test` | 로직, 서비스, 프로바이더 |
+| Widget | `test/features/*/presentation/` | `flutter_test` + `ProviderScope` | UI 컴포넌트 |
+| Integration | `test/integration/` | `flutter_test` | E2E 시나리오 |
 
-# 테스트 메서드명 (한글 가능)
-test "should validate presence of title" do
-test "로그인 후 리다이렉트" do
+## Riverpod 테스트 패턴
+
+```dart
+// ProviderContainer로 프로바이더 독립 테스트
+final container = ProviderContainer(overrides: [
+  databaseProvider.overrideWithValue(testDatabase),
+  encryptionServiceProvider.overrideWithValue(mockEncryption),
+]);
+
+addTearDown(container.dispose);
+
+final notifier = container.read(authNotifierProvider.notifier);
+await notifier.setup('password');
+expect(container.read(authNotifierProvider), isA<AuthUnlocked>());
 ```
 
-## Fixture 규칙
+## Drift In-Memory DB 패턴
 
-```yaml
-# test/fixtures/users.yml
-one:
-  email: user1@example.com
-  name: 테스트 사용자 1
-  password_digest: <%= BCrypt::Password.create('password123', cost: 4) %>
-# cost: 4 사용 — 테스트 속도 향상 (기본 12 대비 ~1000배 빠름)
+```dart
+// 테스트용 인메모리 DB
+AppDatabase createTestDatabase() {
+  return AppDatabase(NativeDatabase.memory());
+}
+
+setUp(() {
+  database = createTestDatabase();
+});
+
+tearDown(() async {
+  await database.close();
+});
 ```
 
-## 컨트롤러 테스트
+## mocktail 패턴
 
-```ruby
-class PostsControllerTest < ActionDispatch::IntegrationTest
-  test "should redirect create when not logged in" do
-    post posts_url, params: { post: { title: "Test" } }
-    assert_redirected_to login_url
-  end
+```dart
+import 'package:mocktail/mocktail.dart';
 
-  test "should create post when logged in" do
-    log_in_as(@user)
-    assert_difference "Post.count", 1 do
-      post posts_url, params: { post: { title: "New", content: "Content" } }
-    end
-  end
-end
+class MockEncryptionService extends Mock implements SecretEncryptionService {}
+
+setUp(() {
+  mockEncryption = MockEncryptionService();
+  when(() => mockEncryption.encrypt(any(), any()))
+      .thenAnswer((_) async => Uint8List(32));
+});
+```
+
+## Widget 테스트 패턴
+
+```dart
+testWidgets('shows unlock screen when locked', (tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        authNotifierProvider.overrideWith(
+          () => TestAuthNotifier(AuthLocked()),
+        ),
+      ],
+      child: const MaterialApp(home: UnlockScreen()),
+    ),
+  );
+
+  expect(find.text('비밀번호를 입력하세요'), findsOneWidget);
+  await tester.enterText(find.byType(TextField), 'password');
+  await tester.tap(find.byType(ElevatedButton));
+  await tester.pumpAndSettle();
+});
 ```
 
 ## 금지 패턴
 
-```ruby
-# ❌ sleep 사용 금지
-sleep 2
-assert_text "결과"
+```dart
+// ❌ sleep 사용 금지
+await Future.delayed(Duration(seconds: 2));
+expect(find.text('결과'), findsOneWidget);
 
-# ✅ wait 옵션 사용
-assert_text "결과", wait: 5
+// ✅ pumpAndSettle 또는 pump 사용
+await tester.pumpAndSettle();
+expect(find.text('결과'), findsOneWidget);
 
-# ❌ 하드코딩된 ID → ✅ Fixture 사용: users(:one)
-# ❌ 테스트 간 의존성 → ✅ 각 테스트 독립적으로 데이터 생성
+// ❌ 하드코딩 경로 → ✅ 테스트 헬퍼 사용
+// ❌ 테스트 간 공유 상태 → ✅ setUp/tearDown으로 격리
+```
+
+## pumpAndSettle 주의사항
+
+```dart
+// pumpAndSettle은 모든 애니메이션이 끝날 때까지 대기
+// 무한 애니메이션(CircularProgressIndicator)이 있으면 타임아웃!
+
+// ✅ 타임아웃 지정
+await tester.pumpAndSettle(const Duration(seconds: 5));
+
+// ✅ 또는 pump로 특정 시간만 진행
+await tester.pump(const Duration(milliseconds: 500));
 ```
 
 ## 커버리지 목표
 
 | 영역 | 최소 커버리지 |
 |------|-------------|
-| 모델 Validations/Associations | 100% |
-| 인증/인가/결제 | 100% |
-| 서비스 객체 | 80% |
-| 컨트롤러 (핵심) | 80% |
-| 시스템 테스트 | 60% |
+| Encryption (core/encryption/) | 100% |
+| Auth (features/auth/domain/) | 100% |
+| Database (core/database/) | 80% |
+| Providers (features/*/domain/) | 80% |
+| Widgets (features/*/presentation/) | 60% |
+| Services (services/) | 70% |
 
 ## 테스트 실행
 
 ```bash
-bin/rails test                              # 전체
-bin/rails test test/models/user_test.rb     # 특정 파일
-SKIP_ASSET_BUILD=true bin/rails test        # CI용
+flutter test                              # 전체
+flutter test test/core/                   # 특정 디렉토리
+flutter test test/core/encryption/key_derivation_service_test.dart  # 특정 파일
+flutter test --coverage                   # 커버리지 리포트
+dart analyze                              # 정적 분석 (테스트 파일 포함)
 ```
 
----
+## 테스트 헬퍼
+
+`test/helpers/` 디렉토리에 공용 헬퍼 배치:
+- `test_helpers.dart` — DB 생성, 공용 mock
+- `widget_test_helpers.dart` — ProviderScope 래퍼, 테마 적용
 
 ## CI 트러블슈팅
 
-### 1. Stale Element Reference (20%)
-
-Turbo Stream이 DOM을 업데이트하면 기존 참조가 무효화됨.
-
-```ruby
-# ❌ 반복문 외부에서 캐시된 요소 참조
-input = find("[data-comment-form-target='input']")
-3.times do
-  page.execute_script("arguments[0].dispatchEvent(...)", input)  # stale!
-end
-
-# ✅ 반복문 내부에서 매번 새로 찾기
-3.times do
-  page.execute_script(<<~JS)
-    const input = document.querySelector("[data-comment-form-target='input']");
-    if (input) { input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }
-  JS
-end
-```
-
-### 2. ESC 키 모달 닫기 (10%)
-
-```ruby
-# ❌ send_keys(:escape) — 포커스 문제
-page.send_keys(:escape)
-
-# ✅ document 레벨 이벤트
-page.execute_script(<<~JS)
-  document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'Escape', keyCode: 27, bubbles: true
-  }));
-JS
-```
-
-### 3. Stimulus Controller 타이밍 (25%)
-
-```ruby
-# ❌ 컨트롤러 연결 대기 없이 조작
-visit some_path
-find("[data-some-target='button']").click
-
-# ✅ 컨트롤러 연결 대기 후 조작
-visit some_path
-assert_selector "[data-controller='some']", wait: 5
-find("[data-some-target='button']").click
-```
-
-### 4. Dropdown 경쟁 조건 (15%)
-
-```ruby
-# ✅ 옵션 표시 대기 후 선택
-find("[data-combobox-target='input']").click
-assert_selector "[data-combobox-target='option']", wait: 5
-find("[data-combobox-target='option']", text: "옵션").click
-```
-
-### 5. 상태 오염 (5%)
-
-```ruby
-# ✅ 유니크 식별자 사용
-unique_text = "테스트 댓글 #{SecureRandom.hex(4)}"
-fill_in "내용", with: unique_text
-assert_text unique_text
-```
-
-### 6. JavaScript 클릭 (5%)
-
-```ruby
-# ✅ 오버레이 문제 시 JavaScript 직접 클릭
-page.execute_script("arguments[0].click()", find(".hidden-button"))
-```
-
-### 7. 리다이렉트 체인 타이밍 (10%)
-
-```ruby
-# ✅ Turbo 완료 대기 후 확인
-visit some_protected_path
-assert_no_selector ".turbo-progress-bar", wait: 10
-assert_current_path login_path, wait: 10
-```
-
-## CI 에러 → 패턴 매칭
-
-| 에러 키워드 | 패턴 |
-|------------|------|
-| `StaleElementReferenceError` | #1 Stale Element |
-| `keydown`, `Escape` | #2 ESC 키 |
-| `data-controller`, `not found` | #3 Stimulus 타이밍 |
-| `Unable to find option` | #4 Dropdown 경쟁 |
-| `Expected X but got Y` | #5 상태 오염 |
-| `not clickable` | #6 클릭 문제 |
-| `Expected "/path" but actual is` | #7 리다이렉트 |
-
-## System Test 체크리스트
-
-- Turbo Stream 후 요소 재참조
-- Stimulus 컨트롤러 연결 대기 (`assert_selector wait: 5`)
-- 유니크 식별자 사용 (`SecureRandom`/`Time.now`)
-- ESC 키는 `document.dispatchEvent` 사용
-- 드롭다운 옵션 표시 대기
-- 숨겨진 요소는 JavaScript 클릭
-- `sleep` 대신 `assert_selector`/`assert_text` wait 사용
-- 보호된 경로: Turbo 로딩 완료 대기
-- `assert_current_path`에 `wait:` 옵션 사용
+| 증상 | 원인 | 해결 |
+|------|------|------|
+| `pumpAndSettle` 타임아웃 | 무한 애니메이션 | `pump()` + 특정 시간 |
+| `MissingPluginException` | 네이티브 플러그인 미등록 | `TestWidgetsFlutterBinding.ensureInitialized()` |
+| Drift 테스트 실패 | DB 미정리 | `tearDown`에서 `database.close()` |
+| Provider 상태 누수 | Container 미정리 | `addTearDown(container.dispose)` |

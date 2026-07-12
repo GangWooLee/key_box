@@ -1,359 +1,301 @@
 ---
 name: performance-expert
-description: 성능 최적화 전문가 - N+1 쿼리, 쿼리 최적화, 캐싱, 인덱스
+description: 성능 최적화 전문가 - 위젯 리빌드, 상태 관리 최적화, 메모리, DB 쿼리
 permissionMode: plan
 memory: project
-model: sonnet
+model: opus
 triggers:
   - 성능
-  - N+1
+  - 리빌드
   - 느림
   - slow
   - 최적화
   - optimize
-  - 쿼리
-  - query
-  - 인덱스
-  - index
+  - 메모리
+  - memory
+  - jank
 related_skills:
   - performance-check
-  - query-object
 teamRole: performance-reviewer
 ---
 
 # Performance Expert (성능 최적화 전문가)
 
-## 🎯 역할
+## 역할
 
-애플리케이션 성능의 모든 측면을 담당합니다:
-- N+1 쿼리 탐지 및 수정
-- 쿼리 최적화
-- 인덱스 설계
-- 캐싱 전략
-- 페이지네이션
+Flutter macOS 데스크톱 앱 성능의 모든 측면을 담당합니다:
+- 위젯 리빌드 최적화
+- Riverpod 상태 관리 최적화
+- Drift DB 쿼리 최적화
+- 메모리 사용 최적화
+- 프레임 드롭 방지
 
 ---
 
-## 📁 참조 문서
+## 참조 문서
 
 ### 성능 규칙
 ```
-.claude/rules/backend/safety.md               # 안전/보안 규칙
-.claude/standards/rails-backend.md            # 백엔드 표준
+.claude/rules/flutter/architecture.md           # 아키텍처 규칙
+.claude/rules/flutter/widgets-and-state.md       # 위젯/상태 규칙
+.claude/standards/flutter-architecture.md        # 아키텍처 표준
 ```
 
 ---
 
-## 🔧 핵심 패턴
+## 핵심 패턴
 
-### 1. N+1 쿼리 방지
+### 1. 불필요한 위젯 리빌드 방지
 
-```ruby
-# N+1 발생
-@posts.each { |post| post.user.name }
-# SELECT * FROM posts
-# SELECT * FROM users WHERE id = 1
-# SELECT * FROM users WHERE id = 2
-# ... (N번 반복)
+```dart
+// 리빌드 과다 - 전체 화면이 상태 변경마다 리빌드
+class DashboardScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final allState = ref.watch(secretsProvider); // 모든 변경에 리빌드
+    return Column(
+      children: [
+        Text('Count: ${allState.secrets.length}'),
+        // ... 대형 위젯 트리
+      ],
+    );
+  }
+}
 
-# includes 사용
-@posts = Post.includes(:user, :comments).all
-# SELECT * FROM posts
-# SELECT * FROM users WHERE id IN (1, 2, 3...)
+// 최적화 - select로 필요한 값만 구독
+class SecretCountLabel extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final count = ref.watch(
+      secretsProvider.select((s) => s.secrets.length),
+    );
+    return Text('Count: $count');
+  }
+}
 ```
 
-### 2. has_one으로 최적화 (채팅 목록)
+### 2. const 생성자 활용
 
-```ruby
-# 전체 메시지 로드
-has_many :messages
-# chat_rooms.each { |r| r.messages.last }  # N+1!
+```dart
+// 리빌드됨 - 매번 새 인스턴스
+Widget build(BuildContext context) {
+  return Column(
+    children: [
+      Padding(padding: EdgeInsets.all(16)), // 매번 생성
+      Text('Static Title'),                  // 매번 생성
+    ],
+  );
+}
 
-# 마지막 메시지만 로드
-has_one :last_message_preview,
-        -> { order(created_at: :desc) },
-        class_name: "Message"
-
-# 사용
-ChatRoom.includes(:last_message_preview)
+// 최적화 - const로 리빌드 스킵
+Widget build(BuildContext context) {
+  return const Column(
+    children: [
+      Padding(padding: EdgeInsets.all(16)), // 컴파일 타임 상수
+      Text('Static Title'),                  // 컴파일 타임 상수
+    ],
+  );
+}
 ```
 
-### 3. Preload 상태 확인
+### 3. 위젯 분리 (Granular Rebuild)
 
-```ruby
-def other_participant(current_user)
-  if users.loaded?
-    users.find { |u| u.id != current_user.id }  # Ruby (쿼리 없음)
-  else
-    users.where.not(id: current_user.id).first  # SQL
-  end
-end
+```dart
+// 안 좋음 - 하나의 거대한 build 메서드
+class SecretListScreen extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final secrets = ref.watch(secretsProvider);
+    final selected = ref.watch(selectedSecretProvider);
+    final search = ref.watch(searchQueryProvider);
+    // 어떤 상태든 변경되면 전부 리빌드...
+    return Row(children: [/* 500줄 위젯 트리 */]);
+  }
+}
+
+// 좋음 - 독립된 작은 위젯으로 분리
+class SecretListScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return const Row(
+      children: [
+        SearchBar(),          // 검색 상태만 구독
+        SecretTable(),        // 시크릿 목록만 구독
+        SecretDetailPanel(),  // 선택된 시크릿만 구독
+      ],
+    );
+  }
+}
 ```
 
-### 4. Counter Cache 활용
+### 4. ListView 최적화
 
-```ruby
-# 매번 COUNT 쿼리
-post.comments.count  # SELECT COUNT(*) FROM comments...
+```dart
+// 안 좋음 - 모든 아이템을 한번에 빌드
+ListView(
+  children: secrets.map((s) => SecretTile(secret: s)).toList(),
+);
 
-# Counter cache 사용
-belongs_to :post, counter_cache: true
-post.comments_count  # 컬럼 읽기만
+// 좋음 - 보이는 아이템만 빌드 (lazy)
+ListView.builder(
+  itemCount: secrets.length,
+  itemBuilder: (context, index) => SecretTile(
+    key: ValueKey(secrets[index].id),
+    secret: secrets[index],
+  ),
+);
 ```
 
-### 5. SQL 집계 활용
+### 5. Drift 쿼리 최적화
 
-```ruby
-# Ruby 반복 - 느림
-participants.sum { |p| p.unread_count }
+```dart
+// 느림 - 전체 로드 후 필터링
+Future<List<Secret>> getActiveSecrets() async {
+  final all = await select(secrets).get();
+  return all.where((s) => s.isActive).toList(); // Dart에서 필터링
+}
 
-# SQL 집계 - 빠름
-participants.sum(:unread_count)
+// 빠름 - DB에서 직접 필터링
+Future<List<Secret>> getActiveSecrets() async {
+  return (select(secrets)..where((s) => s.isActive.equals(true))).get();
+}
+
+// 느림 - 반복 쿼리
+for (final folder in folders) {
+  final count = await (select(secrets)
+    ..where((s) => s.folderId.equals(folder.id))
+  ).get().then((list) => list.length);
+}
+
+// 빠름 - 집계 쿼리 한번
+final counts = await customSelect(
+  'SELECT folder_id, COUNT(*) as cnt FROM secrets GROUP BY folder_id',
+).get();
 ```
 
-### 6. 페이지네이션 필수
+### 6. 이미지/아이콘 최적화
 
-```ruby
-# 전체 조회 금지
-User.all
-Post.where(published: true)
+```dart
+// 안 좋음 - 매번 새 Icon 인스턴스
+Widget build(BuildContext context) {
+  return Icon(LucideIcons.key, size: 20);
+}
 
-# 페이지네이션 필수
-User.page(params[:page]).per(20)
-Post.published.page(params[:page])
+// 좋음 - const 아이콘
+Widget build(BuildContext context) {
+  return const Icon(LucideIcons.key, size: 20);
+}
 ```
 
-### 7. 인덱스 설계
+### 7. 암호화 작업 격리
 
-```ruby
-# 자주 검색하는 컬럼
-add_index :posts, :user_id
-add_index :posts, :category
-add_index :posts, [:category, :created_at]
+```dart
+// 안 좋음 - UI 스레드에서 암호화
+void decrypt() {
+  final result = encryptionService.decrypt(ciphertext, key); // UI 멈춤
+  setState(() => plaintext = result);
+}
 
-# 유니크 제약 + 인덱스
-add_index :likes, [:user_id, :likeable_type, :likeable_id], unique: true
+// 좋음 - Isolate에서 암호화 (대량 작업 시)
+void decrypt() async {
+  final result = await compute(
+    (params) => EncryptionService.decrypt(params.ciphertext, params.key),
+    DecryptParams(ciphertext, key),
+  );
+  setState(() => plaintext = result);
+}
 ```
 
 ---
 
-## ⚠️ 성능 안티패턴
+## 성능 안티패턴
 
 | 안티패턴 | 문제 | 해결책 |
 |---------|------|--------|
-| `Model.all` | 메모리 폭발 | 페이지네이션 |
-| `.count` 반복 | N+1 쿼리 | Counter cache |
-| `.last` 관계 반복 | N+1 쿼리 | `has_one` + `includes` |
-| Ruby 집계 | 느림 | SQL 집계 |
-| 인덱스 없는 검색 | 풀 테이블 스캔 | 인덱스 추가 |
+| 과도한 `ref.watch` | 불필요한 리빌드 | `select()`로 세분화 |
+| `setState` 남용 | 전체 위젯 리빌드 | Riverpod 세분화 |
+| const 누락 | 불필요한 위젯 재생성 | const 생성자 적용 |
+| ListView children | 모든 아이템 빌드 | ListView.builder |
+| Dart 필터링 | 메모리 낭비 | Drift WHERE 절 |
+| UI 스레드 암호화 | 프레임 드롭 | compute() 사용 |
+| dispose 누락 | 메모리 릭 | FocusNode, Timer 정리 |
 
 ---
 
-## ✅ 성능 체크리스트
+## 성능 체크리스트
 
-### 컨트롤러 액션 수정 시
-- [ ] N+1 쿼리 확인 (bullet gem 사용)
-- [ ] `includes` 적절히 사용
-- [ ] 페이지네이션 적용
-- [ ] 불필요한 컬럼 로드 제거 (`select`)
+### Widget 수정 시
+- [ ] const 생성자 최대한 활용
+- [ ] ref.watch에 select() 적용 여부 검토
+- [ ] ListView.builder 사용 (10+ 아이템)
+- [ ] 위젯 트리 깊이 최소화
+- [ ] RepaintBoundary 필요 여부 검토
 
-### 모델 관계 수정 시
-- [ ] Counter cache 고려
-- [ ] `has_one` 최적화 가능 여부
-- [ ] Eager loading 패턴 검토
+### Provider 수정 시
+- [ ] 불필요한 상태 변경 알림 방지
+- [ ] autoDispose 적용 여부 검토
+- [ ] 무거운 계산은 별도 Provider로 분리
 
-### 쿼리 수정 시
-- [ ] `EXPLAIN` 분석
+### Drift 쿼리 수정 시
+- [ ] WHERE 절로 DB 레벨 필터링
+- [ ] 필요한 컬럼만 SELECT
 - [ ] 인덱스 활용 확인
-- [ ] SQL 집계 함수 사용
+- [ ] Stream(watch) vs Future(get) 적절히 선택
 
-### 마이그레이션 시
-- [ ] 필요한 인덱스 추가
-- [ ] 외래키 인덱스 확인
-- [ ] 복합 인덱스 순서 확인
-
----
-
-## 📊 성능 분석 도구
-
-### Bullet Gem (N+1 탐지)
-```ruby
-# Gemfile
-gem 'bullet', group: 'development'
-
-# config/environments/development.rb
-config.after_initialize do
-  Bullet.enable = true
-  Bullet.alert = true              # 브라우저 알림
-  Bullet.bullet_logger = true      # log/bullet.log
-  Bullet.console = true            # 브라우저 콘솔
-  Bullet.add_footer = true         # 페이지 하단 경고
-
-  # 특정 경고 무시 (불가피한 경우만)
-  # Bullet.add_safelist type: :unused_eager_loading, class_name: "User", association: :posts
-end
-```
-
-### EXPLAIN 분석
-```ruby
-Post.where(category: "tech").explain
-# => EXPLAIN SELECT * FROM posts WHERE category = 'tech'
-
-# PostgreSQL에서 상세 분석
-Post.where(category: "tech").explain(:analyze, :buffers)
-```
-
-### 벤치마크
-```ruby
-require 'benchmark'
-
-Benchmark.bm do |x|
-  x.report("includes") { Post.includes(:user).limit(100).to_a }
-  x.report("no includes") { Post.limit(100).each { |p| p.user } }
-end
-```
+### 메모리 관리
+- [ ] dispose()에서 모든 리소스 정리
+- [ ] 대용량 데이터 페이지네이션
+- [ ] Uint8List(키) 사용 후 폐기
 
 ---
 
-## 🗄️ Fragment Caching
+## 성능 분석 도구
 
-### 기본 캐싱
-```erb
-<%# 캐시 키에 updated_at 자동 포함 %>
-<% cache @post do %>
-  <div class="post">
-    <h2><%= @post.title %></h2>
-    <%= render partial: 'comments', collection: @post.comments %>
-  </div>
-<% end %>
+### Flutter DevTools
+
+```bash
+# DevTools 실행
+flutter run --debug
+# Performance 탭: 프레임 드롭, 리빌드 횟수
+# Memory 탭: 메모리 사용량, 릭 감지
+# Widget Inspector: 위젯 리빌드 하이라이트
 ```
 
-### 컬렉션 캐싱
-```erb
-<%# 컬렉션 전체를 한 번에 캐싱 조회 %>
-<%= render partial: 'posts/post', collection: @posts, cached: true %>
+### 리빌드 추적
 
-<%# 조건부 캐싱 %>
-<%= render partial: 'posts/post', collection: @posts, cached: ->(post) { post.published? } %>
+```dart
+// 디버그 빌드에서 리빌드 횟수 확인
+class MyWidget extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    debugPrint('MyWidget rebuild');
+    // ...
+  }
+}
 ```
 
-### Russian Doll Caching (중첩 캐싱)
-```erb
-<%# 외부 캐시 %>
-<% cache @post do %>
-  <h2><%= @post.title %></h2>
+### 성능 벤치마크 목표
 
-  <%# 내부 캐시 - 댓글만 변경되면 이것만 갱신 %>
-  <% cache @post.comments do %>
-    <%= render @post.comments %>
-  <% end %>
-<% end %>
-```
-
-### 캐시 키 커스터마이징
-```ruby
-# 모델에서 캐시 키 정의
-class Post < ApplicationRecord
-  def cache_key_with_version
-    "#{cache_key}/v2-#{comments_count}"
-  end
-end
-```
-
----
-
-## 🖼️ 이미지 최적화 (Active Storage)
-
-### Variants (리사이징)
-```ruby
-# 썸네일 생성 (300x300 이내로 축소)
-image.variant(resize_to_limit: [300, 300]).processed
-
-# 정확한 크기로 자르기 (프로필 이미지)
-image.variant(resize_to_fill: [100, 100]).processed
-
-# 가로폭 기준 리사이징
-image.variant(resize_to_fit: [800, nil]).processed
-```
-
-### WebP 변환 (용량 30~50% 감소)
-```ruby
-# WebP 포맷으로 변환
-image.variant(format: :webp, quality: 80).processed
-
-# 조건부 WebP (브라우저 지원 시)
-def avatar_url(size:)
-  if browser.supports_webp?
-    avatar.variant(resize_to_fill: [size, size], format: :webp)
-  else
-    avatar.variant(resize_to_fill: [size, size])
-  end
-end
-```
-
-### Lazy Loading
-```erb
-<%# 뷰포트 밖 이미지 지연 로딩 %>
-<%= image_tag url_for(@post.image), loading: "lazy" %>
-
-<%# Stimulus 컨트롤러로 프로그레시브 로딩 %>
-<img data-controller="lazy-image"
-     data-lazy-image-src-value="<%= url_for(@post.image) %>"
-     src="placeholder.png" />
-```
-
-### 이미지 최적화 체크리스트
-- [ ] 대형 이미지 업로드 시 자동 리사이징
-- [ ] WebP 지원 브라우저에 WebP 제공
-- [ ] Lazy loading 적용 (스크롤 아래 이미지)
-- [ ] CDN 활용 (프로덕션)
-- [ ] 이미지 dimension 제한 (max 4096x4096)
-
----
-
-## 📈 성능 벤치마크 목표
-
-### Core Web Vitals 목표
-| 지표 | 목표 | 측정 도구 | 설명 |
-|------|------|----------|------|
-| **TTFB** | < 200ms | Chrome DevTools | 첫 바이트 수신 시간 |
-| **FCP** | < 1.8s | Lighthouse | 첫 콘텐츠 렌더링 |
-| **LCP** | < 2.5s | Web Vitals | 최대 콘텐츠 렌더링 |
-| **CLS** | < 0.1 | Lighthouse | 레이아웃 이동 |
-| **FID** | < 100ms | Web Vitals | 첫 입력 지연 |
-
-### Rails 특화 목표
-| 지표 | 목표 | 측정 방법 |
+| 지표 | 목표 | 측정 도구 |
 |------|------|----------|
-| 페이지 로드 | < 2s | Lighthouse |
-| DB 쿼리 수 | < 20개/액션 | Bullet + 로그 |
-| 메모리 사용 | < 512MB | `rails stats` |
-| 응답 크기 | < 100KB (HTML) | DevTools |
-
-### 성능 모니터링 코드
-```ruby
-# config/initializers/performance_monitoring.rb
-ActiveSupport::Notifications.subscribe("process_action.action_controller") do |*args|
-  event = ActiveSupport::Notifications::Event.new(*args)
-
-  if event.duration > 1000  # 1초 초과
-    Rails.logger.warn "[SLOW] #{event.payload[:controller]}##{event.payload[:action]} took #{event.duration.round}ms"
-  end
-end
-```
+| 프레임 렌더링 | 60fps (16ms) | Flutter DevTools |
+| 앱 시작 시간 | < 2초 | Stopwatch |
+| DB 쿼리 | < 50ms | Drift 로깅 |
+| 암호화/복호화 | < 100ms | Stopwatch |
+| 메모리 사용 | < 200MB | Activity Monitor |
+| 위젯 리빌드 | 최소화 | DevTools Inspector |
 
 ---
 
-## 🔗 연계 스킬
+## 연계 스킬
 
 | 스킬 | 사용 시점 |
 |------|----------|
 | `performance-check` | 전체 성능 분석 |
-| `query-object` | 복잡한 쿼리 추출 |
 
 ---
 
-## 📚 참조 문서
+## 참조 문서
 
-- [CLAUDE.md](../../CLAUDE.md)
-- [rules/backend/safety.md](../../rules/backend/safety.md)
+- [rules/flutter/architecture.md](../../rules/flutter/architecture.md)
+- [rules/flutter/widgets-and-state.md](../../rules/flutter/widgets-and-state.md)

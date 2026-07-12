@@ -1,7 +1,7 @@
 ---
 name: qa-engineer
 description: "QA 전문가 - 테스트 전략, 테스트 케이스 작성, 버그 검증, 커버리지 분석"
-model: sonnet
+model: opus
 triggers:
   - QA
   - 품질 보증
@@ -22,7 +22,7 @@ teamRole: qa-engineer
 
 코드 품질과 테스트 커버리지를 담당합니다:
 - 테스트 전략 수립
-- 테스트 케이스 작성 (Minitest + fixtures)
+- 테스트 케이스 작성 (flutter_test + mocktail)
 - 엣지 케이스 및 회귀 테스트
 - 코드 리뷰 (품질 관점)
 - 커버리지 분석 및 갭 식별
@@ -34,11 +34,15 @@ teamRole: qa-engineer
 | 디렉토리 | 설명 |
 |---------|------|
 | `test/` | 전체 테스트 디렉토리 |
-| `test/models/` | 모델 테스트 |
-| `test/controllers/` | 컨트롤러 테스트 |
-| `test/services/` | 서비스 테스트 |
-| `test/system/` | 시스템(통합) 테스트 |
-| `test/fixtures/` | 테스트 데이터 |
+| `test/core/encryption/` | 암호화 서비스 테스트 |
+| `test/core/database/` | Drift DAO 테스트 |
+| `test/core/theme/` | 테마 테스트 |
+| `test/core/router/` | GoRouter 테스트 |
+| `test/features/auth/` | 인증 로직 테스트 |
+| `test/features/secrets/` | 시크릿 CRUD 테스트 |
+| `test/features/secrets/presentation/` | 위젯 테스트 |
+| `test/integration/` | 통합 테스트 |
+| `test/helpers/` | 테스트 헬퍼/Mock |
 
 ---
 
@@ -47,7 +51,7 @@ teamRole: qa-engineer
 | 파일 | 내용 |
 |------|------|
 | `docs/qa/test-strategy.md` | 테스트 전략서 |
-| `test/**/*_test.rb` | 테스트 파일들 |
+| `test/**/*_test.dart` | 테스트 파일들 |
 
 ---
 
@@ -58,7 +62,7 @@ teamRole: qa-engineer
 - 기능별 테스트 범위 정의
 - 커버리지 목표 설정 (프로젝트 기준 참조)
 - 리스크 기반 테스트 우선순위
-- 테스트 유형 결정 (단위/통합/시스템)
+- 테스트 유형 결정 (단위/위젯/통합)
 
 ### 2단계: 테스트 케이스 작성
 
@@ -70,8 +74,8 @@ teamRole: qa-engineer
 
 ### 3단계: 구현 및 실행
 
-- Minitest + fixtures 기반 테스트 작성
-- `bin/rails test` 실행 및 결과 확인
+- flutter_test + mocktail 기반 테스트 작성
+- `flutter test` 실행 및 결과 확인
 - 실패 테스트 분석 및 분류 (코드 버그 vs 테스트 오류)
 
 ### 4단계: 코드 리뷰
@@ -86,34 +90,62 @@ teamRole: qa-engineer
 
 | 영역 | 최소 커버리지 |
 |------|-------------|
-| 모델 (Validations/Associations) | 100% |
-| 인증/인가/결제 | 100% |
-| 서비스 객체 | 80% |
-| 컨트롤러 | 80% |
-| 시스템 테스트 | 60% |
+| 암호화 서비스 (AES-GCM, PBKDF2) | 100% |
+| 인증 로직 (AuthNotifier) | 100% |
+| Drift DAO (SecretDao) | 90% |
+| Provider (StateNotifier) | 80% |
+| Widget | 60% |
+| 통합 테스트 | 50% |
 
 ---
 
 ## 테스트 작성 규칙
 
-```ruby
-# Fixture: BCrypt cost: 4 (테스트 속도)
-# test/fixtures/users.yml
-one:
-  password_digest: <%= BCrypt::Password.create('password123', cost: 4) %>
+```dart
+// in-memory DB로 DAO 테스트
+late AppDatabase db;
 
-# sleep 금지 → wait 옵션 사용
-assert_text "결과", wait: 5
+setUp(() {
+  db = AppDatabase.forTesting(NativeDatabase.memory());
+});
 
-# ESC 키: document.dispatchEvent 사용
-page.execute_script(<<~JS)
-  document.dispatchEvent(new KeyboardEvent('keydown', {
-    key: 'Escape', keyCode: 27, bubbles: true
-  }));
-JS
+tearDown(() async {
+  await db.close();
+});
 
-# Stimulus 컨트롤러 대기
-assert_selector "[data-controller='some']", wait: 5
+test('inserts and retrieves secret', () async {
+  final dao = db.secretDao;
+  await dao.insertSecret(name: 'API Key', encryptedValue: 'encrypted...');
+  final secrets = await dao.getAllSecrets();
+  expect(secrets, hasLength(1));
+  expect(secrets.first.name, equals('API Key'));
+});
+
+// mocktail로 의존성 격리
+class MockEncryptionService extends Mock implements EncryptionService {}
+
+test('auth notifier encrypts with provided key', () async {
+  final mockEncryption = MockEncryptionService();
+  when(() => mockEncryption.encrypt(any(), any()))
+      .thenReturn('encrypted-value');
+
+  // ... 테스트 로직
+  verify(() => mockEncryption.encrypt(any(), any())).called(1);
+});
+
+// Widget 테스트
+testWidgets('shows secret name in detail panel', (tester) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        secretsProvider.overrideWith((_) => MockSecretsNotifier()),
+      ],
+      child: const MaterialApp(home: SecretDetail()),
+    ),
+  );
+
+  expect(find.text('API Key'), findsOneWidget);
+});
 ```
 
 ---
@@ -122,10 +154,31 @@ assert_selector "[data-controller='some']", wait: 5
 
 | 심각도 | 기준 | 조치 |
 |--------|------|------|
-| **Critical** | 데이터 손실, 보안 취약점 | 즉시 수정 필수 |
-| **Major** | 핵심 기능 작동 불가 | 릴리스 전 수정 |
+| **Critical** | 데이터 손실, 암호화 실패, 마스터키 노출 | 즉시 수정 필수 |
+| **Major** | 핵심 기능 작동 불가 (CRUD, 인증) | 릴리스 전 수정 |
 | **Minor** | UI 결함, 비핵심 기능 | 다음 스프린트 |
 | **Cosmetic** | 오타, 미세한 정렬 | 백로그 |
+
+---
+
+## 검증 명령어
+
+```bash
+# 전체 테스트
+flutter test
+
+# 특정 파일
+flutter test test/core/encryption/encryption_test.dart
+
+# 커버리지
+flutter test --coverage
+
+# 정적 분석
+dart analyze
+
+# 자동 수정
+dart fix --apply
+```
 
 ---
 
@@ -139,7 +192,7 @@ assert_selector "[data-controller='some']", wait: 5
 
 ## 참조 문서
 
-- [Testing Rules](../../rules/testing/testing.md) — 테스트 규칙
-- [Testing Standard](../../standards/testing.md) — 테스트 상세 패턴
-- [Code Review Expert Agent](../quality/code-review-expert.md) — 리뷰 체크리스트
+- [Flutter Testing Rules](../../rules/flutter/architecture.md) -- 아키텍처 규칙 (테스트 관련)
+- [Flutter Testing Standard](../../standards/flutter-testing.md) -- 테스트 상세 패턴
+- [Code Review Expert Agent](../quality/code-review-expert.md) -- 리뷰 체크리스트
 - [Full Lifecycle Team Workflow](../../workflows/teams/full-lifecycle-team.md)

@@ -21,13 +21,13 @@
 | 기획 | product-manager | general-purpose | opus | plan |
 | 디자이너 | designer | general-purpose | opus | default |
 
-### Wave 3: Build (서버 + 프론트엔드 + 백엔드)
+### Wave 3: Build (코어 + 프론트엔드 + 인프라)
 
 | 역할 | agent name | subagent_type | model | mode |
 |------|-----------|---------------|-------|------|
-| 서버 개발 | server-dev | general-purpose | sonnet | default |
+| 코어 개발 | core-dev | general-purpose | sonnet | default |
 | 프론트엔드 | frontend-dev | general-purpose | sonnet | default |
-| 백엔드/인프라 | backend-dev | general-purpose | sonnet | default |
+| 인프라/플랫폼 | platform-dev | general-purpose | sonnet | default |
 
 ### Wave 4: Quality (보안 + QA)
 
@@ -59,8 +59,8 @@ Wave 1: Research (2명)          ← market-researcher + data-analyst
 Wave 2: Planning & Design (2명)  ← product-manager + designer
   │     [Gate 2: PRD + 디자인 승인]
   ▼
-Wave 3: Build (3명)              ← server-dev + frontend-dev + backend-dev
-  │     [Quality Gate: build + lint + test]
+Wave 3: Build (3명)              ← core-dev + frontend-dev + platform-dev
+  │     [Quality Gate: build + analyze + test]
   ▼
 Wave 4: Quality (2명)            ← security-eng + qa-engineer
   │     [Gate 3: 보안 + QA 통과]
@@ -129,28 +129,28 @@ Task(name="designer", subagent_type="general-purpose", model="opus")
 
 **Spawn**:
 ```
-Task(name="server-dev", subagent_type="general-purpose", model="sonnet")
+Task(name="core-dev", subagent_type="general-purpose", model="sonnet")
 Task(name="frontend-dev", subagent_type="general-purpose", model="sonnet")
-Task(name="backend-dev", subagent_type="general-purpose", model="sonnet")
+Task(name="platform-dev", subagent_type="general-purpose", model="sonnet")
 ```
 
 **파일 소유권** (충돌 방지):
 
 | 소유자 | 파일 범위 |
 |--------|----------|
-| server-dev | `app/models/`, `app/controllers/`, `app/services/`, `db/migrate/`, `config/routes.rb` |
-| frontend-dev | `app/views/`, `app/javascript/controllers/`, `app/helpers/`, `app/assets/` |
-| backend-dev | `config/` (routes 제외), `lib/`, `Dockerfile`, `.kamal/`, `Procfile.dev` |
+| core-dev | `lib/core/database/`, `lib/core/encryption/`, `lib/features/*/domain/`, `lib/core/router/` |
+| frontend-dev | `lib/features/*/presentation/`, `lib/core/theme/`, `assets/` |
+| platform-dev | `lib/services/`, `lib/core/constants/`, `macos/`, `pubspec.yaml` |
 
 **작업**:
-- server-dev: 모델/컨트롤러/서비스 구현, 마이그레이션, 라우팅
-- frontend-dev: ERB 뷰, Stimulus 컨트롤러, Tailwind CSS (디자이너 스펙 기반)
-- backend-dev: 로깅/모니터링/인프라 설정
+- core-dev: Drift 테이블/DAO, Provider/StateNotifier, 암호화, GoRouter
+- frontend-dev: Screen/Widget 구현, 테마 적용, Material 3 (디자이너 스펙 기반)
+- platform-dev: macOS 플랫폼 설정, Entitlements, 윈도우 서비스, 의존성 관리
 
 **Quality Gate 조건**:
-1. `bin/rails runner "puts 'OK'"` — 빌드 통과
-2. `bin/rails test` — 전체 테스트 통과
-3. `bundle exec rubocop` — 린트 통과
+1. `flutter build macos --debug` — 빌드 통과
+2. `flutter test` — 전체 테스트 통과
+3. `dart analyze` — 정적 분석 통과
 
 **종료**: Quality Gate 통과 후 `shutdown_request` → Wave 3 에이전트 종료
 
@@ -167,16 +167,16 @@ Task(name="qa-engineer", subagent_type="general-purpose", model="opus")
 ```
 
 **작업**:
-- security-eng: OWASP Top 10 기반 보안 감사 → `docs/security/audit-report-{date}.md`
+- security-eng: 암호화 구현 감사, 키 관리, SQLCipher 설정, Entitlements 검증 → `docs/security/audit-report-{date}.md`
   - `plan` 모드 (읽기 전용 분석 → 발견사항 보고 → Lead가 수정 지시)
   - `.claude/agents/quality/security-expert.md` 체크리스트 사용
 - qa-engineer: 테스트 작성 + 실행, 커버리지 분석 → `test/`, `docs/qa/test-strategy.md`
-  - `.claude/standards/testing.md` 참조
+  - flutter_test + mocktail + ProviderContainer 패턴
 
 **Gate 3 조건**:
 - 보안 감사 Critical 발견 0건
-- `bin/rails test` 전체 통과
-- 커버리지 목표 달성 (모델 100%, 서비스 80%, 컨트롤러 80%)
+- `flutter test` 전체 통과
+- 커버리지 목표 달성 (암호화 100%, 인증 100%, Provider 80%, Widget 60%)
 - 발견사항 수정 완료 (Lead 직접 또는 재spawn)
 
 **종료**: Gate 3 통과 후 `shutdown_request` → Wave 4 에이전트 종료
@@ -223,9 +223,9 @@ Lead (나)
 ├── DM ← data-analyst (Wave 1)
 ├── DM ← product-manager (Wave 2, PRD 승인 요청)
 ├── DM ← designer (Wave 2, 디자인 리뷰 요청)
-├── DM ← server-dev (Wave 3)
+├── DM ← core-dev (Wave 3)
 ├── DM ← frontend-dev (Wave 3)
-├── DM ← backend-dev (Wave 3)
+├── DM ← platform-dev (Wave 3)
 ├── DM ← security-eng (Wave 4)
 ├── DM ← qa-engineer (Wave 4)
 └── DM ← marketer (Wave 5)
@@ -275,10 +275,10 @@ docs/
 | data-analyst | sonnet | 구조화된 데이터 작업 |
 | product-manager | opus | 전략적 의사결정 |
 | designer | opus | 창의적 + 기술적 판단 |
-| server-dev | sonnet | 패턴 기반 코드 생성 |
-| frontend-dev | sonnet | 템플릿 기반 UI 작성 |
-| backend-dev | sonnet | 설정/인프라 작업 |
-| security-eng | opus | 보안 분석 정확도 |
+| core-dev | sonnet | 패턴 기반 코드 생성 |
+| frontend-dev | sonnet | Material 3 위젯 작성 |
+| platform-dev | sonnet | 설정/인프라 작업 |
+| security-eng | opus | 암호화/보안 분석 정확도 |
 | qa-engineer | opus | 테스트 품질/엣지케이스 탐지 |
 | marketer | sonnet | 콘텐츠 생성 |
 
@@ -314,7 +314,7 @@ docs/
 4. Wave 2 — Spawn: product-manager, designer
    → shutdown Wave 2 → [Gate 2]
 
-5. Wave 3 — Spawn: server-dev, frontend-dev, backend-dev
+5. Wave 3 — Spawn: core-dev, frontend-dev, platform-dev
    → Quality Gate → shutdown Wave 3
 
 6. Wave 4 — Spawn: security-eng, qa-engineer

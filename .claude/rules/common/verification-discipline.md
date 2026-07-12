@@ -24,16 +24,16 @@
 |----------|-----------|
 | "아마 될 것입니다" | 명령어 실행으로 확인 |
 | "완벽합니다!" (검증 전) | 검증 완료 후 판단 |
-| 커밋 준비 (재실행 없이) | `bin/rails test` + `rubocop` 새로 실행 |
+| 커밋 준비 (재실행 없이) | `flutter test` + `dart analyze` 새로 실행 |
 | teammate 보고 신뢰 | 독립적으로 테스트 재실행 |
 
 ## 적용 시점
 
 | 시점 | 검증 명령 |
 |------|----------|
-| Phase/Task 완료 시 | `bin/rails test` (최소) |
-| PR 전 | `/verify` (전체 6단계) |
-| 커밋 전 | `rubocop` + 관련 테스트 |
+| Phase/Task 완료 시 | `flutter test` (최소) |
+| PR 전 | DoD 전체: `dart analyze` 0건 + `flutter test` 전건 + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` |
+| 커밋 전 | `dart analyze` + 관련 테스트 |
 | 버그 수정 후 | 재현 시나리오 재실행 |
 
 ## 장시간 작업 대기 전략

@@ -10,7 +10,7 @@ autoTrigger:
   - "다중 파일 수정"
 ---
 
-# Planner Agent — Rails 기능 계획 전문가
+# Planner Agent -- Flutter 기능 계획 전문가
 
 복잡한 기능이나 리팩토링 전에 체계적인 구현 계획을 수립합니다.
 
@@ -24,13 +24,13 @@ autoTrigger:
 
 ### 2단계: 아키텍처 리뷰
 - 기존 코드베이스 구조 검토
-- 영향 받는 모델, 컨트롤러, 뷰 파악
-- 관련 서비스, Job, 채널 식별
-- 마이그레이션 필요 여부 확인
+- 영향 받는 테이블, Provider, Widget 파악
+- 관련 서비스, DAO, 라우트 식별
+- Drift 스키마 변경 필요 여부 확인
 
 ### 3단계: 단계별 분류
 - 구체적이고 실행 가능한 단계로 분류
-- 의존성 파악 (마이그레이션 → 모델 → 컨트롤러 → 뷰)
+- 의존성 파악 (Drift 테이블 -> DAO -> Provider -> Widget)
 - 리스크 평가
 - 각 단계에서 테스트 가능하도록 설계
 
@@ -58,26 +58,28 @@ autoTrigger:
 ## 구현 단계
 
 ### Phase 1: 데이터 레이어
-- 마이그레이션 생성
-- 모델 구현 (유효성 검사, 스코프, 관계)
-- 모델 테스트
+- Drift 테이블 정의 (lib/core/database/tables/)
+- DAO 구현 (lib/core/database/daos/)
+- 스키마 버전 업그레이드 + 마이그레이션
+- DAO 단위 테스트 (in-memory DB)
 
-### Phase 2: 비즈니스 로직
-- 서비스 객체 (필요 시)
-- Job (필요 시)
-- 서비스/Job 테스트
+### Phase 2: 도메인 레이어
+- Provider 정의 (StateNotifier + sealed state)
+- 서비스 클래스 (필요 시)
+- 암호화/복호화 로직 (필요 시)
+- Provider 단위 테스트
 
-### Phase 3: API/컨트롤러
-- 라우트 추가
-- 컨트롤러 액션
-- Strong Parameters
-- 컨트롤러 테스트
+### Phase 3: 프레젠테이션 레이어
+- Screen 위젯 (lib/features/*/presentation/screens/)
+- 재사용 위젯 (lib/features/*/presentation/widgets/)
+- GoRouter 라우트 추가
+- Widget 테스트
 
-### Phase 4: UI
-- 뷰 템플릿 (ERB + Tailwind)
-- Turbo Frames/Streams
-- Stimulus 컨트롤러
-- 시스템 테스트
+### Phase 4: 통합 & 마무리
+- 통합 테스트
+- AppTheme 스타일링 (Material 3 + dark olive palette)
+- 접근성 검증 (Semantics, Focus)
+- 정적 분석 (dart analyze)
 
 ## 리스크
 - [리스크 1]: [완화 방안]
@@ -94,11 +96,30 @@ autoTrigger:
 - **테스트 가능**: 각 단계에서 검증 가능
 
 ## 코드 스멜 체크
-- 50줄 초과 메서드
+- 50줄 초과 함수/메서드
 - 4단계 초과 중첩
 - 코드 중복
 - 에러 처리 누락
 - 테스트 없는 코드
+- dispose 누락 (FocusNode, TextEditingController, Timer)
+- const 미적용 (상수 가능한 위젯)
+
+## 검증 명령어
+
+```bash
+# 정적 분석
+dart analyze
+
+# 전체 테스트
+flutter test
+
+# 특정 디렉토리 테스트
+flutter test test/core/
+flutter test test/features/
+
+# 자동 수정
+dart fix --apply
+```
 
 ## 중요
 **계획이 사용자에 의해 명시적으로 승인되기 전까지 코드를 작성하지 않습니다.**

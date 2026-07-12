@@ -9,8 +9,8 @@
 | 역할 | 에이전트 타입 | 조사 경로 |
 |------|-------------|----------|
 | lead | Default | 조율, 발견사항 종합, fix 적용 |
-| tracer-backend | general-purpose | Controller → Service → Model 경로 |
-| tracer-frontend | general-purpose | View → Stimulus → Turbo 경로 |
+| tracer-backend | general-purpose | Provider → StateNotifier → DAO → DB 경로 |
+| tracer-frontend | general-purpose | Widget → Theme → Layout 경로 |
 
 ### 에이전트 생성 예시
 
@@ -33,12 +33,12 @@
 
 | tracer | 조사 범위 | 방법 |
 |--------|----------|------|
-| tracer-backend | Controller, Service, Model, DB | 로그 분석, 쿼리 추적, 데이터 검증 |
-| tracer-frontend | View, Stimulus, Turbo Stream, JS | DOM 검사, 이벤트 흐름, 네트워크 분석 |
+| tracer-backend | Provider, StateNotifier, DAO, Drift DB, 암호화 | 상태 흐름 추적, DB 쿼리 검증, Provider 의존성 분석 |
+| tracer-frontend | Widget, Theme, Layout, GoRouter, Material 3 | Widget tree 검사, 빌드 메서드 분석, 라우트 흐름 |
 
 각 tracer는 독립적으로:
 1. 할당된 가설 조사
-2. 근거 수집 (코드 경로, 로그, 재현 결과)
+2. 근거 수집 (코드 경로, 상태 전이, 재현 결과)
 3. 가설의 확신도 평가 (High / Medium / Low)
 4. SendMessage로 lead에게 보고
 
@@ -56,18 +56,26 @@
 1. 근본 원인 기반 최소 범위 수정
 2. 재현 시나리오로 수정 검증
 3. 회귀 테스트 추가
-4. `bin/rails test` 전체 통과 확인
+4. `flutter test` 전체 통과 확인
 
 ---
 
 ## 경쟁 가설 패턴
 
-### 예시: "폼 제출 시 데이터가 저장되지 않음"
+### 예시: "시크릿 저장 시 데이터가 복호화되지 않음"
 
 ```
-가설 A (tracer-backend): Controller strong params에서 필드 누락
-가설 B (tracer-frontend): Stimulus 컨트롤러가 폼 submit 이벤트를 가로챔
-가설 C (lead 예비): Turbo Frame이 잘못된 대상에 렌더링
+가설 A (tracer-backend): EncryptionService의 GCM nonce 처리 오류
+가설 B (tracer-backend): DAO에서 암호화된 Blob 저장 시 타입 불일치
+가설 C (tracer-frontend): Provider에서 상태 업데이트 후 Widget이 rebuild되지 않음
+```
+
+### 예시: "대시보드에서 사이드바 선택이 Detail 패널에 반영 안 됨"
+
+```
+가설 A (tracer-backend): selectedSecretProvider가 상태 변경을 emit하지 않음
+가설 B (tracer-frontend): Detail Widget이 ref.watch 대신 ref.read를 사용
+가설 C (lead 예비): GoRouter redirect가 상태를 리셋함
 ```
 
 ### 보고 형식
@@ -88,10 +96,10 @@
 
 | 상황 | 팀 구성 |
 |------|---------|
-| 단일 레이어 버그 (모델 로직) | 팀 불필요, 단독 `/bugfix` |
-| 프론트-백 연동 버그 | tracer-backend + tracer-frontend |
+| 단일 레이어 버그 (DAO 로직) | 팀 불필요, 단독 `/bugfix` |
+| Provider-Widget 연동 버그 | tracer-backend + tracer-frontend |
 | 3회 이상 디버깅 실패 | 팀 전환 (새 관점 필요) |
-| 간헐적 재현 버그 (Race condition) | tracer-backend + data-integrity 관점 |
+| 간헐적 재현 버그 (동시성) | tracer-backend + data-integrity 관점 |
 
 ---
 
@@ -100,8 +108,8 @@
 | 역할 | 권장 모델 | 근거 |
 |------|----------|------|
 | lead | opus | 가설 종합 판단 |
-| tracer-backend | opus | 복잡한 추론 |
-| tracer-frontend | sonnet | DOM/이벤트 추적 |
+| tracer-backend | opus | 복잡한 추론 (암호화/DB) |
+| tracer-frontend | sonnet | Widget/Layout 추적 |
 
 ---
 
@@ -109,4 +117,3 @@
 
 - [Agent Teams Guide](../../docs/agent-teams-guide.md)
 - [Bugfix Skill](.claude/skills/bugfix/)
-- [Model & Error Handling Rules](../../rules/backend/model-and-errors.md)

@@ -1,7 +1,7 @@
 ---
 name: backend-ops
 description: "백엔드/인프라 전문가 - 서버 모니터링, 에러 트래킹, 로깅, 배포 설정, 인프라"
-model: sonnet
+model: opus
 triggers:
   - 인프라
   - 배포

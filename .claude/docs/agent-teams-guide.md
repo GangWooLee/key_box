@@ -9,7 +9,7 @@ Claude Code의 Agent Teams 기능을 key_box 프로젝트에서 활용하기 위
 ### 팀 생성 요청 예시
 
 ```
-"User 모델 기능을 팀으로 개발해줘"
+"시크릿 폴더 기능을 팀으로 개발해줘"
 "현재 브랜치를 리뷰 팀으로 검수해줘"
 "이 버그를 디버깅 팀으로 조사해줘"
 ```
@@ -75,17 +75,17 @@ Claude Code의 Agent Teams 기능을 key_box 프로젝트에서 활용하기 위
 
 | 소유자 | 파일 범위 |
 |--------|----------|
-| backend-dev | `app/models/`, `app/controllers/`, `app/services/`, `db/migrate/` |
-| frontend-dev | `app/views/`, `app/javascript/controllers/`, `app/assets/` |
+| backend-dev | `lib/core/`, `lib/features/*/domain/` |
+| frontend-dev | `lib/features/*/presentation/`, `lib/core/theme/` |
 | quality-guard | `test/` |
-| lead | `docs/`, `config/`, task list |
+| lead | `docs/`, `pubspec.yaml`, task list |
 
 ### 3. Phase 간 Quality Gate 강제
 
 Phase 전환 전 반드시 통과:
-1. `bin/rails runner "puts 'OK'"` — 빌드
-2. `bin/rails test` — 테스트
-3. `bundle exec rubocop` — 린트
+1. `flutter build macos --debug` — 빌드
+2. `flutter test` — 테스트
+3. `dart analyze` — 정적 분석
 
 ### 4. 최대 3-4명 (동시)
 
@@ -105,9 +105,9 @@ Phase 전환 전 반드시 통과:
 
 | 훅 | 트리거 | 동작 | 팀 영향 |
 |----|--------|------|---------|
-| TeammateIdle | 팀원 유휴 시 | `bin/rails test` 자동 실행 | 유휴 팀원이 빌드 깨뜨렸는지 자동 확인 |
-| TaskCompleted | 태스크 완료 시 | `rubocop` + `bin/rails test` | 태스크 완료 품질 자동 검증 |
-| PostToolUse (Edit\|Write) | 파일 수정 시 | `rubocop --autocorrect` | 스타일 자동 교정 |
+| TeammateIdle | 팀원 유휴 시 | `flutter test` 자동 실행 | 유휴 팀원이 빌드 깨뜨렸는지 자동 확인 |
+| TaskCompleted | 태스크 완료 시 | `dart analyze` + `flutter test` | 태스크 완료 품질 자동 검증 |
+| PostToolUse (Edit\|Write) | 파일 수정 시 | `dart fix --apply` | 코드 스타일 자동 교정 |
 
 ---
 
@@ -131,7 +131,7 @@ Phase 전환 전 반드시 통과:
 | 계획 수립, 복잡한 판단 | opus | 추론 품질 |
 | 패턴 기반 코드 생성 | sonnet | 비용 효율 |
 | 코드 리뷰, 보안 분석 | opus | 정확도 |
-| 템플릿 기반 UI 작성 | sonnet | 비용 효율 |
+| Material 3 위젯 작성 | sonnet | 비용 효율 |
 
 ### 비용 절감 전략
 
@@ -191,4 +191,4 @@ Wave 5: Launch (1명) → Gate 4
 
 ---
 
-**Last Updated**: 2026-02-25
+**Last Updated**: 2026-03-03

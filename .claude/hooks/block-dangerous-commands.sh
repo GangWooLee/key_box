@@ -4,7 +4,7 @@
 
 COMMAND=$(jq -r '.tool_input.command // empty')
 
-if echo "$COMMAND" | grep -iE '(rails db:(drop|reset)|rm -rf /|git push --force.*main|git reset --hard)' > /dev/null 2>&1; then
+if echo "$COMMAND" | grep -iE '(rm -rf /|git push --force.*main|git reset --hard|flutter clean && rm -rf)' > /dev/null 2>&1; then
   echo "Blocked: Destructive command detected — $COMMAND" >&2
   exit 2
 fi

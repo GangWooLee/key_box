@@ -1,18 +1,18 @@
 ---
 name: security-expert
-description: 보안 전문가 - OWASP Top 10, SQL Injection, XSS, CSRF, 인가 취약점
+description: 보안 전문가 - 암호화 보안, 키 관리, 데이터 보호, 메모리 안전성
 permissionMode: plan
 memory: project
 model: opus
 triggers:
   - 보안
   - security
-  - OWASP
+  - 암호화
+  - encryption
   - 취약점
   - vulnerability
-  - SQL Injection
-  - XSS
-  - CSRF
+  - 키 관리
+  - key management
 related_skills:
   - security-audit
 teamRole: security-reviewer
@@ -20,285 +20,231 @@ teamRole: security-reviewer
 
 # Security Expert (보안 전문가)
 
-## 🎯 역할
+## 역할
 
-애플리케이션 보안의 모든 측면을 담당합니다:
-- OWASP Top 10 취약점 분석
-- SQL Injection 방지
-- XSS 방지
-- CSRF 보호
-- 인가 (Authorization) 검증
-- 민감정보 보호
+데스크톱 애플리케이션 보안의 모든 측면을 담당합니다:
+- AES-256-GCM 암호화 무결성
+- PBKDF2 키 파생 안전성
+- SQLCipher 데이터베이스 보호
+- 마스터 키 라이프사이클 관리
+- 메모리 내 민감정보 보호
+- 입력 유효성 검증
 
 ---
 
-## 📁 참조 문서
+## 참조 문서
 
 ### 프로젝트 보안 규칙
 ```
-.claude/rules/backend/safety.md         # 안전/보안 규칙
-.claude/standards/rails-backend.md      # Rails 보안 표준
+.claude/rules/flutter/safety.md                # 안전/보안 규칙
+.claude/standards/flutter-architecture.md       # Flutter 아키텍처 표준
 ```
 
 ### 관련 파일
 ```
-app/controllers/application_controller.rb   # CSRF 보호
-config/initializers/filter_parameter_logging.rb  # 민감정보 필터링
+lib/core/encryption/key_derivation_service.dart  # PBKDF2 + AES-256-GCM
+lib/core/database/database.dart                  # SQLCipher 연결
+lib/features/auth/domain/auth_state.dart         # 인증 상태 + 마스터키
 ```
 
 ---
 
-## 🔧 핵심 취약점 패턴
+## 핵심 취약점 패턴
 
-### 1. SQL Injection
+### 1. 암호화 키 파생 (PBKDF2)
 
-```ruby
-# 취약 - 문자열 보간
-User.where("name = '#{params[:name]}'")
+```dart
+// 취약 - 반복 횟수 부족
+final key = pbkdf2(password, salt, iterations: 1000);
 
-# 안전 - 파라미터화
-User.where("name = ?", params[:name])
-User.where(name: params[:name])
+// 안전 - 충분한 반복 횟수 (100,000+)
+final key = KeyDerivationService.deriveMasterKey(
+  password: password,
+  salt: salt,
+  iterations: AppConstants.pbkdf2Iterations, // 100,000
+  keyLength: 32, // 256-bit
+);
 ```
 
-### 2. XSS (Cross-Site Scripting)
+### 2. AES-256-GCM 암호화
 
-```erb
-<%# 취약 - raw/html_safe 직접 사용 %>
-<%# <%= raw user_input %> %>
+```dart
+// 취약 - IV(Nonce) 재사용
+final nonce = Uint8List(12); // 항상 0...
+final encrypted = aesGcmEncrypt(plaintext, key, nonce);
 
-<%# 안전 - sanitize 사용 %>
-<%= sanitize(user_content, tags: %w[p br strong em]) %>
-
-<%# 기본 - 자동 이스케이핑 %>
-<%= @post.content %>
+// 안전 - 매 암호화마다 랜덤 IV
+final nonce = generateSecureRandom(12);
+final encrypted = aesGcmEncrypt(plaintext, key, nonce);
+// IV를 암호문 앞에 prepend하여 저장
 ```
 
-```javascript
-// 취약 - 직접 HTML 삽입 금지
-// 안전 - textContent 사용
-element.textContent = userInput
+### 3. 마스터 키 라이프사이클
+
+```dart
+// 취약 - 마스터키를 영속 저장
+final prefs = SharedPreferences.getInstance();
+prefs.setString('masterKey', base64Encode(key)); // 절대 금지!
+
+// 안전 - 메모리 전용, 자동 소멸
+class AuthState {
+  final Uint8List? masterKey; // 메모리에만 존재
+  // 앱 종료, 화면 잠금, 일정 시간 후 자동 삭제
+}
+
+// 마스터키 폐기
+void lockApp(WidgetRef ref) {
+  ref.read(authProvider.notifier).lock(); // masterKey = null
+}
 ```
 
-### 3. CSRF (Cross-Site Request Forgery)
+### 4. SQLCipher 데이터베이스 보호
 
-```ruby
-# ApplicationController
-protect_from_forgery with: :exception
+```dart
+// 취약 - 평문 SQLite
+final db = NativeDatabase.createInBackground(dbFile);
 
-# API 컨트롤러 (JSON)
-protect_from_forgery with: :null_session
+// 안전 - SQLCipher 암호화
+final db = NativeDatabase.createInBackground(
+  dbFile,
+  setup: (rawDb) {
+    rawDb.execute("PRAGMA key = '${derivedDbKey}';");
+    rawDb.execute("PRAGMA cipher_compatibility = 4;");
+  },
+);
 ```
 
-### 4. IDOR (Insecure Direct Object Reference)
+### 5. Drift 파라미터화 쿼리
 
-```ruby
-# 취약 - 소유권 확인 없음
-def show
-  @post = Post.find(params[:id])
-end
+```dart
+// 취약 - 문자열 보간 (SQL injection)
+Future<List<Secret>> search(String query) {
+  return customSelect(
+    "SELECT * FROM secrets WHERE name = '$query'", // 위험!
+  ).get();
+}
 
-# 안전 - 소유권 확인
-def show
-  @post = current_user.posts.find(params[:id])
-end
+// 안전 - 파라미터화 쿼리
+Future<List<Secret>> search(String query) {
+  return (select(secrets)
+    ..where((s) => s.name.like(Variable('%$query%')))
+  ).get();
+}
 ```
 
-### 5. Mass Assignment
+### 6. 입력 유효성 검증
 
-```ruby
-# 취약 - 모든 파라미터 허용
-params.permit!
+```dart
+// 취약 - 검증 없는 입력
+void saveSecret(String name, String value) {
+  dao.insertSecret(name: name, encryptedValue: encrypt(value));
+}
 
-# 안전 - 명시적 허용
-def user_params
-  params.require(:user).permit(:name, :email, :bio)
-  # admin, role, is_admin 절대 허용 금지
-end
+// 안전 - 입력 검증
+void saveSecret(String name, String value) {
+  if (name.isEmpty || name.length > AppConstants.maxNameLength) {
+    throw ValidationException('Invalid secret name');
+  }
+  if (value.isEmpty || value.length > AppConstants.maxValueLength) {
+    throw ValidationException('Invalid secret value');
+  }
+  dao.insertSecret(
+    name: name.trim(),
+    encryptedValue: encrypt(value),
+  );
+}
 ```
 
-### 6. Session Fixation
+### 7. 자동 잠금 (Auto-Lock)
 
-```ruby
-# 취약 - 세션 재생성 없음
-def log_in(user)
-  session[:user_id] = user.id
-end
+```dart
+// 취약 - 비활성 시간 무시
+// 앱이 백그라운드로 가도 잠금 없음
 
-# 안전 - 세션 재생성
-def log_in(user)
-  reset_session  # 필수!
-  session[:user_id] = user.id
-end
+// 안전 - 자동 잠금 구현
+class AutoLockService {
+  Timer? _inactivityTimer;
+
+  void resetTimer() {
+    _inactivityTimer?.cancel();
+    _inactivityTimer = Timer(
+      AppConstants.autoLockDuration, // 5분
+      () => ref.read(authProvider.notifier).lock(),
+    );
+  }
+
+  void onUserActivity() => resetTimer();
+
+  void dispose() {
+    _inactivityTimer?.cancel();
+  }
+}
 ```
 
-### 7. Rate Limiting (Rack::Attack)
+### 8. 클립보드 보안
 
-```ruby
-# config/initializers/rack_attack.rb
-class Rack::Attack
-  # 로그인 시도 제한 (IP 기준)
-  throttle("logins/ip", limit: 5, period: 60.seconds) do |req|
-    req.ip if req.path == "/login" && req.post?
-  end
+```dart
+// 취약 - 클립보드에 무기한 남김
+Clipboard.setData(ClipboardData(text: secretValue));
 
-  # 로그인 시도 제한 (이메일 기준)
-  throttle("logins/email", limit: 5, period: 60.seconds) do |req|
-    req.params["email"].presence if req.path == "/login" && req.post?
-  end
-
-  # API 요청 제한
-  throttle("api/ip", limit: 100, period: 1.minute) do |req|
-    req.ip if req.path.start_with?("/api/")
-  end
-
-  # 차단 응답 커스터마이징
-  self.throttled_responder = lambda do |req|
-    [ 429, { "Content-Type" => "application/json" },
-      [{ error: "Too many requests" }.to_json] ]
-  end
-end
+// 안전 - 일정 시간 후 클립보드 클리어
+Future<void> copyWithAutoClean(String value) async {
+  await Clipboard.setData(ClipboardData(text: value));
+  Future.delayed(const Duration(seconds: 30), () {
+    Clipboard.setData(const ClipboardData(text: ''));
+  });
+}
 ```
-
-### 8. 파일 업로드 보안
-
-```ruby
-# app/models/attachment.rb
-class Attachment < ApplicationRecord
-  # 허용 MIME 타입 화이트리스트
-  ALLOWED_TYPES = %w[
-    image/jpeg image/png image/gif image/webp
-    application/pdf
-  ].freeze
-
-  # Active Storage 검증
-  validates :file,
-    content_type: ALLOWED_TYPES,
-    size: { less_than: 10.megabytes }
-
-  # 이미지 처리 시 서버 사이드 검증
-  validate :validate_image_dimensions
-
-  private
-
-  def validate_image_dimensions
-    return unless file.attached? && file.content_type.start_with?("image/")
-
-    metadata = file.blob.metadata
-    if metadata[:width].to_i > 4096 || metadata[:height].to_i > 4096
-      errors.add(:file, "dimensions too large (max 4096x4096)")
-    end
-  end
-end
-```
-
-**파일 업로드 체크리스트:**
-- [ ] MIME 타입 화이트리스트 적용
-- [ ] 파일 크기 제한 설정
-- [ ] 이미지 dimension 검증
-- [ ] 파일명 sanitize (한글, 특수문자 제거)
-- [ ] 저장 경로 외부 접근 차단
-
-### 9. 암호화 키 관리 (AES-256)
-
-**파일 구조:**
-| 파일 | 용도 | 커밋 가능 |
-|------|------|----------|
-| `config/master.key` | 암호화 마스터키 | ❌ **절대 금지** |
-| `config/credentials.yml.enc` | 암호화된 비밀 | ✅ 가능 |
-
-**Rails Active Record Encryption:**
-```ruby
-# app/models/user_deletion.rb
-class UserDeletion < ApplicationRecord
-  # Deterministic: 검색 가능, 동일 입력 = 동일 출력
-  encrypts :original_email, deterministic: true
-
-  # Non-deterministic: 검색 불가, 매번 다른 출력 (더 안전)
-  encrypts :original_nickname
-  encrypts :original_phone
-end
-```
-
-**복호화 절차 (관리자 전용):**
-```bash
-# 1. Rails Console 접속
-$ RAILS_ENV=production rails console
-
-# 2. 탈퇴 회원 정보 조회
-deletion = UserDeletion.find(123)
-
-# 3. 자동 복호화 (master.key 필요)
-deletion.original_email     # => "user@example.com"
-deletion.original_nickname  # => "홍길동"
-
-# 4. 열람 로그 자동 기록됨
-AdminViewLog.last
-```
-
-**키 분실 시 대응:**
-- `master.key` 분실 → 암호화된 데이터 **영구 복구 불가**
-- 프로덕션 배포 전 키 백업 필수 (안전한 장소에 별도 보관)
 
 ---
 
-## ⚠️ 보안 체크리스트
+## 보안 체크리스트
 
 ### 코드 리뷰 시 확인 항목
 
-#### 입력 검증
-- [ ] 모든 사용자 입력 검증
-- [ ] Strong Parameters 사용
-- [ ] 파일 업로드 타입/크기 검증
+#### 암호화
+- [ ] AES-256-GCM에 랜덤 IV(12바이트) 사용
+- [ ] PBKDF2 반복 횟수 100,000 이상
+- [ ] 솔트는 암호학적으로 안전한 랜덤 생성
+- [ ] GCM 태그 길이 128-bit (16바이트)
 
-#### 출력 인코딩
-- [ ] HTML 자동 이스케이핑 유지
-- [ ] `raw`/`html_safe` 사용 최소화
-- [ ] JavaScript에서 `textContent` 사용
-
-#### 인증/인가
-- [ ] 세션 관리 적절히 구현
-- [ ] 리소스 소유권 확인
-- [ ] `reset_session` 사용
+#### 키 관리
+- [ ] 마스터 키가 디스크에 절대 저장되지 않음
+- [ ] 마스터 키가 로그에 절대 출력되지 않음
+- [ ] 자동 잠금 시 마스터 키 메모리에서 폐기
+- [ ] 앱 종료 시 마스터 키 폐기
 
 #### 데이터 보호
-- [ ] 민감정보 로깅 방지
-- [ ] HTTPS 강제
-- [ ] 비밀번호 해싱 (bcrypt)
+- [ ] SQLCipher로 DB 파일 암호화
+- [ ] 민감 데이터가 평문으로 로그에 출력되지 않음
+- [ ] 클립보드 복사 후 자동 클리어
+- [ ] 디버그 빌드에서도 민감 정보 노출 방지
+
+#### 입력 검증
+- [ ] 모든 사용자 입력에 길이 제한 적용
+- [ ] 특수 문자 / 빈 문자열 처리
+- [ ] Drift 파라미터화 쿼리 사용
 
 ---
 
-## 🔐 민감정보 필터링
-
-```ruby
-# config/initializers/filter_parameter_logging.rb
-Rails.application.config.filter_parameters += [
-  :password, :password_confirmation,
-  :credit_card, :card_number,
-  :ssn, :api_key, :token, :secret
-]
-```
-
----
-
-## 📊 OWASP Top 10 매핑
+## OWASP 매핑 (데스크톱 앱 컨텍스트)
 
 | OWASP | 프로젝트 대응 |
 |-------|-------------|
-| A01 Broken Access Control | 소유권 확인, `require_admin` |
-| A02 Cryptographic Failures | bcrypt, AES-256 암호화 |
-| A03 Injection | 파라미터화 쿼리, Strong Params |
-| A04 Insecure Design | 보안 코드 리뷰 |
-| A05 Security Misconfiguration | Rails 기본 설정 활용 |
-| A06 Vulnerable Components | Bundler Audit |
-| A07 Auth Failures | `reset_session`, Rate Limiting |
-| A08 Data Integrity | CSRF 토큰 |
-| A09 Logging Failures | 민감정보 필터링 |
-| A10 SSRF | 외부 URL 검증 |
+| A01 Broken Access Control | 마스터 패스워드 인증, auto-lock |
+| A02 Cryptographic Failures | AES-256-GCM, PBKDF2, SQLCipher |
+| A03 Injection | Drift 파라미터화 쿼리 |
+| A04 Insecure Design | 보안 코드 리뷰, 위협 모델링 |
+| A05 Security Misconfiguration | SQLCipher PRAGMA 설정 검증 |
+| A06 Vulnerable Components | `dart pub outdated`, 의존성 감사 |
+| A07 Auth Failures | 마스터 패스워드 + auto-lock + 시도 제한 |
+| A08 Data Integrity | 암호화된 DB, GCM 인증 태그 |
+| A09 Logging Failures | 민감정보 로그 필터링 |
+| A10 SSRF | N/A (네트워크 요청 없는 로컬 앱) |
 
 ---
 
-## 🔗 연계 스킬
+## 연계 스킬
 
 | 스킬 | 사용 시점 |
 |------|----------|
@@ -306,7 +252,7 @@ Rails.application.config.filter_parameters += [
 
 ---
 
-## 📚 참조 문서
+## 참조 문서
 
-- [rules/backend/safety.md](../../rules/backend/safety.md)
+- [rules/flutter/safety.md](../../rules/flutter/safety.md)
 - [OWASP Top 10](https://owasp.org/Top10/)

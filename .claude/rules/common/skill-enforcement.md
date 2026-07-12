@@ -3,6 +3,12 @@
 적용 가능한 스킬이 있다면 반드시 호출할 것.
 이 규칙은 모든 작업에 예외 없이 적용됩니다.
 
+> **정본 주의 (2026-07)**: 작업 유형→스킬 라우팅의 정본은 CLAUDE.md "AI 개발 도구 스택" 절.
+> 아래 매핑의 구세대 커맨드(`/plan`·`implement`·`/bugfix`·`/verify`·`/wrap-up`·`/tdd`·팀 워크플로우)는
+> deprecated — 정본 대응: 계획=`/autoplan`, 버그=`/investigate`, 리뷰=`/review`,
+> TDD·디버깅·검증=superpowers 스킬, 교훈 기록=`/ce-compound`.
+> **"적용 스킬 반드시 호출" 원칙 자체와 Red Flags·예외 조건은 그대로 유효하다.**
+
 ## 스킬 우회 금지 사유 (Red Flags)
 
 다음 변명이 떠오르면 오히려 스킬을 호출해야 하는 신호:
@@ -19,10 +25,12 @@
 | 기능 구현 | `implement` | Phase 0 설계 합의 완료 필수 (hard gate) |
 | 버그 수정 | `/bugfix` | 근본 원인 추적 의무 |
 | 리팩토링 | `code-review` → 수정 → `/verify` | 현황 파악 후 수정 |
-| PR 전 | `/verify` | 6단계 전체 검증 |
-| 작업 완료 | `/wrap-up` | 교훈 추출 + 커밋 |
-| 테스트 추가 | `/tdd` 또는 `test-gen` | RED→GREEN→REFACTOR |
-| Rails 리소스 생성 | `rails-dev` (자동 라우팅) | 모델/컨트롤러/서비스/잡 |
+| PR 전 | `/verify` | 5단계 전체 검증 |
+| 작업 완료 | `/ce-compound` (교훈 기록) | 커밋·푸시는 사용자 명시 지시 시에만 (CLAUDE.md git 규율) |
+| 테스트 추가 | `/tdd` | RED→GREEN→REFACTOR (flutter_test) |
+| Flutter 위젯 추가 | `flutter-expert` / `flutter-architecture` | 아키텍처 패턴 준수 |
+| Riverpod 상태 관리 | `flutter-riverpod-expert` | Provider 패턴 준수 |
+| Drift DB 작업 | `dart-drift` | 테이블/DAO/마이그레이션 |
 | 보안 점검 | `security-audit` | PR 전 또는 주기적 |
 | 팀 기반 기능 개발 | `parallel-feature-development` + 팀 워크플로우 | Medium+ 스코프 기능 |
 | 팀 기반 코드 리뷰 | review-team 워크플로우 | PR 전 전문가 병렬 리뷰 |
@@ -33,12 +41,21 @@
 작업 유형 매핑(위 테이블)에 더해, 요청에서 도메인 키워드 감지 시:
 
 1. **Standard 자동 READ**: 해당 도메인의 Standard 파일을 읽고 상세 패턴 참조
-   - Frontend → `.claude/standards/tailwind-frontend.md` READ
-   - Backend/Database/Security/Quality → `.claude/standards/rails-backend.md` READ
-   - Testing → `.claude/standards/testing.md` READ
+   - Widget/UI/Theme → `.claude/standards/flutter-widgets.md` READ
+   - Architecture/Provider/Drift/Encryption → `.claude/standards/flutter-architecture.md` READ
+   - Testing → `.claude/standards/flutter-testing.md` READ
 2. **에이전트 고려**: 리뷰/팀 컨텍스트에서 도메인 전문 에이전트 활용 검토
 
-도메인 키워드 및 전체 매핑: CLAUDE.md "도메인별 자동 라우팅" 테이블 참조.
+### 도메인별 자동 라우팅
+
+| 도메인 | 감지 키워드 | 스킬 | 에이전트 | Standard (자동 READ) |
+|--------|-----------|------|---------|---------------------|
+| **Widget/UI** | 위젯, 화면, 스크린, UI, Theme, 테마, 접근성, 애니메이션 | `flutter-expert` `flutter-adaptive-ui` `flutter-animations` | ui-ux-expert | `flutter-widgets.md` |
+| **Architecture** | Provider, Notifier, 아키텍처, 상태관리, Riverpod, GoRouter | `flutter-architecture` `flutter-riverpod-expert` | planner, code-review-expert | `flutter-architecture.md` |
+| **Database** | Drift, DAO, 테이블, 쿼리, SQLCipher, 마이그레이션 | `dart-drift` | data-integrity-expert | `flutter-architecture.md` |
+| **Security** | 암호화, 보안, 마스터키, AES, 복호화, encryption | `security-audit` | security-expert | `flutter-architecture.md` |
+| **Testing** | 테스트, 커버리지, TDD, mocktail, flutter_test | `/tdd` `flutter-testing` | qa-engineer | `flutter-testing.md` |
+| **Performance** | 성능, 리빌드, const, select, 메모리 | `performance-check` | performance-expert | `flutter-architecture.md` |
 
 ## 예외 조건 (이것만 면제)
 

@@ -9,8 +9,8 @@
 | 역할 | 에이전트 타입 | 담당 | 파일 소유권 |
 |------|-------------|------|-----------|
 | lead (사용자) | Default | 계획 수립, 태스크 조율, 통합 | `docs/plans/`, task list |
-| backend-dev | general-purpose | 모델, 컨트롤러, 서비스, 마이그레이션 | `app/models/`, `app/controllers/`, `app/services/`, `db/migrate/` |
-| frontend-dev | general-purpose | 뷰, Stimulus, Tailwind | `app/views/`, `app/javascript/controllers/` |
+| backend-dev | general-purpose | DB, DAO, Provider, 암호화, 라우터 | `lib/core/`, `lib/features/*/domain/` |
+| frontend-dev | general-purpose | 화면, 위젯, 테마 | `lib/features/*/presentation/` |
 | quality-guard | general-purpose (plan mode) | 테스트, 리뷰, 보안 감사 | `test/` |
 
 ### 에이전트 생성 예시
@@ -32,20 +32,21 @@
 
 ### Phase 1: Foundation (backend-dev, 순차)
 
-1. Migration 생성 + 실행
-2. Model 작성 (TDD: 테스트 → 구현)
-3. **Quality Gate 통과 필수**:
-   - `bin/rails runner "puts 'OK'"`
-   - `bin/rails test`
-   - `bundle exec rubocop`
+1. Drift 테이블 정의 + 코드 생성 (`dart run build_runner build --delete-conflicting-outputs`)
+2. DAO 작성 (TDD: 테스트 → 구현)
+3. sealed class 상태 정의
+4. **Quality Gate 통과 필수**:
+   - `flutter build macos --debug`
+   - `flutter test`
+   - `dart analyze`
 
 ### Phase 2: Parallel Build (전원 병렬)
 
 | 팀원 | 작업 | 전제 조건 |
 |------|------|----------|
-| backend-dev | Controller + Service 구현 | Phase 1 완료 |
-| frontend-dev | Views + Stimulus 작성 | 스키마 존재 (Phase 1) |
-| quality-guard | Integration 테스트 병렬 작성 | 스키마 존재 (Phase 1) |
+| backend-dev | Provider + StateNotifier 구현 | Phase 1 완료 |
+| frontend-dev | Screen + Widget 작성 (Material 3) | 스키마 존재 (Phase 1) |
+| quality-guard | Provider + Widget 테스트 병렬 작성 | 스키마 존재 (Phase 1) |
 
 **병렬 작업 규칙**:
 - 동일 파일 동시 수정 금지 (파일 소유권 참조)
@@ -53,7 +54,7 @@
 - 각자 작업 완료 후 TaskUpdate로 완료 보고
 
 **Phase 2 Quality Gate**:
-- `bin/rails test` (전체 테스트 통과)
+- `flutter test` (전체 테스트 통과)
 
 ### Phase 3: Integration + Review (전체)
 
@@ -68,20 +69,20 @@
 ### Good: 병렬화 가능한 분해
 
 ```
-Task 1: [backend-dev] User 모델 + 마이그레이션 (blockedBy: 없음)
-Task 2: [backend-dev] UsersController CRUD (blockedBy: Task 1)
-Task 3: [frontend-dev] Users 뷰 템플릿 (blockedBy: Task 1)
-Task 4: [quality-guard] User 모델 테스트 (blockedBy: Task 1)
-Task 5: [quality-guard] 통합 테스트 (blockedBy: Task 2, Task 3)
+Task 1: [backend-dev] Xxx Drift 테이블 + DAO (blockedBy: 없음)
+Task 2: [backend-dev] XxxNotifier + Provider (blockedBy: Task 1)
+Task 3: [frontend-dev] Xxx Screen + Widget (blockedBy: Task 1)
+Task 4: [quality-guard] Xxx Provider 테스트 (blockedBy: Task 1)
+Task 5: [quality-guard] Xxx Widget + 통합 테스트 (blockedBy: Task 2, Task 3)
 ```
 
 ### Bad: 순차적 병목
 
 ```
-Task 1: User 모델 생성
-Task 2: User 컨트롤러 생성 (blockedBy: Task 1)
-Task 3: User 뷰 생성 (blockedBy: Task 2)  ← 불필요한 의존성
-Task 4: User 테스트 (blockedBy: Task 3)    ← 불필요한 의존성
+Task 1: Xxx 테이블 생성
+Task 2: Xxx Provider 구현 (blockedBy: Task 1)
+Task 3: Xxx Widget 작성 (blockedBy: Task 2)  ← 불필요한 의존성
+Task 4: Xxx 테스트 (blockedBy: Task 3)       ← 불필요한 의존성
 ```
 
 ---
@@ -92,7 +93,7 @@ Task 4: User 테스트 (blockedBy: Task 3)    ← 불필요한 의존성
 |------|----------|------|
 | lead | opus | 계획 수립, 복잡한 판단 |
 | backend-dev | sonnet | 패턴 기반 코드 생성 |
-| frontend-dev | sonnet | 템플릿 기반 UI 작성 |
+| frontend-dev | sonnet | Material 3 위젯 작성 |
 | quality-guard | opus | 리뷰 품질 중요 |
 
 ---

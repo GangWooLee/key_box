@@ -5,6 +5,8 @@ globs: "*"
 
 # Git 워크플로우
 
+**커밋·푸시는 사용자가 명시 지시할 때만 수행한다** (정본: CLAUDE.md "작업 수행 원칙 > git 규율").
+
 ## 커밋 메시지 형식
 
 Conventional Commits를 따릅니다:
@@ -48,11 +50,11 @@ refactor: OrderService 결제 로직 분리
 
 ## 기능 개발 순서
 
-1. **계획 수립** — planner 에이전트 또는 `/plan` 커맨드
-2. **TDD 개발** — `/tdd` 워크플로우
-3. **코드 리뷰** — `/code-review` 스킬
-4. **검증** — `/verify` 커맨드
-5. **PR 생성**
+1. **계획 수립** — `/autoplan` (gstack)
+2. **TDD 구현** — superpowers `test-driven-development`
+3. **코드 리뷰** — `/review` (gstack)
+4. **검증** — DoD: `dart analyze` 0건 + `flutter test` 전건 green + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug`
+5. **PR/배포** — `/ship` (gstack, 사용자 지시 시)
 
 ## Git Worktrees (병렬 개발)
 
