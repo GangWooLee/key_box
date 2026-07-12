@@ -28,7 +28,13 @@ part 'database.g.dart';
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  AppDatabase() : super(_openConnection());
+  /// Opens the vault database.
+  ///
+  /// With [dbKey] (32 bytes, HKDF-derived — see KeyHierarchyService) the file
+  /// is opened through SQLCipher in raw-key mode. Without it the legacy
+  /// plaintext open is used — still the production path until B4 flips it,
+  /// and the read side of the plaintext→encrypted migration.
+  AppDatabase({Uint8List? dbKey}) : super(_openConnection(dbKey));
 
   AppDatabase.forTesting(super.e);
 
@@ -80,9 +86,51 @@ class AppDatabase extends _$AppDatabase {
   }
 }
 
-LazyDatabase _openConnection() {
+/// SQLCipher 4 parameters, hard-pinned to today's library defaults.
+///
+/// A `pub upgrade` that ships a library with different defaults would
+/// otherwise change how existing files are interpreted and lock every vault
+/// out (a one-way door). Stating them explicitly freezes the on-disk format
+/// regardless of library defaults. The KDF-related pins are unused in
+/// raw-key mode (we already ran PBKDF2+HKDF ourselves, so SQLCipher's
+/// internal KDF is bypassed by design) but are pinned defensively in case a
+/// future code path ever supplies a passphrase key.
+const _cipherHardPin = [
+  'PRAGMA cipher_page_size = 4096;',
+  'PRAGMA cipher_hmac_algorithm = HMAC_SHA512;',
+  'PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA512;',
+  'PRAGMA kdf_iter = 256000;',
+  'PRAGMA cipher_use_hmac = ON;',
+  'PRAGMA cipher_plaintext_header_size = 0;',
+];
+
+LazyDatabase _openConnection(Uint8List? dbKey) {
   return LazyDatabase(() async {
     final file = await VaultPaths.dbFile();
-    return NativeDatabase.createInBackground(file);
+    if (dbKey == null) {
+      return NativeDatabase.createInBackground(file);
+    }
+
+    // TODO(PR-B/F5): the hex key lives in an immutable Dart String for the
+    // lifetime of the setup closure and cannot be zeroed out like the
+    // Uint8List key material — accepted memory-hygiene gap, tracked with the
+    // F5 series.
+    final hexKey = _toHex(dbKey);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (db) {
+        // Raw key mode (x'<hex64>'): the 32-byte key is used as the page key
+        // directly, bypassing SQLCipher's internal KDF — correct here because
+        // the key already went through PBKDF2+HKDF. Must be the first
+        // statement on the connection.
+        db.execute('PRAGMA key = "x\'$hexKey\'";');
+        for (final pragma in _cipherHardPin) {
+          db.execute(pragma);
+        }
+      },
+    );
   });
 }
+
+String _toHex(Uint8List bytes) =>
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
