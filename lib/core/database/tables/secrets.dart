@@ -17,6 +17,11 @@ class Secrets extends Table {
   TextColumn get environment => text().withLength(max: 50).nullable()();
   TextColumn get notes => text().withLength(max: 2000).nullable()();
   TextColumn get tags => text().withLength(max: 500).nullable()();
+
+  /// Monotonic per-record version, incremented on every value rotation.
+  /// Bound into the AAD (`keybox/v1/secret:<id>:<version>`) so a restored
+  /// older ciphertext fails GCM authentication (rollback defense).
+  IntColumn get recordVersion => integer().withDefault(const Constant(1))();
   IntColumn get accessCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get lastAccessedAt => dateTime().nullable()();
   DateTimeColumn get createdAt => dateTime()();

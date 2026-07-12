@@ -232,24 +232,42 @@ class SecretOperations {
     String? tags,
   }) async {
     try {
-      final encrypted = _crypto.encrypt(
-        value: value,
-        key: _auth.masterEncryptionKey,
-      );
+      // The AAD binds the ciphertext to the row id, which autoincrement only
+      // reveals after insert — so: placeholder insert to reserve the id,
+      // encrypt under that identity, then land the ciphertext. All inside a
+      // transaction so a valueless placeholder can never escape.
+      final secret = await _db.transaction(() async {
+        final placeholder = await _db.secretDao.create(
+          vaultId: _auth.vaultId,
+          folderId: folderId,
+          name: name,
+          encryptedValue: Uint8List(0),
+          encryptedValueIv: Uint8List(0),
+          encryptedValueAuthTag: Uint8List(0),
+          secretType: secretType,
+          serviceName: serviceName,
+          environment: environment,
+          notes: notes,
+          tags: tags,
+        );
 
-      final secret = await _db.secretDao.create(
-        vaultId: _auth.vaultId,
-        folderId: folderId,
-        name: name,
-        encryptedValue: encrypted.encryptedValue,
-        encryptedValueIv: encrypted.iv,
-        encryptedValueAuthTag: encrypted.authTag,
-        secretType: secretType,
-        serviceName: serviceName,
-        environment: environment,
-        notes: notes,
-        tags: tags,
-      );
+        final encrypted = _crypto.encrypt(
+          value: value,
+          key: _auth.masterEncryptionKey,
+          aad: secretAad(
+            secretId: placeholder.id,
+            recordVersion: placeholder.recordVersion,
+          ),
+        );
+
+        await _db.secretDao.updateSecret(
+          placeholder.id,
+          encryptedValue: encrypted.encryptedValue,
+          encryptedValueIv: encrypted.iv,
+          encryptedValueAuthTag: encrypted.authTag,
+        );
+        return (await _db.secretDao.getById(placeholder.id))!;
+      });
 
       // M:N: auto-link to the home folder
       await _db.folderSecretsDao.link(folderId, secret.id);
@@ -269,6 +287,10 @@ class SecretOperations {
         iv: Uint8List.fromList(secret.encryptedValueIv),
         authTag: Uint8List.fromList(secret.encryptedValueAuthTag),
         key: _auth.masterEncryptionKey,
+        aad: secretAad(
+          secretId: secret.id,
+          recordVersion: secret.recordVersion,
+        ),
       ),
     );
   }
@@ -288,11 +310,20 @@ class SecretOperations {
       Uint8List? encryptedValue;
       Uint8List? iv;
       Uint8List? authTag;
+      int? recordVersion;
 
       if (value != null) {
+        final current = await _db.secretDao.getById(secretId);
+        if (current == null) return const Failure('Secret not found');
+
+        // Rotation bumps the record version and binds the fresh ciphertext
+        // to it, so a restored older ciphertext fails GCM authentication
+        // (rollback defense).
+        recordVersion = current.recordVersion + 1;
         final encrypted = _crypto.encrypt(
           value: value,
           key: _auth.masterEncryptionKey,
+          aad: secretAad(secretId: secretId, recordVersion: recordVersion),
         );
         encryptedValue = encrypted.encryptedValue;
         iv = encrypted.iv;
@@ -311,6 +342,7 @@ class SecretOperations {
         notes: notes,
         tags: tags,
         folderId: folderId,
+        recordVersion: recordVersion,
       );
 
       await _logAudit('secret.update', secretId, {'name': name});

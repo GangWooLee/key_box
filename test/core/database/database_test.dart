@@ -41,7 +41,6 @@ void main() {
         vaultId: vault.id,
         masterKeySalt: Uint8List.fromList(List.filled(32, 0x42)),
         encryptedMasterKey: Uint8List.fromList(List.filled(60, 0xAA)),
-        masterPasswordDigest: '\$2a\$04\$fakehash',
       );
 
       expect(config.vaultId, equals(vault.id));
@@ -55,7 +54,6 @@ void main() {
         vaultId: vault.id,
         masterKeySalt: Uint8List.fromList(List.filled(32, 0x42)),
         encryptedMasterKey: Uint8List.fromList(List.filled(60, 0xAA)),
-        masterPasswordDigest: 'digest',
       );
 
       final config = await db.vaultConfigDao.getByVaultId(vault.id);
@@ -73,7 +71,6 @@ void main() {
         vaultId: vault.id,
         masterKeySalt: Uint8List.fromList(List.filled(32, 0x42)),
         encryptedMasterKey: Uint8List.fromList(List.filled(60, 0xAA)),
-        masterPasswordDigest: 'digest',
       );
       expect(await db.vaultConfigDao.exists(), isTrue);
     });

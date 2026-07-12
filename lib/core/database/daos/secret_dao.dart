@@ -101,6 +101,7 @@ class SecretDao extends DatabaseAccessor<AppDatabase> with _$SecretDaoMixin {
     String? notes,
     String? tags,
     int? folderId,
+    int? recordVersion,
   }) {
     return (update(secrets)..where((t) => t.id.equals(id)))
         .write(
@@ -127,6 +128,9 @@ class SecretDao extends DatabaseAccessor<AppDatabase> with _$SecretDaoMixin {
             notes: notes != null ? Value(notes) : const Value.absent(),
             tags: tags != null ? Value(tags) : const Value.absent(),
             folderId: folderId != null ? Value(folderId) : const Value.absent(),
+            recordVersion: recordVersion != null
+                ? Value(recordVersion)
+                : const Value.absent(),
             updatedAt: Value(DateTime.now()),
           ),
         )

@@ -162,6 +162,182 @@ MIIEowIBAAKCAQEA0Z3VS5JJcds3xfn/ygWop5LMYf
       });
     });
 
+    group('AAD binding', () {
+      test('round-trip with matching AAD returns original value', () {
+        final key = makeKey();
+        final aad = secretAad(secretId: 7, recordVersion: 1);
+
+        final encrypted = service.encrypt(value: 'bound', key: key, aad: aad);
+        final decrypted = service.decrypt(
+          encryptedValue: encrypted.encryptedValue,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          key: key,
+          aad: aad,
+        );
+
+        expect(decrypted, equals('bound'));
+      });
+
+      test('mismatched AAD (different secretId) returns null', () {
+        final key = makeKey();
+        final encrypted = service.encrypt(
+          value: 'bound',
+          key: key,
+          aad: secretAad(secretId: 7, recordVersion: 1),
+        );
+
+        final decrypted = service.decrypt(
+          encryptedValue: encrypted.encryptedValue,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          key: key,
+          aad: secretAad(secretId: 8, recordVersion: 1),
+        );
+
+        expect(decrypted, isNull);
+      });
+
+      test('mismatched AAD (different recordVersion) returns null', () {
+        final key = makeKey();
+        final encrypted = service.encrypt(
+          value: 'bound',
+          key: key,
+          aad: secretAad(secretId: 7, recordVersion: 1),
+        );
+
+        final decrypted = service.decrypt(
+          encryptedValue: encrypted.encryptedValue,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          key: key,
+          aad: secretAad(secretId: 7, recordVersion: 2),
+        );
+
+        expect(decrypted, isNull);
+      });
+
+      test('AAD-bound ciphertext does not decrypt without AAD', () {
+        final key = makeKey();
+        final encrypted = service.encrypt(
+          value: 'bound',
+          key: key,
+          aad: secretAad(secretId: 7, recordVersion: 1),
+        );
+
+        final decrypted = service.decrypt(
+          encryptedValue: encrypted.encryptedValue,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          key: key,
+        );
+
+        expect(decrypted, isNull);
+      });
+
+      test('omitted AAD is equivalent to explicit empty AAD', () {
+        final key = makeKey();
+
+        // encrypt without aad → decrypt with explicit empty aad
+        final e1 = service.encrypt(value: 'legacy', key: key);
+        expect(
+          service.decrypt(
+            encryptedValue: e1.encryptedValue,
+            iv: e1.iv,
+            authTag: e1.authTag,
+            key: key,
+            aad: Uint8List(0),
+          ),
+          equals('legacy'),
+        );
+
+        // encrypt with explicit empty aad → decrypt without aad
+        final e2 = service.encrypt(
+          value: 'legacy',
+          key: key,
+          aad: Uint8List(0),
+        );
+        expect(
+          service.decrypt(
+            encryptedValue: e2.encryptedValue,
+            iv: e2.iv,
+            authTag: e2.authTag,
+            key: key,
+          ),
+          equals('legacy'),
+        );
+      });
+
+      test('substitution attack: record A ciphertext under record B identity '
+          'fails authentication', () {
+        final key = makeKey();
+        // Record A (id 1) and record B (id 2), both version 1.
+        final recordA = service.encrypt(
+          value: 'prod-db-password',
+          key: key,
+          aad: secretAad(secretId: 1, recordVersion: 1),
+        );
+
+        // Attacker copies A's (ciphertext, iv, tag) over B's row; the read
+        // path decrypts with B's identity.
+        final decrypted = service.decrypt(
+          encryptedValue: recordA.encryptedValue,
+          iv: recordA.iv,
+          authTag: recordA.authTag,
+          key: key,
+          aad: secretAad(secretId: 2, recordVersion: 1),
+        );
+
+        expect(decrypted, isNull);
+      });
+
+      test(
+        'rollback attack: v1 ciphertext under v2 AAD fails authentication',
+        () {
+          final key = makeKey();
+          final v1 = service.encrypt(
+            value: 'old-rotated-away-key',
+            key: key,
+            aad: secretAad(secretId: 5, recordVersion: 1),
+          );
+
+          // After rotation the row says recordVersion=2; a restored v1
+          // ciphertext must not authenticate.
+          final decrypted = service.decrypt(
+            encryptedValue: v1.encryptedValue,
+            iv: v1.iv,
+            authTag: v1.authTag,
+            key: key,
+            aad: secretAad(secretId: 5, recordVersion: 2),
+          );
+
+          expect(decrypted, isNull);
+        },
+      );
+    });
+
+    group('secretAad', () {
+      test('is deterministic for the same identity', () {
+        expect(
+          secretAad(secretId: 42, recordVersion: 3),
+          equals(secretAad(secretId: 42, recordVersion: 3)),
+        );
+      });
+
+      test('distinguishes secretId and recordVersion', () {
+        final base = secretAad(secretId: 1, recordVersion: 1);
+        expect(secretAad(secretId: 2, recordVersion: 1), isNot(equals(base)));
+        expect(secretAad(secretId: 1, recordVersion: 2), isNot(equals(base)));
+      });
+
+      test('encodes the domain-separated label', () {
+        expect(
+          String.fromCharCodes(secretAad(secretId: 42, recordVersion: 3)),
+          equals('keybox/v1/secret:42:3'),
+        );
+      });
+    });
+
     group('integration with MasterKeyService', () {
       test(
         'full flow: derive key → generate MEK → wrap → unwrap → encrypt/decrypt secret',

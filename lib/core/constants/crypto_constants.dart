@@ -20,6 +20,12 @@ abstract final class CryptoConstants {
   static const String hkdfInfoDbKey = 'keybox/v1/dbkey';
   static const String hkdfInfoKek = 'keybox/v1/kek';
 
+  // AAD domain prefix for per-record binding (PR-B).
+  // Full label: 'keybox/v1/secret:<secretId>:<recordVersion>' — binds each
+  // ciphertext to its row identity (blocks record substitution) and to its
+  // record version (blocks rollback to a previously rotated value).
+  static const String aadSecretPrefix = 'keybox/v1/secret';
+
   // Minimum password
   static const int minPasswordLength = 8;
 }

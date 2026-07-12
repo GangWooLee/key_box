@@ -33,6 +33,7 @@ Secret _makeSecret({
     secretType: secretType,
     serviceName: serviceName,
     environment: environment,
+    recordVersion: 1,
     accessCount: 0,
     lastAccessedAt: lastAccessedAt,
     createdAt: now,

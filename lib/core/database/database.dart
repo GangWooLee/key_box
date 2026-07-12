@@ -33,7 +33,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -52,6 +52,16 @@ class AppDatabase extends _$AppDatabase {
             'INSERT INTO folder_secrets (folder_id, secret_id, created_at) '
             'SELECT folder_id, id, created_at FROM secrets',
           );
+        }
+        if (from < 3) {
+          // AAD rollback defense: per-record version (existing rows → 1)
+          await m.addColumn(secrets, secrets.recordVersion);
+          // Drop dead master_password_digest column (password verification
+          // happens via MEK unwrap) — drift rewrites the table.
+          // TableMigration is drift's official column-drop path; it is only
+          // flagged experimental upstream (covered by migration_v3_test).
+          // ignore: experimental_member_use
+          await m.alterTable(TableMigration(vaultConfigs));
         }
       },
     );

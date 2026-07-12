@@ -205,8 +205,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
           vaultId: vault.id,
           masterKeySalt: salt,
           encryptedMasterKey: wrappedMek,
-          masterPasswordDigest:
-              '', // No BCrypt in Flutter — we verify via unwrap
         );
         await db.folderDao.create(
           vaultId: vault.id,

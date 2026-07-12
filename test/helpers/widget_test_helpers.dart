@@ -169,6 +169,7 @@ Secret makeTestSecret({
     environment: environment,
     notes: notes,
     tags: tags,
+    recordVersion: 1,
     accessCount: accessCount,
     lastAccessedAt: lastAccessedAt,
     createdAt: createdAt ?? now,

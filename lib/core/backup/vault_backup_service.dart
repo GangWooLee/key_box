@@ -31,6 +31,12 @@ class VaultBackupRecord {
 ///
 /// Provides verifiable integrity checks and export/import round-trips
 /// so a user can trust their data survives migration and disk failure.
+///
+/// NOTE(PR-B/B2): this path is NOT AAD-bound. It operates on
+/// [EncryptedSecret] without record identity (id/recordVersion), so archives
+/// carry and verify empty-AAD ciphertext. Records written by the live app
+/// since schema v3 ARE AAD-bound and will not authenticate here — the
+/// archive format v2 update in B4 binds records and closes this gap.
 class VaultBackupService {
   VaultBackupService({
     SecretEncryptionService? encryptionService,

@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/encryption/master_key_service.dart';
+import 'package:key_box/core/encryption/secret_encryption_service.dart';
 import 'package:key_box/core/utils/result.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
@@ -33,7 +34,6 @@ void main() {
       vaultId: vaultId,
       masterKeySalt: salt,
       encryptedMasterKey: wrappedMek,
-      masterPasswordDigest: '',
     );
     final folder = await db.folderDao.create(vaultId: vaultId, name: 'General');
     folderId = folder.id;
@@ -129,6 +129,96 @@ void main() {
 
       final events = await db.auditEventDao.getPage(vaultId);
       expect(events.any((e) => e.action == 'secret.create'), isTrue);
+    });
+
+    group('AAD binding', () {
+      test('create binds the ciphertext to the record identity', () async {
+        final ops = container.read(secretOpsProvider);
+        await ops.create(name: 'Bound', value: 'aad-bound', folderId: folderId);
+
+        final secret = (await db.secretDao.getByFolderId(folderId)).single;
+        expect(secret.recordVersion, equals(1));
+
+        final enc = SecretEncryptionService();
+        // Correct identity authenticates…
+        expect(
+          enc.decrypt(
+            encryptedValue: Uint8List.fromList(secret.encryptedValue),
+            iv: Uint8List.fromList(secret.encryptedValueIv),
+            authTag: Uint8List.fromList(secret.encryptedValueAuthTag),
+            key: mek,
+            aad: secretAad(secretId: secret.id, recordVersion: 1),
+          ),
+          equals('aad-bound'),
+        );
+        // …an unbound (empty-AAD) read does not.
+        expect(
+          enc.decrypt(
+            encryptedValue: Uint8List.fromList(secret.encryptedValue),
+            iv: Uint8List.fromList(secret.encryptedValueIv),
+            authTag: Uint8List.fromList(secret.encryptedValueAuthTag),
+            key: mek,
+          ),
+          isNull,
+        );
+      });
+
+      test('update bumps recordVersion and rebinds the AAD', () async {
+        final ops = container.read(secretOpsProvider);
+        final created = await ops.create(
+          name: 'Rotating',
+          value: 'v1-value',
+          folderId: folderId,
+        );
+        final id = ((created as Success).data as Secret).id;
+
+        await ops.update(id, value: 'v2-value');
+
+        final row = await db.secretDao.getById(id);
+        expect(row!.recordVersion, equals(2));
+        expect(await ops.decrypt(row), equals('v2-value'));
+
+        // Rollback mutation: the new ciphertext must not authenticate under
+        // the previous version's AAD.
+        expect(
+          SecretEncryptionService().decrypt(
+            encryptedValue: Uint8List.fromList(row.encryptedValue),
+            iv: Uint8List.fromList(row.encryptedValueIv),
+            authTag: Uint8List.fromList(row.encryptedValueAuthTag),
+            key: mek,
+            aad: secretAad(secretId: id, recordVersion: 1),
+          ),
+          isNull,
+        );
+      });
+
+      test('substitution mutation: record A ciphertext copied into record B '
+          'fails decryption', () async {
+        final ops = container.read(secretOpsProvider);
+        final resultA = await ops.create(
+          name: 'A',
+          value: 'value-of-A',
+          folderId: folderId,
+        );
+        final resultB = await ops.create(
+          name: 'B',
+          value: 'value-of-B',
+          folderId: folderId,
+        );
+        final a = (resultA as Success).data as Secret;
+        final b = (resultB as Success).data as Secret;
+
+        // Attacker copies A's (ciphertext, iv, tag) over B's row.
+        await db.secretDao.updateSecret(
+          b.id,
+          encryptedValue: Uint8List.fromList(a.encryptedValue),
+          encryptedValueIv: Uint8List.fromList(a.encryptedValueIv),
+          encryptedValueAuthTag: Uint8List.fromList(a.encryptedValueAuthTag),
+        );
+
+        final swapped = await db.secretDao.getById(b.id);
+        expect(await ops.decrypt(swapped!), isNull);
+      });
     });
 
     test('reveal logs audit event and records access', () async {

@@ -13,7 +13,6 @@ class VaultConfigDao extends DatabaseAccessor<AppDatabase>
     required int vaultId,
     required Uint8List masterKeySalt,
     required Uint8List encryptedMasterKey,
-    required String masterPasswordDigest,
   }) {
     final now = DateTime.now();
     return into(vaultConfigs).insertReturning(
@@ -21,7 +20,6 @@ class VaultConfigDao extends DatabaseAccessor<AppDatabase>
         vaultId: vaultId,
         masterKeySalt: masterKeySalt,
         encryptedMasterKey: encryptedMasterKey,
-        masterPasswordDigest: masterPasswordDigest,
         createdAt: now,
         updatedAt: now,
       ),

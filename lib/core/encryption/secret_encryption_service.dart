@@ -5,7 +5,7 @@ import '../constants/crypto_constants.dart';
 import 'secure_random.dart';
 
 /// Result of encrypting a secret value.
-/// Each field stored separately in the database (matching Rails schema).
+/// Each field is stored as a separate database column.
 class EncryptedSecret {
   const EncryptedSecret({
     required this.encryptedValue,
@@ -18,13 +18,29 @@ class EncryptedSecret {
   final Uint8List authTag;
 }
 
+/// Builds the AAD label binding a ciphertext to its record identity.
+///
+/// Layout: `keybox/v1/secret:<secretId>:<recordVersion>`. Binding the row id
+/// blocks record substitution (copying record A's ciphertext into record B);
+/// binding the version blocks rollback to a previously rotated value.
+Uint8List secretAad({required int secretId, required int recordVersion}) {
+  return Uint8List.fromList(
+    utf8.encode('${CryptoConstants.aadSecretPrefix}:$secretId:$recordVersion'),
+  );
+}
+
 /// AES-256-GCM encryption/decryption for individual secret values.
-/// Must produce identical output to Rails Encryption::SecretEncryptionService.
 class SecretEncryptionService {
   /// Encrypt a plaintext value using AES-256-GCM.
   ///
-  /// Returns separate encrypted_value, iv, and auth_tag (matching Rails columns).
-  EncryptedSecret encrypt({required String value, required Uint8List key}) {
+  /// Returns separate encrypted_value, iv, and auth_tag columns. When [aad]
+  /// is provided (see [secretAad]) the ciphertext only authenticates under
+  /// the same AAD; omitting it is equivalent to an empty AAD.
+  EncryptedSecret encrypt({
+    required String value,
+    required Uint8List key,
+    Uint8List? aad,
+  }) {
     final iv = secureRandomBytes(CryptoConstants.ivLength);
     final plaintext = Uint8List.fromList(utf8.encode(value));
 
@@ -35,7 +51,7 @@ class SecretEncryptionService {
         KeyParameter(key),
         CryptoConstants.authTagLength * 8,
         iv,
-        Uint8List(0), // empty AAD
+        aad ?? Uint8List(0),
       ),
     );
 
@@ -58,12 +74,14 @@ class SecretEncryptionService {
 
   /// Decrypt an encrypted value using AES-256-GCM.
   ///
-  /// Returns plaintext string on success, or null on authentication failure.
+  /// Returns plaintext string on success, or null on authentication failure
+  /// — including an [aad] that differs from the one used at encryption time.
   String? decrypt({
     required Uint8List encryptedValue,
     required Uint8List iv,
     required Uint8List authTag,
     required Uint8List key,
+    Uint8List? aad,
   }) {
     try {
       // GCM expects ciphertext + authTag concatenated
@@ -78,7 +96,7 @@ class SecretEncryptionService {
           KeyParameter(key),
           CryptoConstants.authTagLength * 8,
           iv,
-          Uint8List(0),
+          aad ?? Uint8List(0),
         ),
       );
 

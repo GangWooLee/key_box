@@ -33,7 +33,7 @@ class MasterKeyService {
         KeyParameter(wrappingKey),
         CryptoConstants.authTagLength * 8, // tag length in bits
         iv,
-        Uint8List(0), // empty AAD (matches Rails auth_data = "")
+        Uint8List(0), // empty AAD — MEK wrap is not record-bound
       ),
     );
 

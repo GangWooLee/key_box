@@ -60,7 +60,6 @@ void main() {
       vaultId: vault.id,
       masterKeySalt: salt,
       encryptedMasterKey: Uint8List.fromList(List.filled(60, 0xAA)),
-      masterPasswordDigest: '',
     );
     return salt;
   }
