@@ -53,6 +53,19 @@ docs/.obsidian/
 # Skill scripts cache
 .claude/skills/ui-ux-pro-max/scripts/__pycache__/
 
+# AI 도구 로컬 상태·별칭 디렉토리 (npx skills add / 각 도구가 재생성 — 리포 오염 방지)
+.agent/
+.kiro/
+.kombai/
+.windsurf/
+.gstack/
+log/
+docs/.smart-env/
+.claude/plans/
+
+# Flutter 생성 파일 (플러그인 메타)
+.flutter-plugins-dependencies
+
 # 시크릿 매니저 방어선 — 실 DB·키 재료가 리포에 절대 못 들어오게 (실 DB는 Application Support에 있지만 방어적 차단)
 *.db
 *.sqlite
