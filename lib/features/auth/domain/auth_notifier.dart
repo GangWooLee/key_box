@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/database.dart';
@@ -52,7 +51,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final wrappedMek = _mks.wrap(masterKey: mek, wrappingKey: pdk);
 
     try {
-      if (kDebugMode) debugPrint('[Auth:setup] salt(${salt.length}B) wrappedMek(${wrappedMek.length}B)');
+      if (kDebugMode) {
+        debugPrint(
+          '[Auth:setup] salt(${salt.length}B) wrappedMek(${wrappedMek.length}B)',
+        );
+      }
 
       // Create vault + config + default folder atomically
       late int vaultId;
@@ -63,7 +66,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
           vaultId: vault.id,
           masterKeySalt: salt,
           encryptedMasterKey: wrappedMek,
-          masterPasswordDigest: '', // No BCrypt in Flutter — we verify via unwrap
+          masterPasswordDigest:
+              '', // No BCrypt in Flutter — we verify via unwrap
         );
         await _db.folderDao.create(
           vaultId: vault.id,
@@ -136,7 +140,15 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Lock the vault — clear MEK from memory.
+  ///
+  /// Zeroes the master key buffer before dropping the reference: Dart's GC does
+  /// not guarantee prompt reclamation, so an un-zeroed MEK can linger in memory
+  /// (or swap) and be recovered by a memory-dump attack after locking.
   void lock() {
+    final current = state;
+    if (current is AuthUnlocked) {
+      _zeroOut(current.masterEncryptionKey);
+    }
     state = const AuthLocked();
   }
 
