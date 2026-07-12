@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/database/cipher_params.dart';
 import '../../../core/database/database.dart';
 import '../../../core/database/vault_paths.dart';
 import '../../../core/encryption/key_derivation_service.dart';
@@ -334,6 +335,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
         if (migrationError != null) return migrationError;
       }
 
+      // Rotation journal probe: a staged salt means a changePassword was
+      // interrupted — the crash-window map lives in _resumeRotation*.
+      final staged = await _sidecar.readStaged();
+      final stagedSalt = staged is SidecarFound ? staged.salt : null;
+
       final db = _ensureDb(dbKey: dbKey);
       final Vault? vault;
       final VaultConfig? config;
@@ -348,6 +354,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // wrong-key instance so it cannot linger in the holder and poison
         // the retry (the next attempt must open fresh with its own key).
         await _releaseDb();
+        if (stagedSalt != null) {
+          // Rotation case C: the rekey already ran (crash before the
+          // sidecar promotion), so the STAGED salt is the live one.
+          return _resumeRotationAfterRekey(
+            password: password,
+            stagedSalt: stagedSalt,
+          );
+        }
         if (kDebugMode) debugPrint('[Auth:unlock] keyed open rejected');
         return 'Incorrect password';
       }
@@ -364,11 +378,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
         wrappingKey: kek,
       );
       if (mek == null) {
+        if (stagedSalt != null) {
+          // Rotation case B: the rewrap committed but the rekey didn't run.
+          return _resumeRotationBeforeRekey(
+            db: db,
+            password: password,
+            stagedSalt: stagedSalt,
+            config: config,
+            vaultId: vault!.id,
+          );
+        }
         // The keyed open already proved the password, so a failed KEK
         // unwrap means the stored wrapped MEK is corrupted — not a
-        // password problem.
+        // password problem. (Only judged after resume attempts are
+        // exhausted.)
         state = const AuthVaultError(reason: VaultErrorReason.mekUnwrapFailed);
         return 'Master key is corrupted — restore from a backup';
+      }
+      if (stagedSalt != null) {
+        // Rotation case A: main-salt open + main-KEK unwrap both succeeded,
+        // so the rotation never reached the DB — the journal is stale.
+        await _sidecar.discardStaged();
       }
       state = AuthUnlocked(masterEncryptionKey: mek, vaultId: vault!.id);
       return null; // success
@@ -376,6 +406,197 @@ class AuthNotifier extends StateNotifier<AuthState> {
       _zeroOut(pdk);
       if (kek != null) _zeroOut(kek);
       _zeroOut(salt);
+    }
+  }
+
+  /// Rotates the master password AND the salt: proves the old password
+  /// cryptographically, rewraps the MEK under the new KEK, rekeys the
+  /// SQLCipher file, and promotes the salt sidecar. Lazy path only; the
+  /// vault must be unlocked. The session MEK is untouched (no relock).
+  ///
+  /// Crash protocol (two-file commit, staged sidecar as the journal):
+  ///   ③ stage salt_new → ④ DB UPDATE (rewrap + salt) → ⑤ PRAGMA rekey +
+  ///   checkpoint → ⑥ promote. unlock() maps every crash window back to a
+  ///   converging state (cases A/B/C in _resumeRotation*).
+  Future<String?> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String confirmation,
+  }) async {
+    if (_openDatabase == null) {
+      return 'Password change requires the encrypted vault';
+    }
+    final current = state;
+    if (current is! AuthUnlocked) return 'Vault must be unlocked';
+    if (newPassword != confirmation) return 'Passwords do not match';
+    if (newPassword.length < CryptoConstants.minPasswordLength) {
+      return 'Password must be at least '
+          '${CryptoConstants.minPasswordLength} characters';
+    }
+
+    final sidecarResult = await _sidecar.read();
+    if (sidecarResult is! SidecarFound) {
+      return 'Vault metadata unavailable — recovery required';
+    }
+    final saltOld = sidecarResult.salt;
+    // ① Cryptographic old-password proof: unwrap the stored MEK under the
+    // old KEK — never trust the session state for this.
+    final pdkOld = _kds.deriveKey(password: oldPassword, salt: saltOld);
+    Uint8List? kekOld;
+    Uint8List? mek;
+    Uint8List? saltNew;
+    Uint8List? pdkNew;
+    Uint8List? kekNew;
+    Uint8List? dbKeyNew;
+    Uint8List? wrappedNew;
+    try {
+      kekOld = _keyHierarchy.deriveKek(pdkOld);
+      final db = _ensureDb();
+      final config = await db.vaultConfigDao.getByVaultId(current.vaultId);
+      if (config == null) {
+        state = const AuthVaultError(reason: VaultErrorReason.configMissing);
+        return 'Vault configuration missing — recovery required';
+      }
+      mek = _mks.unwrap(
+        wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
+        wrappingKey: kekOld,
+      );
+      if (mek == null) return 'Incorrect password';
+
+      // ② New key hierarchy (salt rotates with the password).
+      saltNew = _kds.generateSalt();
+      pdkNew = _kds.deriveKey(password: newPassword, salt: saltNew);
+      dbKeyNew = _keyHierarchy.deriveDbKey(pdkNew);
+      kekNew = _keyHierarchy.deriveKek(pdkNew);
+      wrappedNew = _mks.wrap(masterKey: mek, wrappingKey: kekNew);
+
+      // ③ Journal: stage the new salt BEFORE any DB mutation.
+      await _sidecar.writeStaged(saltNew);
+      // ④ Commit rewrap + salt to the DB (single row update).
+      await db.vaultConfigDao.updateKeyMaterial(
+        vaultId: current.vaultId,
+        masterKeySalt: saltNew,
+        encryptedMasterKey: wrappedNew,
+      );
+      // ⑤ Rekey the file; SQLCipher keeps the live connection valid across
+      // a rekey. Checkpoint so no old-key pages linger in the WAL.
+      await db.customStatement(
+        'PRAGMA rekey = "x\'${sqlcipherRawKeyHex(dbKeyNew)}\'";',
+      );
+      await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
+      // ⑥ Promote the journal — the rotation's commit point.
+      await _sidecar.promoteStaged();
+      return null; // ⑦ session MEK unchanged — no relock needed
+    } finally {
+      _zeroOut(pdkOld);
+      _zeroOut(saltOld);
+      if (kekOld != null) _zeroOut(kekOld);
+      // The unwrap above is a fresh copy — zeroing it leaves the session
+      // MEK (inside AuthUnlocked) untouched.
+      if (mek != null) _zeroOut(mek);
+      if (saltNew != null) _zeroOut(saltNew);
+      if (pdkNew != null) _zeroOut(pdkNew);
+      if (kekNew != null) _zeroOut(kekNew);
+      // Unlike unlock's dbKey (kept by the connection's setup callback for
+      // reopens), dbKeyNew was only rendered into the rekey statement — the
+      // connection holds the key internally, so it is zeroed here.
+      if (dbKeyNew != null) _zeroOut(dbKeyNew);
+      if (wrappedNew != null) _zeroOut(wrappedNew);
+    }
+  }
+
+  /// Rotation resume — case B (crash between the DB commit ④ and the
+  /// rekey ⑤): the config already holds the new wrap, but the file is still
+  /// keyed with the pre-rotation dbKey (which is how this connection was
+  /// opened). If the typed password unwraps under the STAGED salt's KEK,
+  /// finish the rotation: rekey, checkpoint, promote.
+  Future<String?> _resumeRotationBeforeRekey({
+    required AppDatabase db,
+    required String password,
+    required Uint8List stagedSalt,
+    required VaultConfig config,
+    required int vaultId,
+  }) async {
+    final pdkNew = _kds.deriveKey(password: password, salt: stagedSalt);
+    Uint8List? kekNew;
+    Uint8List? dbKeyNew;
+    try {
+      kekNew = _keyHierarchy.deriveKek(pdkNew);
+      final mek = _mks.unwrap(
+        wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
+        wrappingKey: kekNew,
+      );
+      if (mek == null) {
+        // Neither the main-salt KEK nor the staged-salt KEK unwraps with
+        // this password — a wrong password, never mekUnwrapFailed while a
+        // resume attempt remains. The journal stays for the next attempt.
+        return 'Incorrect password';
+      }
+      dbKeyNew = _keyHierarchy.deriveDbKey(pdkNew);
+      await db.customStatement(
+        'PRAGMA rekey = "x\'${sqlcipherRawKeyHex(dbKeyNew)}\'";',
+      );
+      await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
+      await _sidecar.promoteStaged();
+      state = AuthUnlocked(masterEncryptionKey: mek, vaultId: vaultId);
+      return null;
+    } finally {
+      _zeroOut(pdkNew);
+      if (kekNew != null) _zeroOut(kekNew);
+      if (dbKeyNew != null) _zeroOut(dbKeyNew); // rekey-string use only
+    }
+  }
+
+  /// Rotation resume — case C (crash between the rekey ⑤ and the sidecar
+  /// promotion ⑥): the file is already keyed with the NEW dbKey, so reopen
+  /// with the staged salt's hierarchy and finish by promoting.
+  Future<String?> _resumeRotationAfterRekey({
+    required String password,
+    required Uint8List stagedSalt,
+  }) async {
+    final pdkNew = _kds.deriveKey(password: password, salt: stagedSalt);
+    Uint8List? kekNew;
+    try {
+      // Not zeroed: this becomes the live connection's key (held by the
+      // setup callback for the connection lifetime).
+      final dbKeyNew = _keyHierarchy.deriveDbKey(pdkNew);
+      kekNew = _keyHierarchy.deriveKek(pdkNew);
+      final db = _ensureDb(dbKey: dbKeyNew);
+      final Vault? vault;
+      final VaultConfig? config;
+      try {
+        vault = await db.vaultDao.getFirst();
+        config = vault == null
+            ? null
+            : await db.vaultConfigDao.getByVaultId(vault.id);
+      } catch (e) {
+        if (!_isNotADatabase(e)) rethrow;
+        await _releaseDb();
+        if (kDebugMode) {
+          debugPrint('[Auth:unlock] rotation-resume reopen rejected');
+        }
+        return 'Incorrect password';
+      }
+      if (config == null) {
+        state = const AuthVaultError(reason: VaultErrorReason.configMissing);
+        return 'Vault configuration missing — recovery required';
+      }
+      final mek = _mks.unwrap(
+        wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
+        wrappingKey: kekNew,
+      );
+      if (mek == null) {
+        // The staged-key open succeeded, and the rewrap committed BEFORE
+        // the rekey by protocol order — a failed unwrap here is corruption.
+        state = const AuthVaultError(reason: VaultErrorReason.mekUnwrapFailed);
+        return 'Master key is corrupted — restore from a backup';
+      }
+      await _sidecar.promoteStaged();
+      state = AuthUnlocked(masterEncryptionKey: mek, vaultId: vault!.id);
+      return null;
+    } finally {
+      _zeroOut(pdkNew);
+      if (kekNew != null) _zeroOut(kekNew);
     }
   }
 

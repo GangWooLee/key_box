@@ -127,6 +127,63 @@ void main() {
       await store.delete();
       expect(await store.read(), isA<SidecarMissing>());
     });
+
+    group('staged rotation journal', () {
+      File stagedFileSync() =>
+          File('${tempDir.path}/${VaultPaths.sidecarStagedFileName}');
+
+      test('writeStaged/readStaged round-trip without touching the main '
+          'sidecar', () async {
+        await store.write(salt32(0x11));
+        await store.writeStaged(salt32(0x22));
+
+        final staged = await store.readStaged();
+        expect(staged, isA<SidecarFound>());
+        expect((staged as SidecarFound).salt, equals(salt32(0x22)));
+        // Main sidecar untouched.
+        expect(
+          ((await store.read()) as SidecarFound).salt,
+          equals(salt32(0x11)),
+        );
+        expect(stagedFileSync().existsSync(), isTrue);
+      });
+
+      test(
+        'readStaged returns SidecarMissing when nothing is staged',
+        () async {
+          expect(await store.readStaged(), isA<SidecarMissing>());
+        },
+      );
+
+      test('promoteStaged replaces the main sidecar and clears the staged '
+          'file', () async {
+        await store.write(salt32(0x11));
+        await store.writeStaged(salt32(0x22));
+
+        await store.promoteStaged();
+
+        expect(
+          ((await store.read()) as SidecarFound).salt,
+          equals(salt32(0x22)),
+        );
+        expect(await store.readStaged(), isA<SidecarMissing>());
+        expect(stagedFileSync().existsSync(), isFalse);
+      });
+
+      test('discardStaged removes the staged salt and is idempotent', () async {
+        await store.write(salt32(0x11));
+        await store.writeStaged(salt32(0x22));
+
+        await store.discardStaged();
+        expect(await store.readStaged(), isA<SidecarMissing>());
+        // Main untouched; second discard must not throw.
+        await store.discardStaged();
+        expect(
+          ((await store.read()) as SidecarFound).salt,
+          equals(salt32(0x11)),
+        );
+      });
+    });
   });
 
   group('InMemorySidecarStore', () {
@@ -141,6 +198,27 @@ void main() {
 
       await store.delete();
       expect(await store.read(), isA<SidecarMissing>());
+    });
+
+    test('staged salt round-trips, promotes, and discards', () async {
+      final store = InMemorySidecarStore();
+      await store.write(salt32(0x11));
+
+      await store.writeStaged(salt32(0x22));
+      expect(
+        ((await store.readStaged()) as SidecarFound).salt,
+        equals(salt32(0x22)),
+      );
+
+      await store.promoteStaged();
+      expect(((await store.read()) as SidecarFound).salt, equals(salt32(0x22)));
+      expect(await store.readStaged(), isA<SidecarMissing>());
+
+      await store.writeStaged(salt32(0x33));
+      await store.discardStaged();
+      await store.discardStaged(); // idempotent
+      expect(await store.readStaged(), isA<SidecarMissing>());
+      expect(((await store.read()) as SidecarFound).salt, equals(salt32(0x22)));
     });
 
     test('read returns a defensive copy — zeroing it must not corrupt the '

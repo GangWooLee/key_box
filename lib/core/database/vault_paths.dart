@@ -13,6 +13,12 @@ abstract final class VaultPaths {
   static const dbShmFileName = 'key_box.db-shm';
   static const sidecarFileName = 'key_box.vault.json';
 
+  /// Staged rotation salt (changePassword journal): holds the NEW salt from
+  /// staging until the DB rewrap+rekey commits, then is promoted onto
+  /// [sidecarFileName]. Its presence at unlock signals an interrupted
+  /// rotation to resume.
+  static const sidecarStagedFileName = 'key_box.vault.json.new';
+
   // Plaintext→encrypted migration artifacts (VaultMigrator).
   /// In-flight encrypted copy — incomplete or already swapped in, so always
   /// safe to delete during interrupted-migration recovery.

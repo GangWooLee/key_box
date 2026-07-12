@@ -26,6 +26,24 @@ class VaultConfigDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Commits a key rotation: the KEK-wrapped MEK and the salt it derives
+  /// from change together — they are one logical unit (see changePassword).
+  Future<bool> updateKeyMaterial({
+    required int vaultId,
+    required Uint8List masterKeySalt,
+    required Uint8List encryptedMasterKey,
+  }) {
+    return (update(vaultConfigs)..where((t) => t.vaultId.equals(vaultId)))
+        .write(
+          VaultConfigsCompanion(
+            masterKeySalt: Value(masterKeySalt),
+            encryptedMasterKey: Value(encryptedMasterKey),
+            updatedAt: Value(DateTime.now()),
+          ),
+        )
+        .then((rows) => rows > 0);
+  }
+
   Future<VaultConfig?> getByVaultId(int vaultId) {
     return (select(
       vaultConfigs,

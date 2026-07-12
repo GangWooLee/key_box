@@ -38,6 +38,24 @@ abstract interface class SidecarStore {
 
   /// Deletes the sidecar. Idempotent.
   Future<void> delete();
+
+  // ─── Rotation journal (changePassword) ───
+  // The staged entry holds the NEW salt while the DB rewrap + rekey commit;
+  // promotion is the final rotation step, and a staged entry found at
+  // unlock signals an interrupted rotation to resume.
+
+  /// Stages [salt] without touching the main sidecar. Throws on failure.
+  Future<void> writeStaged(Uint8List salt);
+
+  /// Reads the staged salt; [SidecarMissing] when nothing is staged.
+  Future<SidecarReadResult> readStaged();
+
+  /// Atomically replaces the main sidecar with the staged one. Throws when
+  /// nothing is staged.
+  Future<void> promoteStaged();
+
+  /// Drops the staged salt. Idempotent.
+  Future<void> discardStaged();
 }
 
 /// File-backed [SidecarStore] using an atomic tmp-write-then-rename.
@@ -56,6 +74,13 @@ class FileSidecarStore implements SidecarStore {
 
   Future<File> _tmpFile() async =>
       File('${(await _baseDir()).path}/${VaultPaths.sidecarFileName}.tmp');
+
+  Future<File> _stagedFile() async =>
+      File('${(await _baseDir()).path}/${VaultPaths.sidecarStagedFileName}');
+
+  Future<File> _stagedTmpFile() async => File(
+    '${(await _baseDir()).path}/${VaultPaths.sidecarStagedFileName}.tmp',
+  );
 
   @override
   Future<SidecarReadResult> read() async {
@@ -103,11 +128,13 @@ class FileSidecarStore implements SidecarStore {
 
   @override
   Future<void> write(Uint8List salt) async {
-    final content = _encode(salt);
     // Write to a fixed same-directory tmp, then rename onto the target: APFS
     // guarantees rename atomicity on the same volume, so a reader never sees a
     // partially written sidecar.
-    final tmp = await _tmpFile();
+    await _atomicWrite(await _tmpFile(), await _file(), _encode(salt));
+  }
+
+  Future<void> _atomicWrite(File tmp, File target, String content) async {
     final raf = await tmp.open(mode: FileMode.write);
     try {
       await raf.writeString(content);
@@ -115,7 +142,35 @@ class FileSidecarStore implements SidecarStore {
     } finally {
       await raf.close();
     }
-    await tmp.rename((await _file()).path);
+    await tmp.rename(target.path);
+  }
+
+  @override
+  Future<void> writeStaged(Uint8List salt) async {
+    await _atomicWrite(
+      await _stagedTmpFile(),
+      await _stagedFile(),
+      _encode(salt),
+    );
+  }
+
+  @override
+  Future<SidecarReadResult> readStaged() async {
+    final file = await _stagedFile();
+    if (!await file.exists()) return SidecarMissing();
+    return _parse(await file.readAsString());
+  }
+
+  @override
+  Future<void> promoteStaged() async {
+    // Single atomic rename — the journal commit point of a rotation.
+    await (await _stagedFile()).rename((await _file()).path);
+  }
+
+  @override
+  Future<void> discardStaged() async {
+    final file = await _stagedFile();
+    if (await file.exists()) await file.delete();
   }
 
   String _encode(Uint8List salt) => jsonEncode({
@@ -140,6 +195,7 @@ class FileSidecarStore implements SidecarStore {
 /// In-memory [SidecarStore] for tests and the legacy in-memory constructor.
 class InMemorySidecarStore implements SidecarStore {
   Uint8List? _salt;
+  Uint8List? _staged;
 
   @override
   Future<SidecarReadResult> read() async {
@@ -156,4 +212,29 @@ class InMemorySidecarStore implements SidecarStore {
 
   @override
   Future<void> delete() async => _salt = null;
+
+  @override
+  Future<void> writeStaged(Uint8List salt) async =>
+      _staged = Uint8List.fromList(salt);
+
+  @override
+  Future<SidecarReadResult> readStaged() async {
+    final staged = _staged;
+    return staged == null
+        ? SidecarMissing()
+        : SidecarFound(Uint8List.fromList(staged));
+  }
+
+  @override
+  Future<void> promoteStaged() async {
+    final staged = _staged;
+    if (staged == null) {
+      throw StateError('promoteStaged called with nothing staged');
+    }
+    _salt = staged;
+    _staged = null;
+  }
+
+  @override
+  Future<void> discardStaged() async => _staged = null;
 }
