@@ -7,6 +7,7 @@ import '../../features/auth/domain/auth_notifier.dart';
 import '../../features/auth/presentation/screens/loading_screen.dart';
 import '../../features/auth/presentation/screens/setup_screen.dart';
 import '../../features/auth/presentation/screens/unlock_screen.dart';
+import '../../features/auth/presentation/screens/vault_error_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/secrets/presentation/screens/dashboard_screen.dart';
 import 'route_names.dart';
@@ -27,16 +28,17 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       return switch (authState) {
         // Initializing → loading screen
-        AuthInitial() =>
-          path != RoutePaths.loading ? RoutePaths.loading : null,
+        AuthInitial() => path != RoutePaths.loading ? RoutePaths.loading : null,
 
         // First run → setup screen
-        AuthFirstRun() =>
-          path != RoutePaths.setup ? RoutePaths.setup : null,
+        AuthFirstRun() => path != RoutePaths.setup ? RoutePaths.setup : null,
 
         // Vault locked → unlock screen
-        AuthLocked() =>
-          path != RoutePaths.unlock ? RoutePaths.unlock : null,
+        AuthLocked() => path != RoutePaths.unlock ? RoutePaths.unlock : null,
+
+        // Vault files inconsistent/corrupted → recovery screen
+        AuthVaultError() =>
+          path != RoutePaths.vaultError ? RoutePaths.vaultError : null,
 
         // First setup complete → onboarding
         AuthUnlocked(isFirstSetup: true) =>
@@ -67,6 +69,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.onboarding,
         name: RouteNames.onboarding,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.vaultError,
+        name: RouteNames.vaultError,
+        builder: (context, state) => const VaultErrorScreen(),
       ),
       GoRoute(
         path: RoutePaths.dashboard,
