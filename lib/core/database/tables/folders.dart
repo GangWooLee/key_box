@@ -1,12 +1,14 @@
 import 'package:drift/drift.dart';
 import 'vaults.dart';
 
-/// Maps to Rails `folders` table.
+/// Folder hierarchy supporting unlimited nesting via self-referencing parentId.
 class Folders extends Table {
   IntColumn get id => integer().autoIncrement()();
   IntColumn get vaultId => integer().references(Vaults, #id)();
+  IntColumn get parentId => integer().nullable().references(Folders, #id)();
   TextColumn get name => text().withLength(max: 100)();
-  TextColumn get icon => text().withLength(max: 50).withDefault(const Constant('folder'))();
+  TextColumn get icon =>
+      text().withLength(max: 50).withDefault(const Constant('folder'))();
   IntColumn get position => integer().withDefault(const Constant(0))();
   IntColumn get secretsCount => integer().withDefault(const Constant(0))();
   DateTimeColumn get createdAt => dateTime()();
@@ -14,6 +16,6 @@ class Folders extends Table {
 
   @override
   List<Set<Column>> get uniqueKeys => [
-        {vaultId, name},
-      ];
+    {vaultId, name},
+  ];
 }
