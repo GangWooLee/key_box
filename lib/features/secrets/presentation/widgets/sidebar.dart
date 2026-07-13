@@ -157,7 +157,7 @@ class _CollapsedSidebar extends ConsumerWidget {
                       Text(
                         '$count',
                         style: AppTypography.mono.copyWith(
-                          fontSize: 9,
+                          fontSize: 10,
                           height: 1.2,
                           color: s.muted,
                         ),
@@ -228,7 +228,7 @@ class _SearchBar extends ConsumerWidget {
               child: Text(
                 'K — search…',
                 style: AppTypography.mono.copyWith(
-                  fontSize: 11.5,
+                  fontSize: 11,
                   color: s.muted,
                 ),
                 maxLines: 1,
