@@ -51,7 +51,7 @@ void main() {
 
   group('SecretDetail', () {
     group('empty state', () {
-      testWidgets('shows "Select a secret to view details" when no selection', (
+      testWidgets('shows mono "select a secret" standby when no selection', (
         tester,
       ) async {
         await tester.pumpProviderWidget(
@@ -59,16 +59,9 @@ void main() {
           overrides: buildOverrides(selectedId: null),
         );
 
-        expect(find.text('Select a secret to view details'), findsOneWidget);
-      });
-
-      testWidgets('shows key icon', (tester) async {
-        await tester.pumpProviderWidget(
-          const SecretDetail(),
-          overrides: buildOverrides(selectedId: null),
-        );
-
-        expect(find.byIcon(LucideIcons.keyRound), findsOneWidget);
+        expect(find.text('select a secret'), findsOneWidget);
+        // Standby pilot dot, not an icon (silence principle).
+        expect(find.byIcon(LucideIcons.keyRound), findsNothing);
       });
     });
 
@@ -151,7 +144,7 @@ void main() {
         expect(find.text('decrypted-value'), findsNothing);
       });
 
-      testWidgets('Copy button calls ops.decrypt and shows "Copied!"', (
+      testWidgets('Copy button calls ops.decrypt and shows "copied"', (
         tester,
       ) async {
         final secret = vault.secrets.first;
@@ -168,13 +161,13 @@ void main() {
         await tester.tap(find.text('Copy'));
         await tester.pumpAndSettle();
 
-        expect(find.text('Copied!'), findsOneWidget);
+        expect(find.text('copied'), findsOneWidget);
         verify(() => mockOps.decrypt(any())).called(1);
         verify(
           () => mockClipboard.copyWithAutoClear('decrypted-value'),
         ).called(1);
 
-        // Advance past the 2-second "Copied!" timer to avoid pending timer error
+        // Advance past the 2-second "copied" timer to avoid pending timer error
         await tester.pump(const Duration(seconds: 3));
       });
     });
