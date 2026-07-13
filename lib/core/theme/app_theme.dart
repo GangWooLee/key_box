@@ -214,6 +214,9 @@ abstract final class AppTheme {
       scaffoldBackgroundColor: s.canvas,
       cardColor: s.lamp,
       dividerColor: s.hairline,
+      // Bare InkWells (menu items, list rows) hover on the surface's hover
+      // token — "half a step below selection" (DESIGN.md components matrix).
+      hoverColor: s.hover,
       textTheme: _textTheme(s.ink, s.muted),
       iconTheme: IconThemeData(color: s.muted, size: 20),
       inputDecorationTheme: _inputTheme(s),

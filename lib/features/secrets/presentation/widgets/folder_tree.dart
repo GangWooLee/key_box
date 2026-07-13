@@ -224,13 +224,7 @@ class _FolderTreeNode extends ConsumerWidget {
   }
 
   void _showContextMenu(BuildContext context, WidgetRef ref) {
-    // folder_dialogs is a later V9 pass — it still takes the legacy flag.
-    showFolderContextMenu(
-      context: context,
-      ref: ref,
-      folder: folder,
-      isDark: Theme.of(context).brightness == Brightness.dark,
-    );
+    showFolderContextMenu(context: context, ref: ref, folder: folder);
   }
 }
 

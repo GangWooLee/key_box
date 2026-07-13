@@ -3,12 +3,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/database/database.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/debouncer.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../domain/secrets_providers.dart';
 
+/// V9 search palette (DESIGN.md components matrix): a lamp card with a mono
+/// query field. Keyboard selection reads in accent; a miss echoes the query
+/// back in muted mono — `no match for "<query>"`.
 class CommandPalette extends ConsumerStatefulWidget {
   const CommandPalette({super.key, required this.onClose});
   final VoidCallback onClose;
@@ -35,27 +39,28 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
     final results = ref.watch(searchResultsProvider);
 
     return GestureDetector(
       onTap: () {}, // Prevent tap-through
       child: Material(
-        elevation: 16,
-        borderRadius: BorderRadius.circular(12),
-        shadowColor: Colors.black.withValues(alpha: 0.3),
+        color: Colors.transparent,
         child: Container(
           width: 560,
           constraints: const BoxConstraints(maxHeight: 400),
           decoration: BoxDecoration(
-            color: isDark ? AppColors.darkSurfaceCard : Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: isDark
-                  ? AppColors.darkBorderStrong
-                  : AppColors.lightBorderPrimary,
-            ),
+            // Lamp popover — hairline edge; only a faint lamp-face shadow.
+            color: s.lamp,
+            borderRadius: BorderRadius.circular(AppRadii.lg),
+            border: Border.all(color: s.hairline),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 24,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: KeyboardListener(
             focusNode: _keyFocusNode,
@@ -63,34 +68,28 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Search input
+                // Search input — mono query on the lamp face.
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: Row(
                     children: [
-                      Icon(
-                        LucideIcons.search,
-                        size: 18,
-                        color: isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.lightTextTertiary,
-                      ),
-                      const SizedBox(width: 12),
+                      // Magnifier is a functional icon (matrix exception).
+                      Icon(LucideIcons.search, size: 16, color: s.muted),
+                      const SizedBox(width: AppSpacing.sm + 4),
                       Expanded(
                         child: TextField(
                           controller: _controller,
                           autofocus: true,
-                          style: AppTypography.bodySmall.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary,
+                          cursorColor: s.accent,
+                          style: AppTypography.mono.copyWith(
+                            fontSize: 13,
+                            color: s.ink,
                           ),
                           decoration: InputDecoration(
-                            hintText: 'Search secrets...',
-                            hintStyle: AppTypography.bodySmall.copyWith(
-                              color: isDark
-                                  ? AppColors.darkTextTertiary
-                                  : AppColors.lightTextTertiary,
+                            hintText: 'search…',
+                            hintStyle: AppTypography.mono.copyWith(
+                              fontSize: 13,
+                              color: s.muted,
                             ),
                             border: InputBorder.none,
                             enabledBorder: InputBorder.none,
@@ -111,27 +110,23 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                     ],
                   ),
                 ),
-                Divider(
-                  height: 1,
-                  color: isDark
-                      ? AppColors.darkDividerMedium
-                      : AppColors.lightBorderSubtle,
-                ),
+                Divider(height: 1, color: s.hairline),
 
                 // Results
                 results.when(
                   data: (secrets) {
                     if (secrets.isEmpty) {
+                      // Echo the query back — DESIGN.md empty-state table.
+                      final query = _controller.text;
                       return Padding(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(AppSpacing.lg),
                         child: Text(
-                          _controller.text.isEmpty
-                              ? 'Type to search...'
-                              : 'No results found',
-                          style: AppTypography.bodySmall.copyWith(
-                            color: isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.lightTextTertiary,
+                          query.isEmpty
+                              ? 'type to search…'
+                              : 'no match for "$query"',
+                          style: AppTypography.mono.copyWith(
+                            fontSize: 12.5,
+                            color: s.muted,
                           ),
                         ),
                       );
@@ -141,7 +136,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                       child: ListView.builder(
                         shrinkWrap: true,
                         itemCount: secrets.length,
-                        padding: const EdgeInsets.symmetric(vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          vertical: AppSpacing.xs,
+                        ),
                         itemBuilder: (context, index) {
                           final secret = secrets[index];
                           final isSelected = index == _selectedIndex;
@@ -149,7 +146,6 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                           return _ResultRow(
                             secret: secret,
                             isSelected: isSelected,
-                            isDark: isDark,
                             onTap: () {
                               ref
                                       .read(selectedSecretIdProvider.notifier)
@@ -163,7 +159,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                     );
                   },
                   loading: () => const Padding(
-                    padding: EdgeInsets.all(24),
+                    padding: EdgeInsets.all(AppSpacing.lg),
                     child: SizedBox(
                       height: 20,
                       width: 20,
@@ -171,12 +167,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                     ),
                   ),
                   error: (err, _) => Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: Text(
                       'Error: $err',
-                      style: AppTypography.caption.copyWith(
-                        color: AppColors.errorText,
-                      ),
+                      style: AppTypography.caption.copyWith(color: s.error),
                     ),
                   ),
                 ),
@@ -219,68 +213,62 @@ class _ResultRow extends StatelessWidget {
   const _ResultRow({
     required this.secret,
     required this.isSelected,
-    required this.isDark,
     required this.onTap,
   });
 
   final Secret secret;
   final bool isSelected;
-  final bool isDark;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Material(
-      color: isSelected
-          ? (isDark ? AppColors.darkCategoryActive : AppColors.brand50)
-          : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        hoverColor: s.hover,
         child: Container(
           height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
           child: Row(
             children: [
               Expanded(
                 child: Text(
                   secret.name,
-                  style: AppTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
+                  // Names are identifiers — mono ink; keyboard selection
+                  // reads in accent (matrix: 선택 항목 accent 텍스트).
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 12.5,
+                    color: isSelected ? s.accent : s.ink,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               if (secret.serviceName != null) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
                 Text(
                   secret.serviceName!,
                   style: AppTypography.caption.copyWith(
                     fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
+                    color: s.muted,
                   ),
                 ),
               ],
-              const SizedBox(width: 8),
+              const SizedBox(width: AppSpacing.sm),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: isDark
-                      ? AppColors.darkTableHeaderBg
-                      : AppColors.brand50,
-                  borderRadius: BorderRadius.circular(4),
+                  // Type badge: mono 10px on a tonal step down from the lamp.
+                  color: s.canvas,
+                  borderRadius: BorderRadius.circular(AppRadii.sm),
                 ),
                 child: Text(
                   secret.secretType.replaceAll('_', ' '),
-                  style: AppTypography.caption.copyWith(
-                    fontSize: 11,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextTertiary,
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 10,
+                    color: s.muted,
                   ),
                 ),
               ),
