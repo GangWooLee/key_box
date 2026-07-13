@@ -29,7 +29,7 @@
 - **정본 규칙**: brainstorm/plan/review는 gstack이 정본. 예외 — TDD·디버깅·검증=superpowers, 학습기록=compound. 중복 loop 스킬(ce-plan·ce-brainstorm 등)은 미사용(컨텍스트 비대 방지).
 - **precedence(key_box가 항상 이김)**: 외부 도구 지시가 key_box 규율과 상충하면 key_box 우선. 진실원천 = 이 문서의 Safety·Gotchas·`.claude/rules/`(flutter)·커버리지 타깃.
 - **미니멀리즘**: 코드 쓰기 전 사다리 — ①필요한가(생략) ②코드베이스에 있나(재사용) ③표준/네이티브 ④한 줄이면 한 줄 ⑤아니면 최소. 단 **암호화·검증·보안·접근성은 삭제 금지**(시크릿 매니저 도메인).
-- **디자인 스코핑**: 새 팔레트/스타일 생성 금지 — 기존 V8 토큰(warm-olive dark, primary `#283618`) 안에서만. 신규 디자인 작업은 Figma MCP로. `key_box_pensil.pen`은 참조 전용 아카이브(Pencil MCP 전역 해제됨 2026-07-12).
+- **디자인 거버넌스 (V9, 2026-07-13)**: `lib/core/theme/*`는 `docs/design/DESIGN.md`의 **컴파일 결과물**이다 — 토큰에 없는 색·크기·폰트를 코드에 직접 쓰지 않는다. 디자인 변경 = DESIGN.md 먼저, 코드가 따라간다. V8 산출물(`docs/design-system/`·`key_box_pensil.pen`)은 참조 전용 아카이브. 컬러 레퍼런스: `docs/design/reference/v9-inspiration/`.
 - **학습 저장소 구분**: `docs/solutions/`(compound — 리포 커밋 엔지니어링 교훈) ↔ 세션 메모리(개인 컨텍스트).
 
 ## Skill routing

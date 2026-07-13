@@ -1,0 +1,9 @@
+# Test tag declarations (declaring tags here silences "unknown tag" warnings).
+tags:
+  golden:
+    # Golden tests rasterize the real bundled fonts and are sensitive to the
+    # host OS version's text renderer. They are a LOCAL design-review tool for
+    # the V9 redesign, NOT a CI gate — CI runs `flutter test --exclude-tags
+    # golden` (see .github/workflows/ci.yml). Run locally with:
+    #   flutter test --tags golden test/golden/
+    #   flutter test --update-goldens --tags golden test/golden/   # regenerate

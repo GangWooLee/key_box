@@ -28,5 +28,8 @@ jobs:
       # 현재 53개 파일에 포맷 드리프트가 있어 도입 즉시 CI가 적색이 된다.
       # 포맷은 로컬 lefthook pre-commit(dart format --set-exit-if-changed)이 점진 수렴시킨다.
 
+      # Golden tests (tag: golden) are excluded — they rasterize real fonts and
+      # are sensitive to the runner's OS text renderer. They are a local design
+      # -review tool for the V9 redesign, run manually with `--tags golden`.
       - name: Test
-        run: flutter test
+        run: flutter test --exclude-tags golden
