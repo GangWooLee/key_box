@@ -26,7 +26,7 @@ class UnlockScreen extends ConsumerStatefulWidget {
 }
 
 class _UnlockScreenState extends ConsumerState<UnlockScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   static const _maxAttempts = 5;
   static const _lockoutSeconds = 30;
 
@@ -50,6 +50,16 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen>
     );
     // Pilot light + focused fill react to focus changes.
     _focusNode.addListener(_onFocusChanged);
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Generous unlock (DESIGN.md security UX #4): when the window comes back,
+    // the password field re-arms without a click.
+    if (state == AppLifecycleState.resumed && mounted) {
+      _focusNode.requestFocus();
+    }
   }
 
   void _onFocusChanged() {
@@ -58,6 +68,7 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _lockoutTimer?.cancel();
     _shake.dispose();
     _focusNode.removeListener(_onFocusChanged);

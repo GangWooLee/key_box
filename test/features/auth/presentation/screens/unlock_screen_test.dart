@@ -77,6 +77,37 @@ void main() {
       });
     });
 
+    group('focus', () {
+      testWidgets('password field regains focus when the window reactivates', (
+        tester,
+      ) async {
+        await tester.pumpProviderWidget(
+          const UnlockScreen(),
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => FakeAuthNotifier(const AuthLocked()),
+            ),
+          ],
+        );
+        await tester.pump();
+
+        // Simulate the user cmd-tabbing away: the field loses focus.
+        FocusManager.instance.primaryFocus?.unfocus();
+        await tester.pump();
+        final field = tester.widget<TextField>(find.byType(TextField));
+        expect(field.focusNode?.hasFocus, isFalse);
+
+        // Window comes back — generous unlock (DESIGN.md security UX #4)
+        // means the password field re-arms without a click.
+        tester.binding.handleAppLifecycleStateChanged(
+          AppLifecycleState.resumed,
+        );
+        await tester.pump();
+
+        expect(field.focusNode?.hasFocus, isTrue);
+      });
+    });
+
     group('submission', () {
       testWidgets('empty password does nothing on Unlock tap', (tester) async {
         await tester.pumpProviderWidget(
