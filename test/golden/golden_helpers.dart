@@ -74,6 +74,17 @@ Future<void> loadTestFonts() async {
 
 // ─── Pump helper ───
 
+/// The V9 surface a golden renders on. Locked-state screens (unlock, setup,
+/// vault-error) live on [sealed]; working screens use [bench] (light) or
+/// [terminal] (dark) — see DESIGN.md "The Three Surfaces".
+enum GoldenSurface { sealed, bench, terminal }
+
+ThemeData _themeFor(GoldenSurface surface) => switch (surface) {
+  GoldenSurface.sealed => AppTheme.sealed(),
+  GoldenSurface.bench => AppTheme.bench(),
+  GoldenSurface.terminal => AppTheme.terminal(),
+};
+
 /// Pumps [child] inside a themed [MaterialApp] at a fixed [size] with real
 /// fonts loaded and a 1.0 device pixel ratio (so the golden PNG dimensions
 /// equal [size]). Restores the surface size / DPR on teardown.
@@ -86,7 +97,7 @@ Future<void> pumpGolden(
   required Widget child,
   required Size size,
   List<Override> overrides = const [],
-  ThemeMode themeMode = ThemeMode.dark,
+  GoldenSurface surface = GoldenSurface.terminal,
 }) async {
   await loadTestFonts();
 
@@ -102,9 +113,7 @@ Future<void> pumpGolden(
       overrides: overrides,
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light(),
-        darkTheme: AppTheme.dark(),
-        themeMode: themeMode,
+        theme: _themeFor(surface),
         home: child,
       ),
     ),

@@ -12,11 +12,12 @@ import '../helpers/widget_test_helpers.dart';
 import 'golden_helpers.dart';
 
 void main() {
-  testWidgets('unlock_screen — dark (V8 baseline)', (tester) async {
+  testWidgets('unlock_screen — V9 Slab (sealed surface)', (tester) async {
     await pumpGolden(
       tester,
       child: const UnlockScreen(),
       size: GoldenSizes.authCard,
+      surface: GoldenSurface.sealed,
       overrides: [
         authProvider.overrideWith(
           (ref) => FakeAuthNotifier(const AuthLocked()),

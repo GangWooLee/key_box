@@ -10,7 +10,7 @@ import '../../../../helpers/widget_test_helpers.dart';
 void main() {
   group('UnlockScreen', () {
     group('rendering', () {
-      testWidgets('shows "Unlock Your Vault" title', (tester) async {
+      testWidgets('shows the KEY_BOX wordmark', (tester) async {
         await tester.pumpProviderWidget(
           const UnlockScreen(),
           overrides: [
@@ -20,7 +20,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Unlock Your Vault'), findsOneWidget);
+        expect(find.text('KEY_BOX'), findsOneWidget);
       });
 
       testWidgets('shows password field and Unlock button', (tester) async {
@@ -37,7 +37,9 @@ void main() {
         expect(find.text('Unlock'), findsOneWidget);
       });
 
-      testWidgets('shows password recovery warning', (tester) async {
+      testWidgets('shows the mono master-password hint line', (tester) async {
+        // V9 unlock is minimal: the old "cannot be recovered" recovery block is
+        // removed; guidance is a single mono hint line (DESIGN.md §unlock).
         await tester.pumpProviderWidget(
           const UnlockScreen(),
           overrides: [
@@ -47,7 +49,7 @@ void main() {
           ],
         );
 
-        expect(find.textContaining('cannot be recovered'), findsOneWidget);
+        expect(find.textContaining('MASTER PASSWORD'), findsOneWidget);
       });
     });
 
@@ -91,7 +93,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Should still be on unlock screen
-        expect(find.text('Unlock Your Vault'), findsOneWidget);
+        expect(find.text('KEY_BOX'), findsOneWidget);
       });
     });
 
@@ -107,7 +109,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Unlock Your Vault'), findsOneWidget);
+        expect(find.text('KEY_BOX'), findsOneWidget);
       });
 
       testWidgets('light mode renders without errors', (tester) async {
@@ -121,7 +123,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Unlock Your Vault'), findsOneWidget);
+        expect(find.text('KEY_BOX'), findsOneWidget);
       });
     });
   });
