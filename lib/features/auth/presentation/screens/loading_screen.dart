@@ -38,7 +38,7 @@ class LoadingScreen extends ConsumerWidget {
                 onPressed: () =>
                     ref.read(authProvider.notifier).resetAndReinitialize(),
                 child: Text(
-                  'Reset Vault (Debug)',
+                  'dev: reset vault',
                   style: AppTypography.authInputLabel.copyWith(color: s.muted),
                 ),
               ),

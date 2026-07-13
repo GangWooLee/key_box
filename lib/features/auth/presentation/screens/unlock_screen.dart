@@ -377,20 +377,15 @@ class _UnlockScreenState extends ConsumerState<UnlockScreen>
   }
 
   Widget _devReset(KbSurface s) {
-    // Destructive = outline error (no fill), per the components matrix.
+    // Debug-only affordance: muted mono, same grammar as the loading screen —
+    // nothing on the sealed slab begs for attention. The destructive step is
+    // gated by the confirm dialog (error-outlined there, per the matrix).
     return Center(
-      child: OutlinedButton(
+      child: TextButton(
         onPressed: _handleDevReset,
-        style: OutlinedButton.styleFrom(
-          foregroundColor: s.error,
-          side: BorderSide(color: s.error),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadii.md),
-          ),
-        ),
         child: Text(
-          'DEV: Reset Vault',
-          style: AppTypography.authInputLabel.copyWith(color: s.error),
+          'dev: reset vault',
+          style: AppTypography.authInputLabel.copyWith(color: s.muted),
         ),
       ),
     );
