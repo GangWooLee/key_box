@@ -32,7 +32,7 @@ class _ModalHost extends ConsumerWidget {
 void main() {
   setUp(suppressDriftWarning);
 
-  testWidgets('sheet_modal — create mode, dark (V8 baseline)', (tester) async {
+  testWidgets('sheet_modal — V9 create mode (terminal)', (tester) async {
     await pumpGolden(
       tester,
       child: const _ModalHost(),

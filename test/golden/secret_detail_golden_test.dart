@@ -20,7 +20,7 @@ void main() {
   // Masked (not-yet-revealed) state. secretDetailProvider is overridden with a
   // fixed-timestamp fabricated secret so the "updated N ago" header and the
   // masked value are deterministic without touching the encrypted DB.
-  testWidgets('secret_detail — masked, dark (V8 baseline)', (tester) async {
+  testWidgets('secret_detail — V9 masked (terminal)', (tester) async {
     final secret = makeTestSecret(
       id: 1,
       name: 'Stripe Secret Key',
