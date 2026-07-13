@@ -16,14 +16,17 @@
 - **신뢰 표현 원칙**: 보안 도상 영구 금지(자물쇠·방패·배지·트러스트 씰·경보색 없음). 신뢰는 침묵·정밀·상태의 정직한 가시화로만.
 - **경쟁 차별(리서치 근거)**: 1Password(엔터프라이즈 배지월)·Bitwarden(템플릿 아이콘 그리드)·Proton Pass(보라 퍼널) 전부 "다크=시리어스" 보안 연극 + 파랑/보라. 우리는 휘도 반전 + 인광 그린 + 침묵.
 
-## The Two States (이 시스템의 심장)
-테마는 사용자 설정이 아니라 **잠금 상태**다. 앱이 상태로 빛을 바꾼다.
+## The Three Surfaces (이 시스템의 심장 — Stage 2 shotgun 확정 D8·D9)
+**잠금 상태가 1차, 사용자 모드가 2차.** 잠기면 무조건 슬래브. 열리면 사용자가 라이트(벤치)/다크(터미널)를 선택한다(theme_provider 유지).
 
-| | SEALED (잠김) — "The Slab" | OPEN (열림) — "The Bench" |
-|---|---|---|
-| 은유 | 닫힌 금고, 조밀한 무쇠 단일암 | 램프 켠 작업대, 본지 위의 부품들 |
-| 적용 화면 | unlock, loading, vault-error | dashboard, detail, modals, onboarding(후반), audit |
-| setup/onboarding | 슬래브에서 시작 → 첫 unlock 모션과 함께 벤치로 | |
+| | SEALED — "The Slab" (고정) | OPEN·Light — "The Bench" | OPEN·Dark — "The Terminal" |
+|---|---|---|---|
+| 은유 | 닫힌 금고, 무쇠 단일암 | 램프 켠 작업대, 본지 위의 부품 | 밤의 작업실 — 슬래브가 반 단계 깨어난 세계 |
+| 적용 | unlock, loading, vault-error | dashboard·detail·modals·audit (라이트 모드) | 동일 화면 (다크 모드) |
+| 언락 모션 | — | 극적 휘도 반전(320ms 스윕) | 미묘한 톤 리프트 + 파일럿 점화(같은 320ms, 낙차만 작음) |
+
+- Terminal은 D(피치블랙+라임)의 **구조**를 계승하되 색은 시스템 통일: 순수 무채·일렉트릭 라임 기각, 웜 근흑 계열 + 인광 그린 `#5FB84E`(D9 확정). **한 인광이 3표면을 관통한다.**
+- setup/onboarding: 슬래브에서 시작 → 첫 unlock 모션과 함께 현재 모드의 열림 표면으로.
 
 ## Color
 
@@ -52,6 +55,20 @@
 | `benchLive` | `#5FB84E` | 라이브 글로우 — copied·활성 점·선택 엣지 | (비텍스트) |
 | `benchError` | `#9A4A34` | 에러 — 산화 클레이 | 4.5:1 |
 | `benchHairline` | `rgba(26,29,20,0.10)` | 구분선 |
+
+### OPEN·Dark — Terminal 팔레트 (Stage 2 신설)
+슬래브의 작업 확장 — 잠김 대비 반 단계 밝은 웜 근흑. "빛은 지금 만지는 시크릿을 향한다" 방향 유지(tray 가장 어둡고 lamp 가장 밝음).
+
+| Token | Hex | 용도 | 대비(on canvas) |
+|---|---|---|---|
+| `termCanvas` | `#12140E` | 테이블 캔버스 | — |
+| `termTray` | `#0E100A` | 사이드바 — 가장 가라앉은 면 | — |
+| `termLamp` | `#1A1D14` | 디테일 패널·선택 행·hover | — |
+| `termText` | `#E4E7DC` | 주 텍스트(슬래브와 공유) | ~14:1 |
+| `termMuted` | `#79826C` | 보조(슬래브와 공유) | 4.6:1 |
+| `termAccent` | `#5FB84E` | 액센트 = 인광 라이브(다크 위 직접 사용) | ~7:1 |
+| `termError` | `#B87050` | 에러(슬래브와 공유) | 4.9:1 |
+| `termHairline` | `rgba(228,231,220,0.08)` | 구분선 |
 
 ### 색 규율
 - **액센트 면적 10% 이내**(onnydesign 콤보 02 원리). 같은 초록이 두 상태를 관통 — 잠기면 흐린 대기등 `#3E6B3A`, 열리면 살아있는 인광 `#5FB84E`. 색 자체가 상태 은유.
@@ -133,7 +150,7 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 - `colors.dart`: `AppColors`를 위 토큰명(slab*/bench*)으로 전면 재정의. 기존 `dark*`/`light*` 이름은 각각 slab*/bench*로 사상(위젯 426개 참조처는 화면별 적용 단계에서 전환).
 - `typography.dart`: `AppTypography` — 위 Scale, `fontFamily: 'IBM Plex Sans'`/`'IBM Plex Mono'`.
 - `spacing.dart`(신설): `AppSpacing.xs..xxl`.
-- `app_theme.dart`: `AppTheme.sealed()`/`AppTheme.open()` — ThemeMode가 아니라 **AuthState가 테마를 결정**(`AuthUnlocked` → open). `theme_provider`의 사용자 다크/라이트 설정은 제거 대상(상태가 곧 테마).
+- `app_theme.dart`: `AppTheme.sealed()`/`AppTheme.bench()`/`AppTheme.terminal()` — **AuthState가 1차 결정**(잠김=sealed 고정), 열림에서 `theme_provider`의 사용자 라이트/다크가 bench/terminal 선택(D8·D9 확정 — theme_provider 유지, system 모드는 OS 설정 추종).
 - pubspec: google_fonts 없음 유지, Plex Sans 3웨이트 추가 번들, Inter·JetBrains Mono·IBM Plex Mono(기존 2웨이트) 정리.
 
 ## Decisions Log
@@ -143,4 +160,6 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 | 2026-07-13 | 액센트 = 인광 그린 파일럿 라이트 (D5) | 두 상태 관통하는 "깨어나는" 서사, 보안도구 빨강 위험 회피. 크림슨(콤보01)·코발트(콤보07) 기각 |
 | 2026-07-13 | IBM Plex 단일 패밀리 (D6) | "human-machine 관계" 설계 서사 일치, 3→1 패밀리 응집. Geist안 기각 |
 | 2026-07-13 | 테마 = 잠금 상태 (라이트/다크 설정 아님) | 상태 대비가 제품 은유 그 자체 |
+| 2026-07-13 | **(개정 D8·D9)** 3표면 체계 — 잠김 슬래브 고정 + 열림 벤치/터미널 사용자 전환 | Stage 2 shotgun: A 선호(4)+D(4) — "A↔D 라이트/다크 전환 느낌" 피드백. C 크림슨(1)·B 코발트(3) 탈락 |
+| 2026-07-13 | Terminal은 인광 통일(라임 #2BEE34·순수무채 #141414 기각) | 온도·색 일관 — 한 인광이 3표면 관통 (D9) |
 | 2026-07-13 | 보안 도상 영구 금지 | 카테고리 전체가 반대로 함 — 침묵이 차별화 |
