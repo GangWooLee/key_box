@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/router/app_router.dart';
 import 'features/auth/domain/auth_notifier.dart';
@@ -23,14 +22,14 @@ class _KeyBoxAppState extends ConsumerState<KeyBoxApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    final themeMode = ref.watch(themeModeProvider);
+    // Single source of truth: auth state (locked ⇒ Slab) then user mode
+    // (Bench/Terminal). No darkTheme/themeMode — surfaceThemeProvider decides.
+    final theme = ref.watch(surfaceThemeProvider);
 
     return MaterialApp.router(
       title: 'KeyBox',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light(),
-      darkTheme: AppTheme.dark(),
-      themeMode: themeMode,
+      theme: theme,
       routerConfig: router,
     );
   }

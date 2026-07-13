@@ -43,21 +43,15 @@ abstract final class GoldenSizes {
 /// prefixed `packages/lucide_icons/Lucide` — that prefixed name is what the
 /// rendered `IconData` references, and therefore what [FontLoader] must use.
 const Map<String, List<String>> _fontAssets = {
-  'Inter': [
-    'assets/fonts/Inter-Regular.ttf',
-    'assets/fonts/Inter-Medium.ttf',
-    'assets/fonts/Inter-SemiBold.ttf',
-    'assets/fonts/Inter-Bold.ttf',
-  ],
-  'JetBrains Mono': [
-    'assets/fonts/JetBrainsMono-Regular.ttf',
-    'assets/fonts/JetBrainsMono-Medium.ttf',
-    'assets/fonts/JetBrainsMono-SemiBold.ttf',
-    'assets/fonts/JetBrainsMono-Bold.ttf',
+  'IBM Plex Sans': [
+    'assets/fonts/IBMPlexSans-Regular.ttf',
+    'assets/fonts/IBMPlexSans-Medium.ttf',
+    'assets/fonts/IBMPlexSans-SemiBold.ttf',
   ],
   'IBM Plex Mono': [
     'assets/fonts/IBMPlexMono-Regular.ttf',
     'assets/fonts/IBMPlexMono-Medium.ttf',
+    'assets/fonts/IBMPlexMono-SemiBold.ttf',
   ],
   'packages/lucide_icons/Lucide': ['packages/lucide_icons/assets/lucide.ttf'],
 };

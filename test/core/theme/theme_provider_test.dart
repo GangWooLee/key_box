@@ -36,21 +36,22 @@ void main() {
       expect(notifier.state, ThemeMode.dark);
     });
 
-    test('setThemeMode ignores system mode', () async {
+    test('setThemeMode accepts system mode (V9 OS-follow)', () async {
+      // V9 restored system support (the old "system → dark" normalization is
+      // gone); surfaceThemeProvider resolves it against OS brightness.
       await notifier.setThemeMode(ThemeMode.light);
       expect(notifier.state, ThemeMode.light);
 
-      // system mode should be ignored
       await notifier.setThemeMode(ThemeMode.system);
-      expect(notifier.state, ThemeMode.light);
+      expect(notifier.state, ThemeMode.system);
     });
 
-    test('persisted system mode loads as dark', () async {
-      // Simulate a persisted system mode (index 0)
+    test('persisted system mode loads as system (V9)', () async {
+      // Simulate a persisted system mode (index 0).
       SharedPreferences.setMockInitialValues({'theme_mode': 0});
       final notifier2 = ThemeModeNotifier();
       await Future.delayed(const Duration(milliseconds: 50));
-      expect(notifier2.state, ThemeMode.dark);
+      expect(notifier2.state, ThemeMode.system);
     });
 
     test('persists and restores theme mode', () async {
