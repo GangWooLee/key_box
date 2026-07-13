@@ -319,9 +319,16 @@ class _TopBar extends ConsumerWidget {
               child: InkWell(
                 onTap: () => context.pushNamed(RouteNames.auditLog),
                 borderRadius: BorderRadius.circular(AppRadii.sm),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Icon(LucideIcons.scrollText, size: 16, color: s.muted),
+                child: SizedBox(
+                  width: kMinHitTarget,
+                  height: kMinHitTarget,
+                  child: Center(
+                    child: Icon(
+                      LucideIcons.scrollText,
+                      size: 16,
+                      color: s.muted,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -334,12 +341,15 @@ class _TopBar extends ConsumerWidget {
               child: InkWell(
                 onTap: () => ref.read(themeModeProvider.notifier).toggle(),
                 borderRadius: BorderRadius.circular(AppRadii.sm),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  child: Icon(
-                    isCurrentlyDark ? LucideIcons.moon : LucideIcons.sun,
-                    size: 16,
-                    color: s.muted,
+                child: SizedBox(
+                  width: kMinHitTarget,
+                  height: kMinHitTarget,
+                  child: Center(
+                    child: Icon(
+                      isCurrentlyDark ? LucideIcons.moon : LucideIcons.sun,
+                      size: 16,
+                      color: s.muted,
+                    ),
                   ),
                 ),
               ),
