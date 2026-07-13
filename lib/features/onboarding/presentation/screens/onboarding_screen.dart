@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/motion.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/result.dart';
@@ -65,7 +66,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     // Animate first, then update chrome (buttons/dots) when animation completes
     await _pageController.animateToPage(
       step,
-      duration: const Duration(milliseconds: 250),
+      duration: AppMotion.short,
       curve: Curves.easeInOut,
     );
     if (mounted) setState(() => _currentStep = step);

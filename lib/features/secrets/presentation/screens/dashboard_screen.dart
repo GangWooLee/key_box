@@ -8,6 +8,7 @@ import 'package:window_manager/window_manager.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/motion.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/domain/auth_notifier.dart';
@@ -75,7 +76,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           children: [
             // ─── Main content (padded for sidebar + top bar) ───
             AnimatedPadding(
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.short,
               curve: Curves.easeOutCubic,
               padding: EdgeInsets.only(
                 left: sidebarWidth,
@@ -117,7 +118,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
             // ─── Sidebar — the sunken tray (solid, no glass) ───
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
+              duration: AppMotion.short,
               curve: Curves.easeOutCubic,
               left: 0,
               top: AppConstants.topBarHeight,
@@ -162,14 +163,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       onTap: _closePalette,
       child: AnimatedOpacity(
         opacity: 1.0,
-        duration: const Duration(milliseconds: 150),
+        duration: AppMotion.short,
         curve: Curves.easeOutCubic,
         child: Container(
           color: s.scrim,
           child: Center(
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.95, end: 1.0),
-              duration: const Duration(milliseconds: 150),
+              duration: AppMotion.short,
               curve: Curves.easeOutCubic,
               builder: (context, scale, child) =>
                   Transform.scale(scale: scale, child: child),
