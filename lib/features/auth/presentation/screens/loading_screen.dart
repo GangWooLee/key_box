@@ -35,8 +35,7 @@ class LoadingScreen extends ConsumerWidget {
             if (kDebugMode) ...[
               const SizedBox(height: AppSpacing.xxl),
               TextButton(
-                onPressed: () =>
-                    ref.read(authProvider.notifier).resetAndReinitialize(),
+                onPressed: () => _confirmDevReset(context, ref, s),
                 child: Text(
                   'dev: reset vault',
                   style: AppTypography.authInputLabel.copyWith(color: s.muted),
@@ -47,5 +46,56 @@ class LoadingScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  // Destructive friction (DESIGN.md security UX #2): even the debug wipe
+  // gets a confirm gate — same contract as the unlock screen's reset.
+  Future<void> _confirmDevReset(
+    BuildContext context,
+    WidgetRef ref,
+    KbSurface s,
+  ) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: s.lamp,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadii.lg),
+          side: BorderSide(color: s.hairline),
+        ),
+        title: Text(
+          'Reset Vault?',
+          style: AppTypography.titleSmall.copyWith(color: s.ink),
+        ),
+        content: Text(
+          'This will delete ALL data and return to initial setup.\n'
+          'This action cannot be undone.',
+          style: AppTypography.bodySmall.copyWith(color: s.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: AppTypography.bodySmall.copyWith(color: s.muted),
+            ),
+          ),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: s.error,
+              side: BorderSide(color: s.error),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+              ),
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirm == true) {
+      await ref.read(authProvider.notifier).resetAndReinitialize();
+    }
   }
 }

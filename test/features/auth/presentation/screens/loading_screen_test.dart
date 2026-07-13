@@ -22,6 +22,29 @@ void main() {
       expect(find.text('KEY_BOX'), findsOneWidget);
     });
 
+    testWidgets('dev reset asks for confirmation before wiping', (
+      tester,
+    ) async {
+      await tester.pumpProviderWidget(
+        const LoadingScreen(),
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => FakeAuthNotifier(const AuthInitial()),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('dev: reset vault'));
+      await tester.pump();
+
+      // Destructive friction (DESIGN.md security UX #2): a confirm dialog
+      // gates the wipe; Cancel dismisses without resetting.
+      expect(find.text('Reset Vault?'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
+      await tester.pump();
+      expect(find.text('Reset Vault?'), findsNothing);
+    });
+
     testWidgets('shows CircularProgressIndicator', (tester) async {
       await tester.pumpProviderWidget(
         const LoadingScreen(),
