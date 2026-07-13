@@ -1,69 +1,45 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/theme/colors.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../domain/auth_notifier.dart';
 
-/// Splash screen shown while the app checks vault existence.
-/// Displayed during the [AuthInitial] state (~50-200ms).
+/// Slab splash shown while the app checks vault existence ([AuthInitial],
+/// ~50-200ms). Minimal: wordmark + a quiet accent spinner. No chrome.
 class LoadingScreen extends ConsumerWidget {
   const LoadingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkSurfaceSecondary : null,
+      backgroundColor: s.canvas,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(
-                  LucideIcons.keyRound,
-                  size: 28,
-                  color: AppColors.brand500,
-                ),
-                const SizedBox(width: 10),
-                Text(
-                  'KeyBox',
-                  style: AppTypography.logoText.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
-                  ),
-                ),
-              ],
+            Text(
+              'KEY_BOX',
+              style: AppTypography.logoText.copyWith(color: s.muted),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: AppSpacing.xl),
             SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: isDark
-                    ? AppColors.darkTextTertiary
-                    : AppColors.lightTextTertiary,
-              ),
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: s.accent),
             ),
             if (kDebugMode) ...[
-              const SizedBox(height: 48),
+              const SizedBox(height: AppSpacing.xxl),
               TextButton(
                 onPressed: () =>
                     ref.read(authProvider.notifier).resetAndReinitialize(),
                 child: Text(
                   'Reset Vault (Debug)',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextTertiary,
-                  ),
+                  style: AppTypography.authInputLabel.copyWith(color: s.muted),
                 ),
               ),
             ],

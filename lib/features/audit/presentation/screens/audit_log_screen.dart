@@ -2,24 +2,32 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/route_names.dart';
 import '../../../../core/database/database.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
+import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/date_formatters.dart';
 import '../../domain/audit_providers.dart';
 
+/// The audit ledger (DESIGN.md §audit) — an all-mono timeline on the working
+/// surface (bench/terminal). The physicality of a ledger: no icons per row,
+/// no color coding — action, subject, timestamp, in fixed-width type.
 class AuditLogScreen extends ConsumerWidget {
   const AuditLogScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventsAsync = ref.watch(auditEventsProvider);
-    final theme = Theme.of(context);
+    final s = Theme.of(context).extension<KbSurface>()!;
 
     return Scaffold(
+      backgroundColor: s.canvas,
       appBar: AppBar(
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: Icon(LucideIcons.arrowLeft, size: 18, color: s.muted),
           onPressed: () {
             if (context.canPop()) {
               context.pop();
@@ -29,7 +37,10 @@ class AuditLogScreen extends ConsumerWidget {
           },
           tooltip: 'Back',
         ),
-        title: const Text('Audit Log'),
+        title: Text(
+          'AUDIT LOG',
+          style: AppTypography.sectionHeader.copyWith(color: s.ink),
+        ),
       ),
       body: eventsAsync.when(
         data: (events) {
@@ -38,15 +49,22 @@ class AuditLogScreen extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(
-                    Icons.history,
-                    size: 64,
-                    color: theme.textTheme.bodySmall?.color,
+                  // Standby dot — the ledger waits; no big decorative icon.
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: s.accent,
+                      shape: BoxShape.circle,
+                    ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: AppSpacing.md),
                   Text(
-                    'No audit events yet',
-                    style: theme.textTheme.bodyMedium,
+                    'the ledger is empty',
+                    style: AppTypography.mono.copyWith(
+                      fontSize: 12.5,
+                      color: s.muted,
+                    ),
                   ),
                 ],
               ),
@@ -57,17 +75,18 @@ class AuditLogScreen extends ConsumerWidget {
             children: [
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   itemCount: events.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  separatorBuilder: (_, __) =>
+                      Divider(height: 1, color: s.hairline),
                   itemBuilder: (context, index) =>
-                      _AuditEventTile(event: events[index]),
+                      _AuditEventRow(event: events[index]),
                 ),
               ),
               // Load more button if we got a full page
               if (events.length % AppConstants.auditPageSize == 0)
                 Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   child: OutlinedButton(
                     onPressed: () {
                       ref.read(auditPageProvider.notifier).state++;
@@ -78,35 +97,67 @@ class AuditLogScreen extends ConsumerWidget {
             ],
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, _) => Center(child: Text('Error: $err')),
+        loading: () => Center(
+          child: SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2, color: s.accent),
+          ),
+        ),
+        error: (err, _) => Center(
+          child: Text(
+            'Error: $err',
+            style: AppTypography.mono.copyWith(fontSize: 12.5, color: s.error),
+          ),
+        ),
       ),
     );
   }
 }
 
-class _AuditEventTile extends StatelessWidget {
-  const _AuditEventTile({required this.event});
+/// One ledger line: `action  subject ........ timestamp` — all mono.
+class _AuditEventRow extends StatelessWidget {
+  const _AuditEventRow({required this.event});
   final AuditEvent event;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final s = Theme.of(context).extension<KbSurface>()!;
     final meta = _parseMeta(event.metadata);
     final secretName = meta['name'] as String?;
 
-    return ListTile(
-      leading: Icon(_actionIcon(event.action), size: 20),
-      title: Text(
-        _actionLabel(event.action),
-        style: theme.textTheme.bodyMedium,
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 10,
       ),
-      subtitle: secretName != null
-          ? Text(secretName, style: theme.textTheme.bodySmall)
-          : null,
-      trailing: Text(
-        DateFormatters.timeAgo(event.createdAt),
-        style: theme.textTheme.bodySmall,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 140,
+            child: Text(
+              _actionLabel(event.action),
+              style: AppTypography.mono.copyWith(fontSize: 12.5, color: s.ink),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Text(
+              secretName ?? '—',
+              style: AppTypography.mono.copyWith(
+                fontSize: 12.5,
+                color: s.muted,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Text(
+            DateFormatters.timeAgo(event.createdAt),
+            style: AppTypography.mono.copyWith(fontSize: 11, color: s.muted),
+          ),
+        ],
       ),
     );
   }
@@ -120,26 +171,14 @@ class _AuditEventTile extends StatelessWidget {
     }
   }
 
-  IconData _actionIcon(String action) {
-    return switch (action) {
-      'secret.create' => Icons.add_circle_outline,
-      'secret.read' => Icons.visibility_outlined,
-      'secret.update' => Icons.edit_outlined,
-      'secret.delete' => Icons.delete_outline,
-      'vault.setup' => Icons.lock_open,
-      'vault.unlock' => Icons.lock_outline,
-      _ => Icons.info_outline,
-    };
-  }
-
   String _actionLabel(String action) {
     return switch (action) {
-      'secret.create' => 'Secret created',
-      'secret.read' => 'Secret revealed',
-      'secret.update' => 'Secret updated',
-      'secret.delete' => 'Secret deleted',
-      'vault.setup' => 'Vault set up',
-      'vault.unlock' => 'Vault unlocked',
+      'secret.create' => 'secret created',
+      'secret.read' => 'secret revealed',
+      'secret.update' => 'secret updated',
+      'secret.delete' => 'secret deleted',
+      'vault.setup' => 'vault set up',
+      'vault.unlock' => 'vault unlocked',
       _ => action,
     };
   }

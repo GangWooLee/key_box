@@ -14,13 +14,15 @@ import 'golden_helpers.dart';
 void main() {
   setUp(suppressDriftWarning);
 
-  // Step 1 (welcome). The card renders identically regardless of auth state;
+  // Step 1 (welcome). The screen renders identically regardless of auth state;
   // AuthLocked makes `_loadDefaultFolder` short-circuit so no DB is touched.
-  testWidgets('onboarding_screen — step 1, dark (V8 baseline)', (tester) async {
+  // Onboarding starts on the Slab (DESIGN.md §onboarding).
+  testWidgets('onboarding_screen — step 1, V9 Slab (sealed)', (tester) async {
     await pumpGolden(
       tester,
       child: const OnboardingScreen(),
       size: const Size(520, 640),
+      surface: GoldenSurface.sealed,
       overrides: [
         authProvider.overrideWith(
           (ref) => FakeAuthNotifier(const AuthLocked()),

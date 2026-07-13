@@ -9,7 +9,7 @@ import '../../../../helpers/widget_test_helpers.dart';
 
 void main() {
   group('LoadingScreen', () {
-    testWidgets('shows "KeyBox" logo text', (tester) async {
+    testWidgets('shows the KEY_BOX wordmark', (tester) async {
       await tester.pumpProviderWidget(
         const LoadingScreen(),
         overrides: [
@@ -19,7 +19,7 @@ void main() {
         ],
       );
 
-      expect(find.text('KeyBox'), findsOneWidget);
+      expect(find.text('KEY_BOX'), findsOneWidget);
     });
 
     testWidgets('shows CircularProgressIndicator', (tester) async {
@@ -46,7 +46,7 @@ void main() {
         ],
       );
 
-      expect(find.text('KeyBox'), findsOneWidget);
+      expect(find.text('KEY_BOX'), findsOneWidget);
     });
 
     testWidgets('light theme renders correctly', (tester) async {
@@ -60,7 +60,7 @@ void main() {
         ],
       );
 
-      expect(find.text('KeyBox'), findsOneWidget);
+      expect(find.text('KEY_BOX'), findsOneWidget);
     });
   });
 }

@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/theme/colors.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../domain/auth_notifier.dart';
 import '../../domain/auth_state.dart';
 
-/// Recovery screen for [AuthVaultError]: explains what is wrong with the
-/// vault files and offers a confirmed full reset.
+/// Recovery screen for [AuthVaultError] — the vault stays sealed, so this
+/// remains on the Slab (DESIGN.md §vault-error). The reason reads in calm
+/// clay, not an alarm; no warning iconography.
 ///
 /// Backup restore will be wired here in a follow-up; for now the only exit
 /// is an explicit, confirmed reset back to first-run.
@@ -20,74 +22,59 @@ class VaultErrorScreen extends ConsumerWidget {
     // Transient render during reset transition — the router redirects away.
     if (authState is! AuthVaultError) return const Scaffold(body: SizedBox());
 
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
     final (title, description) = _messageFor(authState.reason);
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkSurfaceSecondary : null,
+      backgroundColor: s.canvas,
       body: Center(
         child: SingleChildScrollView(
-          child: Container(
+          child: SizedBox(
             width: 400,
-            padding: const EdgeInsets.symmetric(horizontal: 48, vertical: 40),
-            decoration: BoxDecoration(
-              color: isDark ? AppColors.authCardBg : Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                color: isDark
-                    ? AppColors.authCardStroke
-                    : AppColors.lightBorderPrimary,
-              ),
-            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  LucideIcons.alertTriangle,
-                  size: 40,
-                  color: AppColors.errorText,
+                Text(
+                  'KEY_BOX',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.logoText.copyWith(color: s.muted),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: AppSpacing.xxl),
                 Text(
                   title,
-                  style: AppTypography.authTitle.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextPrimary
-                        : AppColors.lightTextPrimary,
-                  ),
+                  style: AppTypography.authTitle.copyWith(color: s.error),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: AppSpacing.md),
                 Text(
                   description,
-                  style: AppTypography.authSubtitle.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                  ),
+                  style: AppTypography.authSubtitle.copyWith(color: s.muted),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.xl),
                 Semantics(
                   label: 'Reset vault and delete all data',
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () => _confirmReset(context, ref),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.buttonPrimary,
-                        foregroundColor: AppColors.buttonPrimaryText,
+                  child: Center(
+                    child: OutlinedButton(
+                      // Destructive = error outline, never a fill.
+                      onPressed: () => _confirmReset(context, ref, s),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: s.error,
+                        side: BorderSide(color: s.error),
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                          borderRadius: BorderRadius.circular(AppRadii.md),
+                        ),
+                        minimumSize: const Size(kMinHitTarget, 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: AppSpacing.lg,
                         ),
                       ),
                       child: Text(
                         'Reset vault',
                         style: AppTypography.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.buttonPrimaryText,
+                          color: s.error,
                         ),
                       ),
                     ),
@@ -137,7 +124,11 @@ class VaultErrorScreen extends ConsumerWidget {
     ),
   };
 
-  Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
+  Future<void> _confirmReset(
+    BuildContext context,
+    WidgetRef ref,
+    KbSurface s,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -153,7 +144,7 @@ class VaultErrorScreen extends ConsumerWidget {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: TextButton.styleFrom(foregroundColor: AppColors.errorText),
+            style: TextButton.styleFrom(foregroundColor: s.error),
             child: const Text('Reset'),
           ),
         ],

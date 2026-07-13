@@ -10,7 +10,9 @@ import '../../../../helpers/widget_test_helpers.dart';
 void main() {
   group('SetupScreen', () {
     group('rendering', () {
-      testWidgets('shows "Create Your Vault" title', (tester) async {
+      testWidgets('shows the CREATE MASTER PASSWORD hint line', (tester) async {
+        // V9 Slab: the screen heading is the mono status line (DESIGN.md
+        // §setup copy — distinct from unlock's RETURN TO OPEN).
         await tester.pumpProviderWidget(
           const SetupScreen(),
           overrides: [
@@ -20,7 +22,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Create Your Vault'), findsOneWidget);
+        expect(find.text('CREATE MASTER PASSWORD'), findsOneWidget);
       });
 
       testWidgets('shows password recovery warning', (tester) async {
@@ -36,9 +38,8 @@ void main() {
         expect(find.textContaining('cannot be recovered'), findsOneWidget);
       });
 
-      testWidgets('shows Master Password and Confirm Password fields', (
-        tester,
-      ) async {
+      testWidgets('shows master-password and confirm fields', (tester) async {
+        // V9 Slab uses in-field mono placeholders instead of block labels.
         await tester.pumpProviderWidget(
           const SetupScreen(),
           overrides: [
@@ -48,8 +49,9 @@ void main() {
           ],
         );
 
-        expect(find.text('Master Password'), findsOneWidget);
-        expect(find.text('Confirm Password'), findsOneWidget);
+        expect(find.byType(TextField), findsNWidgets(2));
+        expect(find.text('master password'), findsOneWidget);
+        expect(find.text('confirm password'), findsOneWidget);
       });
 
       testWidgets('shows "Create Vault" button', (tester) async {
@@ -138,7 +140,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Create Your Vault'), findsOneWidget);
+        expect(find.text('CREATE MASTER PASSWORD'), findsOneWidget);
       });
 
       testWidgets('light mode renders without errors', (tester) async {
@@ -152,7 +154,7 @@ void main() {
           ],
         );
 
-        expect(find.text('Create Your Vault'), findsOneWidget);
+        expect(find.text('CREATE MASTER PASSWORD'), findsOneWidget);
       });
     });
   });

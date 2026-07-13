@@ -1,13 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/theme/colors.dart';
+
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/result.dart';
 import '../../../auth/domain/auth_notifier.dart';
 import '../../../auth/domain/auth_state.dart';
 import '../../../secrets/domain/secrets_providers.dart';
 
+/// Onboarding — starts on the Slab surface (DESIGN.md §onboarding) and hands
+/// off to the bench/terminal dashboard on completion.
+///
+/// NOTE (deferred): the 320ms signature "lights come on" sweep into the bench
+/// belongs to the unlock-motion pass — completion currently switches surfaces
+/// immediately. Step structure and logic are V8-preserved; only surface tokens
+/// and typography are V9.
 class OnboardingScreen extends ConsumerStatefulWidget {
   const OnboardingScreen({super.key});
 
@@ -108,14 +117,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkSurfaceSecondary : null,
+      backgroundColor: s.canvas,
       body: Center(
-        child: _AuthCard(
+        child: SizedBox(
           width: 420,
-          isDark: isDark,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -126,16 +134,16 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                   controller: _pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    _buildWelcomeStep(isDark),
-                    _buildFirstSecretStep(isDark),
-                    _buildShortcutsStep(isDark),
+                    _buildWelcomeStep(s),
+                    _buildFirstSecretStep(s),
+                    _buildShortcutsStep(s),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-              _StepDots(current: _currentStep, total: 3, isDark: isDark),
-              const SizedBox(height: 24),
-              _buildActions(isDark),
+              const SizedBox(height: AppSpacing.lg),
+              _StepDots(current: _currentStep, total: 3),
+              const SizedBox(height: AppSpacing.lg),
+              _buildActions(s),
             ],
           ),
         ),
@@ -145,31 +153,28 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step 1: Welcome ─────────────────────────
 
-  Widget _buildWelcomeStep(bool isDark) {
+  Widget _buildWelcomeStep(KbSurface s) {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(LucideIcons.keyRound, size: 48, color: AppColors.brand500),
-        const SizedBox(height: 16),
+        // Wordmark instead of a key icon — no security iconography.
+        Text(
+          'KEY_BOX',
+          textAlign: TextAlign.center,
+          style: AppTypography.logoText.copyWith(color: s.ink),
+        ),
+        const SizedBox(height: AppSpacing.md),
         Text(
           'Welcome to KeyBox',
-          style: AppTypography.titleMedium.copyWith(
-            color: isDark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ),
+          style: AppTypography.titleMedium.copyWith(color: s.ink),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
         SizedBox(
           width: 280,
           child: Text(
             'Your secure vault for API keys and credentials',
-            style: AppTypography.bodySmall.copyWith(
-              color: isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
-            ),
+            style: AppTypography.bodySmall.copyWith(color: s.muted),
             textAlign: TextAlign.center,
           ),
         ),
@@ -179,101 +184,42 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step 2: First Secret ────────────────────
 
-  Widget _buildFirstSecretStep(bool isDark) {
+  Widget _buildFirstSecretStep(KbSurface s) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
           'Add your first secret',
-          style: AppTypography.titleMedium.copyWith(
-            color: isDark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ),
+          style: AppTypography.titleMedium.copyWith(color: s.ink),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           'You can always add more later',
-          style: AppTypography.bodySmall.copyWith(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.lightTextSecondary,
-          ),
+          style: AppTypography.bodySmall.copyWith(color: s.muted),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
-
-        // Name
-        Text(
-          'Name',
-          style: AppTypography.authInputLabel.copyWith(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.lightTextSecondary,
-          ),
-        ),
+        const SizedBox(height: AppSpacing.lg - 4),
+        const _FieldLabel(text: 'NAME'),
         const SizedBox(height: 6),
-        SizedBox(
-          height: 44,
-          child: TextField(
-            controller: _nameController,
-            autofocus: true,
-            style: AppTypography.bodySmall.copyWith(
-              color: isDark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.lightTextPrimary,
-            ),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: isDark ? AppColors.authInputBg : null,
-              hintText: 'e.g., Stripe API Key',
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
-            ),
-          ),
+        _StepField(
+          controller: _nameController,
+          hint: 'e.g., Stripe API Key',
+          autofocus: true,
         ),
-        const SizedBox(height: 12),
-
-        // Value
-        Text(
-          'Value',
-          style: AppTypography.authInputLabel.copyWith(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.lightTextSecondary,
-          ),
-        ),
+        const SizedBox(height: AppSpacing.sm + 4),
+        const _FieldLabel(text: 'VALUE'),
         const SizedBox(height: 6),
-        SizedBox(
-          height: 44,
-          child: TextField(
-            controller: _valueController,
-            style: AppTypography.mono.copyWith(
-              color: isDark
-                  ? AppColors.darkTextPrimary
-                  : AppColors.lightTextPrimary,
-              fontSize: 13,
-            ),
-            decoration: InputDecoration(
-              filled: true,
-              fillColor: isDark ? AppColors.authInputBg : null,
-              hintText: 'e.g., sk_live_...',
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 14,
-                vertical: 10,
-              ),
-            ),
-          ),
+        _StepField(
+          controller: _valueController,
+          hint: 'e.g., sk_live_...',
+          isMono: true,
         ),
-
         if (_saveError != null) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
           Text(
             _saveError!,
-            style: AppTypography.caption.copyWith(color: AppColors.errorText),
+            style: AppTypography.authInputLabel.copyWith(color: s.error),
             textAlign: TextAlign.center,
           ),
         ],
@@ -283,55 +229,51 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   // ─── Step 3: Shortcuts ───────────────────────
 
-  Widget _buildShortcutsStep(bool isDark) {
+  Widget _buildShortcutsStep(KbSurface s) {
     return Column(
       children: [
         Text(
           'Quick Shortcuts',
-          style: AppTypography.titleMedium.copyWith(
-            color: isDark
-                ? AppColors.darkTextPrimary
-                : AppColors.lightTextPrimary,
-          ),
+          style: AppTypography.titleMedium.copyWith(color: s.ink),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           'Master these to work faster',
-          style: AppTypography.bodySmall.copyWith(
-            color: isDark
-                ? AppColors.darkTextSecondary
-                : AppColors.lightTextSecondary,
-          ),
+          style: AppTypography.bodySmall.copyWith(color: s.muted),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 20),
-
-        _ShortcutRow(shortcut: '⌘K', label: 'Search secrets', isDark: isDark),
-        const SizedBox(height: 8),
-        _ShortcutRow(shortcut: '⌘N', label: 'New secret', isDark: isDark),
-        const SizedBox(height: 8),
-        _ShortcutRow(shortcut: '⌘C', label: 'Copy value', isDark: isDark),
+        const SizedBox(height: AppSpacing.lg - 4),
+        const _ShortcutRow(keyLabel: 'K', label: 'Search secrets'),
+        const SizedBox(height: AppSpacing.sm),
+        const _ShortcutRow(keyLabel: 'N', label: 'New secret'),
+        const SizedBox(height: AppSpacing.sm),
+        const _ShortcutRow(keyLabel: 'C', label: 'Copy value'),
       ],
     );
   }
 
   // ─── Action Buttons ──────────────────────────
 
-  static final _buttonStyle = ElevatedButton.styleFrom(
-    backgroundColor: AppColors.buttonPrimary,
-    foregroundColor: AppColors.buttonPrimaryText,
-    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+  ButtonStyle _primaryStyle(KbSurface s) => ElevatedButton.styleFrom(
+    backgroundColor: s.accent,
+    foregroundColor: s.onAccent,
+    disabledBackgroundColor: s.accent.withValues(alpha: 0.4),
+    disabledForegroundColor: s.onAccent.withValues(alpha: 0.4),
+    elevation: 0,
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(AppRadii.md),
+    ),
   );
 
-  Widget _buildActions(bool isDark) {
+  Widget _buildActions(KbSurface s) {
     return switch (_currentStep) {
       0 => SizedBox(
         width: 200,
-        height: 44,
+        height: 40,
         child: ElevatedButton(
           onPressed: () => _goToStep(1),
-          style: _buttonStyle,
+          style: _primaryStyle(s),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -339,7 +281,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 'Continue',
                 style: AppTypography.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.buttonPrimaryText,
+                  color: s.onAccent,
                 ),
               ),
               const SizedBox(width: 6),
@@ -353,50 +295,40 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
         children: [
           Expanded(
             child: SizedBox(
-              height: 44,
+              height: 40,
               child: ElevatedButton(
                 onPressed: _isSaving ? null : _addSecret,
-                style: _buttonStyle,
+                style: _primaryStyle(s),
                 child: _isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
+                    ? SizedBox(
+                        width: 16,
+                        height: 16,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: AppColors.buttonPrimaryText,
+                          color: s.onAccent,
                         ),
                       )
                     : Text(
                         'Add Secret',
                         style: AppTypography.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
-                          color: AppColors.buttonPrimaryText,
+                          color: s.onAccent,
                         ),
                       ),
               ),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.sm + 4),
           TextButton(
             onPressed: _isSaving ? null : () => _goToStep(2),
             child: Row(
               children: [
                 Text(
                   'Skip',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextTertiary,
-                  ),
+                  style: AppTypography.bodySmall.copyWith(color: s.muted),
                 ),
-                const SizedBox(width: 4),
-                Icon(
-                  LucideIcons.arrowRight,
-                  size: 14,
-                  color: isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.lightTextTertiary,
-                ),
+                const SizedBox(width: AppSpacing.xs),
+                Icon(LucideIcons.arrowRight, size: 14, color: s.muted),
               ],
             ),
           ),
@@ -405,10 +337,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
       2 => SizedBox(
         width: double.infinity,
-        height: 44,
+        height: 40,
         child: ElevatedButton(
           onPressed: _finishOnboarding,
-          style: _buttonStyle,
+          style: _primaryStyle(s),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -416,7 +348,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                 'Go to Dashboard',
                 style: AppTypography.bodySmall.copyWith(
                   fontWeight: FontWeight.w600,
-                  color: AppColors.buttonPrimaryText,
+                  color: s.onAccent,
                 ),
               ),
               const SizedBox(width: 6),
@@ -431,60 +363,83 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   }
 }
 
-// ─── Auth Card (shared decoration for auth/onboarding screens) ──
+// ─── Field label (mono caption, uppercase) ──────
 
-class _AuthCard extends StatelessWidget {
-  const _AuthCard({
-    required this.width,
-    required this.isDark,
-    required this.child,
-  });
-  final double width;
-  final bool isDark;
-  final Widget child;
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel({required this.text});
+  final String text;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: isDark ? AppColors.authCardBg : Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isDark
-              ? AppColors.authCardStroke
-              : AppColors.lightBorderPrimary,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: isDark
-                ? Colors.black.withValues(alpha: 0.3)
-                : Colors.black.withValues(alpha: 0.08),
-            blurRadius: 32,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: child,
+    final s = Theme.of(context).extension<KbSurface>()!;
+    return Text(
+      text,
+      style: AppTypography.authInputLabel.copyWith(color: s.muted),
     );
   }
 }
 
-// ─── Step Dots ───────────────────────────────────
+// ─── Step 2 input (tray field, sealed grammar) ──
 
-class _StepDots extends StatelessWidget {
-  const _StepDots({
-    required this.current,
-    required this.total,
-    required this.isDark,
+class _StepField extends StatelessWidget {
+  const _StepField({
+    required this.controller,
+    required this.hint,
+    this.isMono = false,
+    this.autofocus = false,
   });
-  final int current;
-  final int total;
-  final bool isDark;
+
+  final TextEditingController controller;
+  final String hint;
+  final bool isMono;
+  final bool autofocus;
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+    OutlineInputBorder border(Color c) => OutlineInputBorder(
+      borderRadius: BorderRadius.circular(AppRadii.md),
+      borderSide: BorderSide(color: c),
+    );
+
+    return SizedBox(
+      height: 40,
+      child: TextField(
+        controller: controller,
+        autofocus: autofocus,
+        cursorColor: s.live,
+        style: (isMono ? AppTypography.mono : AppTypography.bodySmall).copyWith(
+          color: s.ink,
+          fontSize: 13,
+        ),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: s.tray,
+          hintText: hint,
+          hintStyle: (isMono ? AppTypography.mono : AppTypography.bodySmall)
+              .copyWith(color: s.muted, fontSize: 13),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.sm + 6,
+            vertical: AppSpacing.sm + 2,
+          ),
+          enabledBorder: border(s.hairline),
+          focusedBorder: border(s.accent),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Step Dots (status dots — full radius allowed) ──
+
+class _StepDots extends StatelessWidget {
+  const _StepDots({required this.current, required this.total});
+  final int current;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Semantics(
       label: 'Step ${current + 1} of $total',
       child: Row(
@@ -494,14 +449,11 @@ class _StepDots extends StatelessWidget {
           return Container(
             width: 8,
             height: 8,
-            margin: const EdgeInsets.symmetric(horizontal: 4),
+            margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: isActive
-                  ? AppColors.brand500
-                  : isDark
-                  ? Colors.white.withValues(alpha: 0.2)
-                  : Colors.black.withValues(alpha: 0.15),
+              // Active = live phosphor; inactive = dormant muted.
+              color: isActive ? s.live : s.muted.withValues(alpha: 0.3),
             ),
           );
         }),
@@ -513,56 +465,54 @@ class _StepDots extends StatelessWidget {
 // ─── Shortcut Row ────────────────────────────────
 
 class _ShortcutRow extends StatelessWidget {
-  const _ShortcutRow({
-    required this.shortcut,
-    required this.label,
-    required this.isDark,
-  });
-  final String shortcut;
+  const _ShortcutRow({required this.keyLabel, required this.label});
+
+  /// The letter key after ⌘ (the ⌘ itself is a Lucide icon — Plex Mono has
+  /// no U+2318 glyph and renders tofu).
+  final String keyLabel;
   final String label;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Container(
-      height: 44,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.05)
-            : Colors.black.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(8),
+        color: s.tray,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        border: Border.all(color: s.hairline),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.sm,
+              vertical: 3,
+            ),
             decoration: BoxDecoration(
-              color: isDark
-                  ? Colors.white.withValues(alpha: 0.1)
-                  : Colors.black.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(4),
+              color: s.lamp,
+              borderRadius: BorderRadius.circular(AppRadii.sm),
+              border: Border.all(color: s.hairline),
             ),
-            child: Text(
-              shortcut,
-              style: AppTypography.mono.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: isDark
-                    ? AppColors.darkTextPrimary
-                    : AppColors.lightTextPrimary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            label,
-            style: AppTypography.bodySmall.copyWith(
-              color: isDark
-                  ? AppColors.darkTextSecondary
-                  : AppColors.lightTextSecondary,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(LucideIcons.command, size: 11, color: s.ink),
+                const SizedBox(width: 2),
+                Text(
+                  keyLabel,
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: s.ink,
+                  ),
+                ),
+              ],
             ),
           ),
+          const SizedBox(width: AppSpacing.sm + 4),
+          Text(label, style: AppTypography.bodySmall.copyWith(color: s.muted)),
         ],
       ),
     );

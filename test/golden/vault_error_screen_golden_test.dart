@@ -15,13 +15,14 @@ void main() {
   setUp(suppressDriftWarning);
 
   // One representative reason — sidecarCorrupted (the data-recovery framing).
-  testWidgets('vault_error_screen — sidecarCorrupted, dark (V8 baseline)', (
+  testWidgets('vault_error_screen — sidecarCorrupted, V9 Slab (sealed)', (
     tester,
   ) async {
     await pumpGolden(
       tester,
       child: const VaultErrorScreen(),
       size: GoldenSizes.authCard,
+      surface: GoldenSurface.sealed,
       overrides: [
         authProvider.overrideWith(
           (ref) => FakeAuthNotifier(
