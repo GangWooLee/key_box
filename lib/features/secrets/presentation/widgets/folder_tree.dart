@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/database/database.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../domain/secrets_providers.dart';
 import 'folder_dialogs.dart';
 
+/// The FOLDERS section of the tray sidebar. Header is a muted mono caption
+/// (silence principle — nothing in the tray begs for attention); selection
+/// mirrors the category items: hover fill + accent text + left accent edge.
 class FolderTree extends ConsumerWidget {
-  const FolderTree({super.key, required this.isDark});
-  final bool isDark;
+  const FolderTree({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,14 +21,12 @@ class FolderTree extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
-        _FolderTreeHeader(isDark: isDark),
-        // Body
+        const _FolderTreeHeader(),
         Expanded(
           child: rootFolders.when(
             data: (folders) {
               if (folders.isEmpty) {
-                return _EmptyFolderHint(isDark: isDark);
+                return const _EmptyFolderHint();
               }
               return ListView.builder(
                 itemCount: folders.length,
@@ -34,7 +35,6 @@ class FolderTree extends ConsumerWidget {
                   key: ValueKey(folders[index].id),
                   folder: folders[index],
                   depth: 0,
-                  isDark: isDark,
                 ),
               );
             },
@@ -50,21 +50,19 @@ class FolderTree extends ConsumerWidget {
 // ─── Header ───
 
 class _FolderTreeHeader extends ConsumerWidget {
-  const _FolderTreeHeader({required this.isDark});
-  final bool isDark;
+  const _FolderTreeHeader();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 6),
+      padding: const EdgeInsets.fromLTRB(16, AppSpacing.sm, AppSpacing.sm, 6),
       child: Row(
         children: [
           Expanded(
             child: Text(
               'FOLDERS',
-              style: AppTypography.sectionHeader.copyWith(
-                color: isDark ? AppColors.brand500 : AppColors.brand600,
-              ),
+              style: AppTypography.sectionHeader.copyWith(color: s.muted),
             ),
           ),
           SizedBox(
@@ -72,13 +70,7 @@ class _FolderTreeHeader extends ConsumerWidget {
             height: 24,
             child: IconButton(
               onPressed: () => showCreateFolderDialog(context, ref),
-              icon: Icon(
-                LucideIcons.plus,
-                size: 14,
-                color: isDark
-                    ? AppColors.darkTextTertiary
-                    : AppColors.lightTextTertiary,
-              ),
+              icon: Icon(LucideIcons.plus, size: 14, color: s.muted),
               padding: EdgeInsets.zero,
               tooltip: 'New folder',
             ),
@@ -92,19 +84,14 @@ class _FolderTreeHeader extends ConsumerWidget {
 // ─── Recursive Tree Node ───
 
 class _FolderTreeNode extends ConsumerWidget {
-  const _FolderTreeNode({
-    super.key,
-    required this.folder,
-    required this.depth,
-    required this.isDark,
-  });
+  const _FolderTreeNode({super.key, required this.folder, required this.depth});
 
   final Folder folder;
   final int depth;
-  final bool isDark;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     final selectedFolderId = ref.watch(selectedFolderIdProvider);
     final expandedIds = ref.watch(expandedFolderIdsProvider);
     final isSelected = selectedFolderId == folder.id;
@@ -117,29 +104,21 @@ class _FolderTreeNode extends ConsumerWidget {
       children: [
         // This node row
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: Material(
             color: Colors.transparent,
             child: InkWell(
               onTap: () => _onSelect(ref),
               onSecondaryTap: () => _showContextMenu(context, ref),
-              borderRadius: BorderRadius.circular(6),
+              hoverColor: s.hover,
+              borderRadius: BorderRadius.circular(AppRadii.md),
               child: Container(
                 height: 32,
                 decoration: BoxDecoration(
-                  color: isSelected
-                      ? (isDark
-                            ? AppColors.darkCategoryActive
-                            : AppColors.brand50)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(6),
+                  color: isSelected ? s.hover : Colors.transparent,
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                   border: isSelected
-                      ? const Border(
-                          left: BorderSide(
-                            color: AppColors.darkCategoryActiveBorder,
-                            width: 2,
-                          ),
-                        )
+                      ? Border(left: BorderSide(color: s.accent, width: 2))
                       : null,
                 ),
                 padding: EdgeInsets.only(left: 10.0 + depth * 16.0, right: 10),
@@ -151,30 +130,22 @@ class _FolderTreeNode extends ConsumerWidget {
                         onTap: () => _toggleExpand(ref),
                         child: AnimatedRotation(
                           turns: isExpanded ? 0.25 : 0,
-                          duration: const Duration(milliseconds: 150),
+                          duration: const Duration(milliseconds: 160),
                           child: Icon(
                             LucideIcons.chevronRight,
                             size: 12,
-                            color: isDark
-                                ? AppColors.darkTextQuaternary
-                                : AppColors.lightTextTertiary,
+                            color: s.muted,
                           ),
                         ),
                       )
                     else
                       const SizedBox(width: 12),
-                    const SizedBox(width: 4),
-                    // Folder icon
+                    const SizedBox(width: AppSpacing.xs),
+                    // Folder icon (functional identification)
                     Icon(
                       isExpanded ? LucideIcons.folderOpen : LucideIcons.folder,
                       size: 14,
-                      color: isSelected
-                          ? (isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary)
-                          : (isDark
-                                ? AppColors.darkTextTertiary
-                                : AppColors.lightTextSecondary),
+                      color: isSelected ? s.accent : s.muted,
                     ),
                     const SizedBox(width: 6),
                     // Name
@@ -185,26 +156,18 @@ class _FolderTreeNode extends ConsumerWidget {
                           fontWeight: isSelected
                               ? FontWeight.w600
                               : FontWeight.w400,
-                          color: isSelected
-                              ? (isDark
-                                    ? AppColors.darkTextPrimary
-                                    : AppColors.lightTextPrimary)
-                              : (isDark
-                                    ? AppColors.darkTextSecondary
-                                    : AppColors.lightTextSecondary),
+                          color: isSelected ? s.accent : s.ink,
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    // Count
+                    // Count — mono, the ledger's numerals.
                     Text(
                       '${folder.secretsCount}',
-                      style: AppTypography.caption.copyWith(
-                        color: isDark
-                            ? AppColors.darkTextQuaternary
-                            : AppColors.lightTextTertiary,
+                      style: AppTypography.mono.copyWith(
                         fontSize: 11,
+                        color: s.muted,
                       ),
                     ),
                   ],
@@ -223,7 +186,6 @@ class _FolderTreeNode extends ConsumerWidget {
                       key: ValueKey(child.id),
                       folder: child,
                       depth: depth + 1,
-                      isDark: isDark,
                     ),
                   )
                   .toList(),
@@ -262,11 +224,12 @@ class _FolderTreeNode extends ConsumerWidget {
   }
 
   void _showContextMenu(BuildContext context, WidgetRef ref) {
+    // folder_dialogs is a later V9 pass — it still takes the legacy flag.
     showFolderContextMenu(
       context: context,
       ref: ref,
       folder: folder,
-      isDark: isDark,
+      isDark: Theme.of(context).brightness == Brightness.dark,
     );
   }
 }
@@ -274,20 +237,19 @@ class _FolderTreeNode extends ConsumerWidget {
 // ─── Empty hint ───
 
 class _EmptyFolderHint extends StatelessWidget {
-  const _EmptyFolderHint({required this.isDark});
-  final bool isDark;
+  const _EmptyFolderHint();
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: 12,
+      ),
       child: Text(
         'No folders yet',
-        style: AppTypography.caption.copyWith(
-          color: isDark
-              ? AppColors.darkTextQuaternary
-              : AppColors.lightTextTertiary,
-        ),
+        style: AppTypography.mono.copyWith(fontSize: 11, color: s.muted),
       ),
     );
   }

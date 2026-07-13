@@ -41,8 +41,6 @@ class _ExpandedSidebar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final s = Theme.of(context).extension<KbSurface>()!;
-    // FolderTree is a later V9 pass — it still takes the legacy flag.
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,7 +67,7 @@ class _ExpandedSidebar extends ConsumerWidget {
         ),
 
         // Folder Tree
-        Expanded(child: FolderTree(isDark: isDark)),
+        const Expanded(child: FolderTree()),
       ],
     );
   }
