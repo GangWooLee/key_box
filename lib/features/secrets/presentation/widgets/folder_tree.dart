@@ -56,7 +56,12 @@ class _FolderTreeHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = Theme.of(context).extension<KbSurface>()!;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, AppSpacing.sm, AppSpacing.sm, 6),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.sm,
+        AppSpacing.sm,
+        AppSpacing.xsm,
+      ),
       child: Row(
         children: [
           Expanded(
@@ -147,7 +152,7 @@ class _FolderTreeNode extends ConsumerWidget {
                       size: 14,
                       color: isSelected ? s.accent : s.muted,
                     ),
-                    const SizedBox(width: 6),
+                    const SizedBox(width: AppSpacing.xsm),
                     // Name
                     Expanded(
                       child: Text(

@@ -437,7 +437,7 @@ class _AdvancedToggle extends StatelessWidget {
                   color: s.accent,
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xsm),
               Text(
                 'Advanced Options',
                 style: AppTypography.bodySmall.copyWith(

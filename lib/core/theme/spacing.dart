@@ -4,11 +4,21 @@
 /// The 8pt base scale; radii follow the macOS "결" (sm/md/lg only — no pill).
 /// Inline `EdgeInsets` in screen code are progressively reclaimed onto these.
 abstract final class AppSpacing {
+  /// 2 — hairline-adjacent nudges.
+  static const double xxs = 2;
+
   /// 4 — tightest gaps (icon↔label, badge padding).
   static const double xs = 4;
 
+  /// 6 — fine step: icon↔text inside compact components.
+  /// (Fine steps are component-internal only; layout rhythm stays on 8pt.)
+  static const double xsm = 6;
+
   /// 8 — compact rows, chip padding.
   static const double sm = 8;
+
+  /// 12 — fine step: compact horizontal padding on desktop rows/panels.
+  static const double smd = 12;
 
   /// 16 — default component padding.
   static const double md = 16;

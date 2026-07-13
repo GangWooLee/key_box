@@ -112,7 +112,9 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 
 ## Spacing — 8pt
 - Base 8px. Scale: `xs 4 · sm 8 · md 16 · lg 24 · xl 32 · 2xl 48`.
+- **미세 단계(2026-07-13 design-review)**: `xxs 2 · xsm 6 · smd 12` — compact 데스크톱 UI가 실사용에서 6·12를 체계적으로 재사용함이 실측됨(17/44 인셋). 미세 단계는 컴포넌트 내부 간격 전용, 레이아웃 리듬은 8pt 본 스케일 유지.
 - Density: comfortable — 단, 시크릿 테이블 행은 compact(수직 9~10px 패딩, 정보 밀도 우선).
+- **버튼 높이 3단계(2026-07-13 확정)**: 인라인 32(테이블·디테일 액션) · 모달 36(sheet 폼) · 히어로 40(auth·온보딩 전폭). 이 밖의 높이 금지.
 - 토큰 파일: `lib/core/theme/spacing.dart` 신설. 인라인 EdgeInsets는 화면 터치 시 점진 회수.
 
 ## Layout
@@ -191,7 +193,8 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 ## Flutter 매핑 (lib/core/theme/ 컴파일 규칙)
 - `colors.dart`: `AppColors`를 위 토큰명(slab*/bench*)으로 전면 재정의. 기존 `dark*`/`light*` 이름은 각각 slab*/bench*로 사상(위젯 426개 참조처는 화면별 적용 단계에서 전환).
 - `typography.dart`: `AppTypography` — 위 Scale, `fontFamily: 'IBM Plex Sans'`/`'IBM Plex Mono'`.
-- `spacing.dart`(신설): `AppSpacing.xs..xxl`.
+- `spacing.dart`(신설): `AppSpacing.xs..xxl` + 미세 단계 `xxs/xsm/smd`.
+- `motion.dart`(신설): `AppMotion.micro(80ms)/short(160ms)/signature(320ms)` — §Motion 컴파일. Duration 리터럴 금지.
 - `app_theme.dart`: `AppTheme.sealed()`/`AppTheme.bench()`/`AppTheme.terminal()` — **AuthState가 1차 결정**(잠김=sealed 고정), 열림에서 `theme_provider`의 사용자 라이트/다크가 bench/terminal 선택(D8·D9 확정 — theme_provider 유지, system 모드는 OS 설정 추종).
 - pubspec: google_fonts 없음 유지, **Plex Sans 3웨이트(400·500·600) + Plex Mono 3웨이트(400·500·600, 기존 2에 SemiBold 추가) 번들**, Inter·JetBrains Mono 제거.
 - 3표면 각각 `onAccent`·`hover`·`scrim` 토큰 포함(위 팔레트). 컴포넌트 위젯은 현재 표면의 토큰 세트를 `Theme.of` 또는 표면 provider로 참조 — accent 채움 라벨은 반드시 `onAccent`(하드코딩 `#F6F3EA` 금지, 터미널에서 2.24:1 실패).
@@ -231,3 +234,5 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 | 2026-07-13 | **(리뷰 반영)** 빈 상태 6종·시크릿 폼·복원·설정 화면 명세 | 리뷰: '룩북→빌드 스펙' 승격. 히어로 스윕 목적지(빈 볼트)·핵심 쓰기 경로·out-trust 복구 경로가 공백이었음 |
 | 2026-07-13 | **(리뷰 반영)** 모순 3건 해소 | ⌘K=상시 검색필드(모달 아님)·히트영역 32px(데스크톱)·접힘 레일=mono 이니셜(아이콘 금지 유지). 첫 실행 히어로=벤치 고정 |
 | 2026-07-13 | **(리뷰 반영)** 누락 컴포넌트 8종 매트릭스 추가 | 토스트·드롭다운·컨텍스트메뉴·토글·체크박스·검색필드·스크롤바·env배지·접힘레일 — 시크릿 매니저 필수 |
+| 2026-07-13 | **(design-review 반영)** 모션 토큰·미세 spacing 단계·버튼 3단계 명문화 | Stage 5 감사: 모션만 토큰 레이어 부재(5건 오프스케일)·6/12 인셋 체계적 재사용·버튼 높이 32/36/40 실측 일관 — 스케일로 승격 |
+| 2026-07-13 | **(design-review 반영)** dev 리셋 어포던스 = muted mono + 확인 게이트 | 실앱 첫인상: 클레이 아웃라인이 봉인 슬래브 최대 소음원. 파괴 마찰은 다이얼로그가 담당 |

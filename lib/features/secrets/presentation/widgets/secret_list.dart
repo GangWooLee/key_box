@@ -309,7 +309,7 @@ class _BottomBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
-                padding: const EdgeInsets.symmetric(horizontal: 12),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.smd),
                 textStyle: AppTypography.bodySmall.copyWith(
                   fontWeight: FontWeight.w500,
                 ),

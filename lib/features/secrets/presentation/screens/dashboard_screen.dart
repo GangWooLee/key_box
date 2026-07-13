@@ -308,7 +308,7 @@ class _TopBar extends ConsumerWidget {
         decoration: BoxDecoration(
           border: Border(bottom: BorderSide(color: s.hairline)),
         ),
-        padding: const EdgeInsets.only(right: 12),
+        padding: const EdgeInsets.only(right: AppSpacing.smd),
         child: Row(
           children: [
             // Traffic light safe area

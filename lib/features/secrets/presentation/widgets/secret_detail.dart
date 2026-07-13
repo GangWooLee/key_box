@@ -320,7 +320,7 @@ class _ValueBox extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.smd),
       decoration: BoxDecoration(
         // One step down from the lamp — the value sits in a sunken well.
         color: s.canvas,
@@ -457,7 +457,7 @@ class _CollapsibleSection extends StatelessWidget {
                       color: s.accent,
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: AppSpacing.xsm),
                   Text(
                     title,
                     style: AppTypography.bodySmall.copyWith(
@@ -492,7 +492,7 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final s = Theme.of(context).extension<KbSurface>()!;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+      padding: const EdgeInsets.only(bottom: AppSpacing.xsm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -554,7 +554,7 @@ class _FooterBar extends StatelessWidget {
               child: const Text('Edit'),
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppSpacing.smd),
           TextButton(
             onPressed: onDelete,
             child: Text(
@@ -646,7 +646,7 @@ class _FolderChip extends StatelessWidget {
             size: 12,
             color: s.muted,
           ),
-          const SizedBox(width: 6),
+          const SizedBox(width: AppSpacing.xsm),
           Expanded(
             child: Text(
               folder.name,
@@ -692,7 +692,7 @@ class _AddFolderButton extends ConsumerWidget {
           child: Row(
             children: [
               Icon(LucideIcons.plus, size: 12, color: s.accent),
-              const SizedBox(width: 6),
+              const SizedBox(width: AppSpacing.xsm),
               Text(
                 'Add to folder',
                 style: AppTypography.caption.copyWith(color: s.accent),

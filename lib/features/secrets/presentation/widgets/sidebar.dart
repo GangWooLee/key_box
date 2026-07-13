@@ -47,7 +47,12 @@ class _ExpandedSidebar extends ConsumerWidget {
       children: [
         // Search Bar + Collapse Button (same row)
         const Padding(
-          padding: EdgeInsets.fromLTRB(12, AppSpacing.sm, AppSpacing.sm, 10),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.smd,
+            AppSpacing.sm,
+            AppSpacing.sm,
+            10,
+          ),
           child: Row(
             children: [
               Expanded(child: _SearchBar()),
@@ -100,7 +105,7 @@ class _CollapsedSidebar extends ConsumerWidget {
               },
               borderRadius: BorderRadius.circular(AppRadii.sm),
               child: Padding(
-                padding: const EdgeInsets.all(6),
+                padding: const EdgeInsets.all(AppSpacing.xsm),
                 child: Icon(
                   LucideIcons.panelLeftOpen,
                   size: 16,
@@ -221,7 +226,7 @@ class _SearchBar extends ConsumerWidget {
         child: Row(
           children: [
             Icon(LucideIcons.search, size: 14, color: s.muted),
-            const SizedBox(width: 6),
+            const SizedBox(width: AppSpacing.xsm),
             // ⌘ is an icon, not a glyph: Plex Mono lacks U+2318 (tofu).
             Icon(LucideIcons.command, size: 11, color: s.muted),
             Expanded(
@@ -253,7 +258,12 @@ class _CategorySection extends ConsumerWidget {
     final counts = ref.watch(categoryCountsProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, AppSpacing.sm, 12, AppSpacing.sm),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.smd,
+        AppSpacing.sm,
+        AppSpacing.smd,
+        AppSpacing.sm,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: SecretCategory.values.map((cat) {
