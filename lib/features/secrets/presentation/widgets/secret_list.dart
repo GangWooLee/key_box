@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/database/database.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/date_formatters.dart';
 import '../../domain/secrets_providers.dart';
@@ -10,6 +11,10 @@ import 'environment_badge.dart';
 import 'sheet_modal.dart';
 
 /// Columnar table view for the middle panel of the 3-column dashboard.
+///
+/// Rides on the surface canvas (DESIGN.md §dashboard): rows sit directly on
+/// `canvas`, hover lifts to `hover`, and the selected row rises to `lamp`
+/// with a 2px `live` edge — "what you hold is under the lamp".
 class SecretList extends ConsumerWidget {
   const SecretList({super.key});
 
@@ -17,29 +22,21 @@ class SecretList extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final secrets = ref.watch(filteredSecretsProvider);
     final selectedId = ref.watch(selectedSecretIdProvider);
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
 
     return Column(
       children: [
-        // Table Header
-        _TableHeader(isDark: isDark),
-
-        // Table Body
+        const _TableHeader(),
         Expanded(
           child: secrets.isEmpty
-              ? _EmptyState(isDark: isDark)
+              ? const _EmptyState()
               : ListView.builder(
                   itemCount: secrets.length,
                   itemBuilder: (context, index) {
                     final secret = secrets[index];
-                    final isSelected = secret.id == selectedId;
                     return _TableRow(
                       key: ValueKey(secret.id),
                       secret: secret,
-                      index: index,
-                      isSelected: isSelected,
-                      isDark: isDark,
+                      isSelected: secret.id == selectedId,
                       onTap: () {
                         ref.read(selectedSecretIdProvider.notifier).state =
                             secret.id;
@@ -48,9 +45,7 @@ class SecretList extends ConsumerWidget {
                   },
                 ),
         ),
-
-        // Bottom Bar
-        _BottomBar(isDark: isDark, count: secrets.length),
+        _BottomBar(count: secrets.length),
       ],
     );
   }
@@ -59,57 +54,27 @@ class SecretList extends ConsumerWidget {
 // ─── Table Header ───
 
 class _TableHeader extends StatelessWidget {
-  const _TableHeader({required this.isDark});
-  final bool isDark;
+  const _TableHeader();
 
   @override
   Widget build(BuildContext context) {
-    final headerColor = isDark
-        ? AppColors.darkTextTertiary
-        : AppColors.lightTextTertiary;
+    final s = Theme.of(context).extension<KbSurface>()!;
+    final style = AppTypography.tableHeader.copyWith(color: s.muted);
 
     return Container(
       height: 36,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkTableHeaderBg : Colors.transparent,
-        border: Border(
-          bottom: BorderSide(
-            color: isDark
-                ? AppColors.darkTableHeaderStroke
-                : AppColors.lightBorderSubtle,
-          ),
-        ),
+        border: Border(bottom: BorderSide(color: s.hairline)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              'Name',
-              style: AppTypography.tableHeader.copyWith(color: headerColor),
-            ),
-          ),
-          SizedBox(
-            width: 180,
-            child: Text(
-              'Service',
-              style: AppTypography.tableHeader.copyWith(color: headerColor),
-            ),
-          ),
-          SizedBox(
-            width: 120,
-            child: Text(
-              'Env',
-              style: AppTypography.tableHeader.copyWith(color: headerColor),
-            ),
-          ),
+          Expanded(child: Text('NAME', style: style)),
+          SizedBox(width: 180, child: Text('SERVICE', style: style)),
+          SizedBox(width: 120, child: Text('ENV', style: style)),
           SizedBox(
             width: 100,
-            child: Text(
-              'Last Used',
-              style: AppTypography.tableHeader.copyWith(color: headerColor),
-              textAlign: TextAlign.right,
-            ),
+            child: Text('LAST USED', style: style, textAlign: TextAlign.right),
           ),
         ],
       ),
@@ -123,64 +88,50 @@ class _TableRow extends StatelessWidget {
   const _TableRow({
     super.key,
     required this.secret,
-    required this.index,
     required this.isSelected,
-    required this.isDark,
     required this.onTap,
   });
 
   final Secret secret;
-  final int index;
   final bool isSelected;
-  final bool isDark;
   final VoidCallback onTap;
-
-  Color _nameColor() {
-    if (isSelected) {
-      return isDark ? AppColors.darkRowText1 : AppColors.lightTextPrimary;
-    }
-    if (!isDark) return AppColors.lightTextPrimary;
-    return switch (index) {
-      0 => AppColors.darkRowText1,
-      1 => AppColors.darkRowText2,
-      2 => AppColors.darkRowText3,
-      _ => AppColors.darkRowText4,
-    };
-  }
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        hoverColor: s.hover,
         child: Container(
-          height: 40,
+          height: 38,
           decoration: BoxDecoration(
-            color: isSelected
-                ? (isDark ? AppColors.darkTableRowSelected : AppColors.brand50)
-                : Colors.transparent,
+            color: isSelected ? s.lamp : Colors.transparent,
             border: Border(
               left: isSelected
-                  ? const BorderSide(color: AppColors.buttonPrimary, width: 2)
+                  ? BorderSide(color: s.live, width: 2)
                   : BorderSide.none,
-              bottom: BorderSide(
-                color: isDark
-                    ? AppColors.darkTableRowSeparator
-                    : AppColors.lightBorderSubtle,
-              ),
+              bottom: BorderSide(color: s.hairline),
             ),
           ),
-          padding: EdgeInsets.fromLTRB(isSelected ? 14 : 16, 0, 16, 0),
+          padding: EdgeInsets.fromLTRB(
+            isSelected ? AppSpacing.md - 2 : AppSpacing.md,
+            0,
+            AppSpacing.md,
+            0,
+          ),
           child: Row(
             children: [
-              // Name
+              // Name — mono, the ledger entry itself.
               Expanded(
                 child: Text(
                   secret.name,
-                  style: AppTypography.bodySmall.copyWith(
-                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    color: _nameColor(),
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 12.5,
+                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.w400,
+                    color: s.ink,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -191,32 +142,26 @@ class _TableRow extends StatelessWidget {
                 width: 180,
                 child: Text(
                   secret.serviceName ?? '',
-                  style: AppTypography.bodySmall.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextSecondary
-                        : AppColors.lightTextSecondary,
-                  ),
+                  style: AppTypography.bodySmall.copyWith(color: s.muted),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Environment Badge
+              // Environment (weight-coded, no fill)
               SizedBox(
                 width: 120,
                 child: EnvironmentBadge(environment: secret.environment),
               ),
-              // Last Used
+              // Last Used — mono timestamp.
               SizedBox(
                 width: 100,
                 child: Text(
                   secret.lastAccessedAt != null
                       ? DateFormatters.timeAgo(secret.lastAccessedAt!)
                       : '—',
-                  style: AppTypography.caption.copyWith(
-                    letterSpacing: 0.2,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextTertiary,
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 11,
+                    color: s.muted,
                   ),
                   textAlign: TextAlign.right,
                 ),
@@ -229,44 +174,105 @@ class _TableRow extends StatelessWidget {
   }
 }
 
-// ─── Empty State ───
+// ─── Empty States (DESIGN.md §빈/에러/오버플로) ───
 
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.isDark});
-  final bool isDark;
+class _EmptyState extends ConsumerWidget {
+  const _EmptyState();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+    final folderId = ref.watch(selectedFolderIdProvider);
+    final category = ref.watch(selectedCategoryProvider);
+    final service = ref.watch(selectedServiceProvider);
+
+    // A filter is narrowing the view — quiet one-liner, not the hero.
+    if (folderId != null) {
+      return _QuietEmpty(message: 'this folder is empty', surface: s);
+    }
+    if (category != SecretCategory.all || service != null) {
+      return _QuietEmpty(message: 'no secrets in this view', surface: s);
+    }
+
+    // Empty vault — the hero sweep's destination: the bench is clear.
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            LucideIcons.keyRound,
-            size: 48,
-            color: isDark
-                ? AppColors.darkTextQuaternary
-                : AppColors.lightTextTertiary,
+          Container(
+            width: 7,
+            height: 7,
+            decoration: BoxDecoration(color: s.accent, shape: BoxShape.circle),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.lg),
           Text(
-            'No secrets yet',
-            style: AppTypography.bodySmall.copyWith(
-              color: isDark
-                  ? AppColors.darkTextTertiary
-                  : AppColors.lightTextTertiary,
+            'THE BENCH IS CLEAR',
+            style: AppTypography.displayLarge.copyWith(
+              fontSize: 20,
+              color: s.ink,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: AppSpacing.sm),
           Text(
-            'Click "+ Add Secret" below to get started',
-            style: AppTypography.caption.copyWith(
-              color: isDark
-                  ? AppColors.darkTextQuaternary
-                  : AppColors.lightTextTertiary,
+            'your first secret goes here',
+            style: AppTypography.bodySmall.copyWith(color: s.muted),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          SizedBox(
+            height: 32,
+            child: ElevatedButton(
+              onPressed: () => showSecretSheetModal(context: context, ref: ref),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: s.accent,
+                foregroundColor: s.onAccent,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadii.md),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                textStyle: AppTypography.bodySmall.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              child: const Text('+ New Secret'),
             ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // ⌘ is an icon, not a glyph: Plex Mono lacks U+2318 (tofu).
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(LucideIcons.command, size: 11, color: s.muted),
+              Text(
+                'N',
+                style: AppTypography.mono.copyWith(
+                  fontSize: 11,
+                  color: s.muted,
+                ),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _QuietEmpty extends StatelessWidget {
+  const _QuietEmpty({required this.message, required this.surface});
+
+  final String message;
+  final KbSurface surface;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Text(
+        message,
+        style: AppTypography.mono.copyWith(
+          fontSize: 12.5,
+          color: surface.muted,
+        ),
       ),
     );
   }
@@ -275,39 +281,33 @@ class _EmptyState extends StatelessWidget {
 // ─── Bottom Bar ───
 
 class _BottomBar extends ConsumerWidget {
-  const _BottomBar({required this.isDark, required this.count});
-  final bool isDark;
+  const _BottomBar({required this.count});
   final int count;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+
     return Container(
       height: 40,
       decoration: BoxDecoration(
-        color: isDark ? AppColors.darkBottomBarBg : Colors.transparent,
-        border: Border(
-          top: BorderSide(
-            color: isDark
-                ? AppColors.darkBottomBarStroke
-                : AppColors.lightBorderSubtle,
-          ),
-        ),
+        border: Border(top: BorderSide(color: s.hairline)),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
       child: Row(
         children: [
-          // Add Secret button
           SizedBox(
             height: 32,
             child: ElevatedButton.icon(
-              onPressed: () => _showCreateSheet(context, ref),
+              onPressed: () => showSecretSheetModal(context: context, ref: ref),
               icon: const Icon(LucideIcons.plus, size: 14),
               label: const Text('Add Secret'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.buttonPrimary,
-                foregroundColor: AppColors.buttonPrimaryText,
+                backgroundColor: s.accent,
+                foregroundColor: s.onAccent,
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(AppRadii.md),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 textStyle: AppTypography.bodySmall.copyWith(
@@ -319,19 +319,10 @@ class _BottomBar extends ConsumerWidget {
           const Spacer(),
           Text(
             '$count secret${count != 1 ? 's' : ''}',
-            style: AppTypography.caption.copyWith(
-              fontSize: 12,
-              color: isDark
-                  ? AppColors.darkTextTertiary
-                  : AppColors.lightTextTertiary,
-            ),
+            style: AppTypography.mono.copyWith(fontSize: 11, color: s.muted),
           ),
         ],
       ),
     );
-  }
-
-  void _showCreateSheet(BuildContext context, WidgetRef ref) {
-    showSecretSheetModal(context: context, ref: ref);
   }
 }

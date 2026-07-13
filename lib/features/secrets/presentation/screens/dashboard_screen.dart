@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,16 +7,21 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:window_manager/window_manager.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/route_names.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../auth/domain/auth_notifier.dart';
 import '../../../auth/domain/auth_state.dart';
 import '../widgets/sidebar.dart';
 import '../widgets/secret_list.dart';
 import '../widgets/secret_detail.dart';
+import '../widgets/sheet_modal.dart';
 import '../../domain/secrets_providers.dart';
 import '../widgets/command_palette.dart';
 
+/// The 3-column workbench (DESIGN.md §dashboard): tray sidebar (sunken) →
+/// canvas table → lamp detail. Light comes from the right — the thing you
+/// hold sits under the lamp. Surfaces are solid tonal steps; no glass.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -57,17 +61,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildLayout(BuildContext context) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
     final collapsed = ref.watch(sidebarCollapsedProvider);
     final sidebarWidth = collapsed
         ? AppConstants.sidebarCollapsedWidth
         : AppConstants.sidebarWidth;
 
     return Scaffold(
-      backgroundColor: isDark
-          ? AppColors.darkSurfacePrimary
-          : theme.scaffoldBackgroundColor,
+      backgroundColor: s.canvas,
       body: FocusTraversalGroup(
         policy: OrderedTraversalPolicy(),
         child: Stack(
@@ -82,21 +83,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
               child: Row(
                 children: [
-                  // Table View — fluid middle column
+                  // Table View — fluid middle column, rides the canvas.
                   Expanded(
                     child: FocusTraversalOrder(
                       order: const NumericFocusOrder(2),
                       child: Semantics(
                         label: 'Secret table',
-                        child: Container(
-                          color: isDark ? AppColors.darkSurfaceListTonal : null,
-                          child: const SecretList(),
-                        ),
+                        child: const SecretList(),
                       ),
                     ),
                   ),
 
-                  // Detail Panel — 340px fixed, gradient overlay
+                  // Detail Panel — 340px fixed, under the lamp.
                   FocusTraversalOrder(
                     order: const NumericFocusOrder(3),
                     child: Semantics(
@@ -105,26 +103,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                         width: AppConstants.detailPanelWidth,
                         child: Container(
                           decoration: BoxDecoration(
-                            color: isDark
-                                ? AppColors.darkSurfaceDetailTonal
-                                : null,
-                            gradient: isDark
-                                ? const LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    colors: [
-                                      AppColors.darkDetailGradientStart,
-                                      AppColors.darkDetailGradientEnd,
-                                    ],
-                                  )
-                                : null,
-                            border: Border(
-                              left: BorderSide(
-                                color: isDark
-                                    ? AppColors.darkDetailLeftBorder
-                                    : theme.dividerColor,
-                              ),
-                            ),
+                            color: s.lamp,
+                            border: Border(left: BorderSide(color: s.hairline)),
                           ),
                           child: const SecretDetail(),
                         ),
@@ -135,7 +115,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               ),
             ),
 
-            // ─── Translucent sidebar overlay ───
+            // ─── Sidebar — the sunken tray (solid, no glass) ───
             AnimatedPositioned(
               duration: const Duration(milliseconds: 200),
               curve: Curves.easeOutCubic,
@@ -147,39 +127,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 order: const NumericFocusOrder(1),
                 child: Semantics(
                   label: 'Navigation sidebar',
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: isDark
-                          ? ImageFilter.blur(sigmaX: 20, sigmaY: 20)
-                          : ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isDark
-                              ? AppColors.darkGlassBg
-                              : AppColors.lightSurfaceSidebar,
-                          border: Border(
-                            right: BorderSide(
-                              color: isDark
-                                  ? AppColors.darkGlassBorder
-                                  : theme.dividerColor,
-                            ),
-                          ),
-                        ),
-                        child: Sidebar(collapsed: collapsed),
-                      ),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: s.tray,
+                      border: Border(right: BorderSide(color: s.hairline)),
                     ),
+                    child: Sidebar(collapsed: collapsed),
                   ),
                 ),
               ),
             ),
 
             // ─── Top bar (draggable, full-width, z-order topmost) ───
-            Positioned(
+            const Positioned(
               left: 0,
               top: 0,
               right: 0,
               height: AppConstants.topBarHeight,
-              child: _TopBar(isDark: isDark),
+              child: _TopBar(),
             ),
           ],
         ),
@@ -192,6 +157,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Widget _buildCommandPaletteOverlay() {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return GestureDetector(
       onTap: _closePalette,
       child: AnimatedOpacity(
@@ -199,7 +165,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         duration: const Duration(milliseconds: 150),
         curve: Curves.easeOutCubic,
         child: Container(
-          color: Colors.black54,
+          color: s.scrim,
           child: Center(
             child: TweenAnimationBuilder<double>(
               tween: Tween(begin: 0.95, end: 1.0),
@@ -222,6 +188,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           HardwareKeyboard.instance.isMetaPressed) {
         final notifier = ref.read(showCommandPaletteProvider.notifier);
         notifier.state = !notifier.state;
+      }
+      // Cmd+N → new secret (the empty-state hero advertises this)
+      if (event.logicalKey == LogicalKeyboardKey.keyN &&
+          HardwareKeyboard.instance.isMetaPressed) {
+        showSecretSheetModal(context: context, ref: ref);
       }
       // Cmd+L → lock (fire-and-forget: state flips synchronously, only the
       // encrypted-connection close is awaited internally)
@@ -273,6 +244,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         label: 'Edit',
         menus: [
           PlatformMenuItem(
+            label: 'New Secret',
+            shortcut: const SingleActivator(
+              LogicalKeyboardKey.keyN,
+              meta: true,
+            ),
+            onSelected: () => showSecretSheetModal(context: context, ref: ref),
+          ),
+          PlatformMenuItem(
             label: 'Find...',
             shortcut: const SingleActivator(
               LogicalKeyboardKey.keyK,
@@ -312,11 +291,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 // ─── Top Bar (draggable, with action buttons) ───
 
 class _TopBar extends ConsumerWidget {
-  const _TopBar({required this.isDark});
-  final bool isDark;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     final themeMode = ref.watch(themeModeProvider);
     final isCurrentlyDark = themeMode == ThemeMode.dark;
 
@@ -326,13 +305,7 @@ class _TopBar extends ConsumerWidget {
       child: Container(
         height: AppConstants.topBarHeight,
         decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isDark
-                  ? AppColors.darkDividerSubtle
-                  : AppColors.lightBorderSubtle,
-            ),
-          ),
+          border: Border(bottom: BorderSide(color: s.hairline)),
         ),
         padding: const EdgeInsets.only(right: 12),
         child: Row(
@@ -345,20 +318,14 @@ class _TopBar extends ConsumerWidget {
               message: 'Audit Log',
               child: InkWell(
                 onTap: () => context.pushNamed(RouteNames.auditLog),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
-                  child: Icon(
-                    LucideIcons.scrollText,
-                    size: 16,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextSecondary,
-                  ),
+                  child: Icon(LucideIcons.scrollText, size: 16, color: s.muted),
                 ),
               ),
             ),
-            const SizedBox(width: 4),
+            const SizedBox(width: AppSpacing.xs),
             // Theme toggle button
             Tooltip(
               message: isCurrentlyDark
@@ -366,15 +333,13 @@ class _TopBar extends ConsumerWidget {
                   : 'Switch to dark theme',
               child: InkWell(
                 onTap: () => ref.read(themeModeProvider.notifier).toggle(),
-                borderRadius: BorderRadius.circular(4),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
                 child: Padding(
                   padding: const EdgeInsets.all(6),
                   child: Icon(
                     isCurrentlyDark ? LucideIcons.moon : LucideIcons.sun,
                     size: 16,
-                    color: isDark
-                        ? AppColors.darkTextTertiary
-                        : AppColors.lightTextSecondary,
+                    color: s.muted,
                   ),
                 ),
               ),

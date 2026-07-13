@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/typography.dart';
 
-/// Pill-shaped environment badge: Production (red), Development (green), Staging (amber).
+/// Environment marker distinguished by weight, not color (DESIGN.md env-badge
+/// rule): PROD carries ink + SemiBold; everything else stays muted regular.
+/// No fill, no border — the ledger stays quiet.
 class EnvironmentBadge extends StatelessWidget {
   const EnvironmentBadge({super.key, required this.environment});
 
@@ -14,49 +16,20 @@ class EnvironmentBadge extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final env = environment!.toLowerCase();
-    final (bg, stroke, textColor, label) = switch (env) {
-      'production' => (
-        AppColors.envProdBg,
-        AppColors.envProdStroke,
-        AppColors.envProdText,
-        'Production',
-      ),
-      'development' => (
-        AppColors.envDevBg,
-        AppColors.envDevStroke,
-        AppColors.envDevText,
-        'Development',
-      ),
-      'staging' => (
-        AppColors.envStagingBg,
-        AppColors.envStagingStroke,
-        AppColors.envStagingText,
-        'Staging',
-      ),
-      _ => (
-        AppColors.darkTableHeaderBg,
-        AppColors.darkBorderPrimary,
-        AppColors.darkTextSecondary,
-        environment!,
-      ),
+    final s = Theme.of(context).extension<KbSurface>()!;
+    final (label, isProd) = switch (environment!.toLowerCase()) {
+      'production' => ('PROD', true),
+      'development' => ('DEV', false),
+      'staging' => ('STG', false),
+      _ => (environment!.toUpperCase(), false),
     };
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: stroke, width: 1),
-      ),
-      child: Text(
-        label,
-        style: AppTypography.caption.copyWith(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.3,
-          color: textColor,
-        ),
+    return Text(
+      label,
+      style: AppTypography.tableHeader.copyWith(
+        fontSize: 10,
+        fontWeight: isProd ? FontWeight.w600 : FontWeight.w400,
+        color: isProd ? s.ink : s.muted,
       ),
     );
   }

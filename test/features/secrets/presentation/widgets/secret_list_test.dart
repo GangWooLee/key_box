@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:key_box/core/database/database.dart';
+import 'package:key_box/core/theme/app_theme.dart';
 import 'package:key_box/features/secrets/domain/secrets_providers.dart';
 import 'package:key_box/features/secrets/presentation/widgets/secret_list.dart';
 import 'package:key_box/features/secrets/presentation/widgets/environment_badge.dart';
@@ -44,7 +45,41 @@ Secret _makeSecret({
 void main() {
   group('SecretList', () {
     group('structure', () {
-      testWidgets('renders header with Name, Service, Env, Last Used', (
+      testWidgets('renders mono uppercase header columns', (tester) async {
+        await tester.pumpProviderWidget(
+          const SecretList(),
+          overrides: [
+            filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
+            selectedSecretIdProvider.overrideWith((ref) => null),
+          ],
+        );
+
+        expect(find.text('NAME'), findsOneWidget);
+        expect(find.text('SERVICE'), findsOneWidget);
+        expect(find.text('ENV'), findsOneWidget);
+        expect(find.text('LAST USED'), findsOneWidget);
+      });
+    });
+
+    group('empty state', () {
+      testWidgets('empty vault shows the bench-is-clear hero', (tester) async {
+        await tester.pumpProviderWidget(
+          const SecretList(),
+          overrides: [
+            filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
+            selectedSecretIdProvider.overrideWith((ref) => null),
+          ],
+        );
+
+        expect(find.text('THE BENCH IS CLEAR'), findsOneWidget);
+        expect(find.text('your first secret goes here'), findsOneWidget);
+        expect(find.text('+ New Secret'), findsOneWidget);
+        // ⌘N hint: command icon + N (Plex Mono lacks the ⌘ glyph).
+        expect(find.byIcon(LucideIcons.command), findsOneWidget);
+        expect(find.text('N'), findsOneWidget);
+      });
+
+      testWidgets('empty folder shows quiet one-liner, not the hero', (
         tester,
       ) async {
         await tester.pumpProviderWidget(
@@ -52,43 +87,30 @@ void main() {
           overrides: [
             filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
             selectedSecretIdProvider.overrideWith((ref) => null),
+            selectedFolderIdProvider.overrideWith((ref) => 7),
           ],
         );
 
-        expect(find.text('Name'), findsOneWidget);
-        expect(find.text('Service'), findsOneWidget);
-        expect(find.text('Env'), findsOneWidget);
-        expect(find.text('Last Used'), findsOneWidget);
+        expect(find.text('this folder is empty'), findsOneWidget);
+        expect(find.text('THE BENCH IS CLEAR'), findsNothing);
       });
-    });
 
-    group('empty state', () {
-      testWidgets('shows "No secrets yet" message', (tester) async {
+      testWidgets('empty category filter shows quiet one-liner', (
+        tester,
+      ) async {
         await tester.pumpProviderWidget(
           const SecretList(),
           overrides: [
             filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
             selectedSecretIdProvider.overrideWith((ref) => null),
+            selectedCategoryProvider.overrideWith(
+              (ref) => SecretCategory.apiKey,
+            ),
           ],
         );
 
-        expect(find.text('No secrets yet'), findsOneWidget);
-        expect(
-          find.text('Click "+ Add Secret" below to get started'),
-          findsOneWidget,
-        );
-      });
-
-      testWidgets('shows key icon in empty state', (tester) async {
-        await tester.pumpProviderWidget(
-          const SecretList(),
-          overrides: [
-            filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
-            selectedSecretIdProvider.overrideWith((ref) => null),
-          ],
-        );
-
-        expect(find.byIcon(LucideIcons.keyRound), findsOneWidget);
+        expect(find.text('no secrets in this view'), findsOneWidget);
+        expect(find.text('THE BENCH IS CLEAR'), findsNothing);
       });
     });
 
@@ -134,7 +156,7 @@ void main() {
         expect(find.text('My API Key'), findsOneWidget);
         expect(find.text('Stripe'), findsOneWidget);
         expect(find.byType(EnvironmentBadge), findsOneWidget);
-        expect(find.text('Production'), findsOneWidget);
+        expect(find.text('PROD'), findsOneWidget);
       });
 
       testWidgets('row tap updates selectedSecretIdProvider', (tester) async {
@@ -153,7 +175,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: SecretList()),
                     );
                   },

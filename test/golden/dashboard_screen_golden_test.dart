@@ -22,9 +22,11 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('dashboard_screen — 3-column, dark (V8 baseline)', (
-    tester,
-  ) async {
+  // Shared fixture + overrides for both V9 surface variants.
+  Future<void> pumpDashboard(
+    WidgetTester tester, {
+    required GoldenSurface surface,
+  }) async {
     final secrets = [
       makeTestSecret(
         id: 1,
@@ -63,6 +65,7 @@ void main() {
       tester,
       child: const Scaffold(body: DashboardScreen()),
       size: GoldenSizes.desktop,
+      surface: surface,
       overrides: [
         authProvider.overrideWith(
           (ref) => FakeAuthNotifier(
@@ -102,10 +105,21 @@ void main() {
     // Drain microtasks (Stream.value emission) + settle any brief transitions.
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
+  }
 
+  testWidgets('dashboard_screen — V9 Terminal (dark)', (tester) async {
+    await pumpDashboard(tester, surface: GoldenSurface.terminal);
     await expectLater(
       find.byType(MaterialApp),
       matchesGoldenFile('goldens/dashboard_screen.png'),
+    );
+  });
+
+  testWidgets('dashboard_screen — V9 Bench (light)', (tester) async {
+    await pumpDashboard(tester, surface: GoldenSurface.bench);
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/dashboard_screen_bench.png'),
     );
   });
 }

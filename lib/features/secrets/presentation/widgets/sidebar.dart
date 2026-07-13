@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/theme/colors.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../domain/secrets_providers.dart';
 import 'folder_tree.dart';
 
-// Shared icon mapping for both expanded and collapsed sidebar views.
+// Category icons for the expanded list (functional identification — the
+// collapsed rail uses mono initials instead, per the silence principle).
 const _categoryIcons = {
   SecretCategory.all: LucideIcons.key,
   SecretCategory.apiKey: LucideIcons.zap,
@@ -14,6 +16,11 @@ const _categoryIcons = {
   SecretCategory.password: LucideIcons.lock,
   SecretCategory.certificate: LucideIcons.shieldCheck,
 };
+
+/// First two letters of the category label — the collapsed rail's mono
+/// initials (DESIGN.md §접힘 사이드바 레일: no icons, no truncated text).
+String _railInitials(SecretCategory cat) =>
+    cat.label.substring(0, 2).toUpperCase();
 
 class Sidebar extends ConsumerWidget {
   const Sidebar({super.key, this.collapsed = false});
@@ -33,34 +40,32 @@ class _ExpandedSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
+    // FolderTree is a later V9 pass — it still takes the legacy flag.
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Search Bar + Collapse Button (same row)
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 8, 10),
+        const Padding(
+          padding: EdgeInsets.fromLTRB(12, AppSpacing.sm, AppSpacing.sm, 10),
           child: Row(
             children: [
-              Expanded(child: _SearchBar(isDark: isDark)),
-              const SizedBox(width: 4),
-              _CollapseButton(isDark: isDark),
+              Expanded(child: _SearchBar()),
+              SizedBox(width: AppSpacing.xs),
+              _CollapseButton(),
             ],
           ),
         ),
 
         // Categories
-        _CategorySection(isDark: isDark),
+        const _CategorySection(),
 
         // Divider
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Divider(
-            height: 1,
-            color: isDark ? AppColors.darkDividerSubtle : theme.dividerColor,
-          ),
+          child: Divider(height: 1, color: s.hairline),
         ),
 
         // Folder Tree
@@ -70,59 +75,57 @@ class _ExpandedSidebar extends ConsumerWidget {
   }
 }
 
-// ─── Collapsed Sidebar (48px icon rail) ───
+// ─── Collapsed Sidebar (48px rail — mono initials, no icons) ───
 
 class _CollapsedSidebar extends ConsumerWidget {
   const _CollapsedSidebar();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final s = Theme.of(context).extension<KbSurface>()!;
     final selected = ref.watch(selectedCategoryProvider);
+    final counts = ref.watch(categoryCountsProvider);
 
     return Column(
       children: [
-        // Expand button
+        // Expand button (functional chrome — icon allowed)
         Padding(
-          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          padding: const EdgeInsets.only(
+            top: AppSpacing.sm,
+            bottom: AppSpacing.xs,
+          ),
           child: Tooltip(
             message: 'Show sidebar',
             child: InkWell(
               onTap: () {
                 ref.read(sidebarCollapsedProvider.notifier).state = false;
               },
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(AppRadii.sm),
               child: Padding(
                 padding: const EdgeInsets.all(6),
                 child: Icon(
                   LucideIcons.panelLeftOpen,
                   size: 16,
-                  color: isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.lightTextTertiary,
+                  color: s.muted,
                 ),
               ),
             ),
           ),
         ),
 
-        // Divider
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Divider(
-            height: 1,
-            color: isDark ? AppColors.darkDividerSubtle : theme.dividerColor,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+          child: Divider(height: 1, color: s.hairline),
         ),
 
-        const SizedBox(height: 8),
+        const SizedBox(height: AppSpacing.sm),
 
-        // Category icons
+        // Category rail items: mono initials + count.
         ...SecretCategory.values.map((cat) {
           final isActive = cat == selected;
+          final count = counts[cat] ?? 0;
           return Padding(
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
             child: Tooltip(
               message: cat.label,
               child: InkWell(
@@ -132,28 +135,36 @@ class _CollapsedSidebar extends ConsumerWidget {
                   ref.read(selectedFolderIdProvider.notifier).state = null;
                   ref.read(selectedSecretIdProvider.notifier).state = null;
                 },
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(AppRadii.md),
                 child: Container(
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   decoration: BoxDecoration(
-                    color: isActive
-                        ? (isDark
-                              ? AppColors.darkCategoryActive
-                              : AppColors.brand50)
-                        : Colors.transparent,
-                    borderRadius: BorderRadius.circular(8),
+                    color: isActive ? s.hover : Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppRadii.md),
+                    border: isActive
+                        ? Border(left: BorderSide(color: s.accent, width: 2))
+                        : null,
                   ),
-                  child: Icon(
-                    _categoryIcons[cat]!,
-                    size: 16,
-                    color: isActive
-                        ? (isDark
-                              ? AppColors.darkTextPrimary
-                              : AppColors.lightTextPrimary)
-                        : (isDark
-                              ? AppColors.darkTextTertiary
-                              : AppColors.lightTextSecondary),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        _railInitials(cat),
+                        style: AppTypography.sectionHeader.copyWith(
+                          fontSize: 10,
+                          color: isActive ? s.accent : s.muted,
+                        ),
+                      ),
+                      Text(
+                        '$count',
+                        style: AppTypography.mono.copyWith(
+                          fontSize: 9,
+                          height: 1.2,
+                          color: s.muted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -168,41 +179,35 @@ class _CollapsedSidebar extends ConsumerWidget {
 // ─── Collapse Button (panelLeftClose, 16px) ───
 
 class _CollapseButton extends ConsumerWidget {
-  const _CollapseButton({required this.isDark});
-  final bool isDark;
+  const _CollapseButton();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return Tooltip(
       message: 'Hide sidebar',
       child: InkWell(
         onTap: () {
           ref.read(sidebarCollapsedProvider.notifier).state = true;
         },
-        borderRadius: BorderRadius.circular(4),
+        borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Padding(
-          padding: const EdgeInsets.all(4),
-          child: Icon(
-            LucideIcons.panelLeftClose,
-            size: 16,
-            color: isDark
-                ? AppColors.darkTextTertiary
-                : AppColors.lightTextTertiary,
-          ),
+          padding: const EdgeInsets.all(AppSpacing.xs),
+          child: Icon(LucideIcons.panelLeftClose, size: 16, color: s.muted),
         ),
       ),
     );
   }
 }
 
-// ─── Search Bar ───
+// ─── Search Field (⌘K — persistent affordance, opens the palette) ───
 
 class _SearchBar extends ConsumerWidget {
-  const _SearchBar({required this.isDark});
-  final bool isDark;
+  const _SearchBar();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
     return GestureDetector(
       onTap: () {
         ref.read(showCommandPaletteProvider.notifier).state = true;
@@ -210,53 +215,26 @@ class _SearchBar extends ConsumerWidget {
       child: Container(
         height: 32,
         decoration: BoxDecoration(
-          color: isDark ? AppColors.darkSidebarSearchBg : Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-            color: isDark
-                ? AppColors.darkSidebarSearchStroke
-                : AppColors.lightBorderPrimary,
-          ),
+          color: s.canvas,
+          borderRadius: BorderRadius.circular(AppRadii.md),
+          border: Border.all(color: s.hairline),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 10),
         child: Row(
           children: [
-            Icon(
-              LucideIcons.search,
-              size: 14,
-              color: isDark
-                  ? AppColors.darkTextTertiary
-                  : AppColors.lightTextTertiary,
-            ),
+            Icon(LucideIcons.search, size: 14, color: s.muted),
             const SizedBox(width: 6),
+            // ⌘ is an icon, not a glyph: Plex Mono lacks U+2318 (tofu).
+            Icon(LucideIcons.command, size: 11, color: s.muted),
             Expanded(
               child: Text(
-                'Search secrets...',
-                style: AppTypography.bodySmall.copyWith(
-                  color: isDark
-                      ? AppColors.darkTextTertiary
-                      : AppColors.lightTextTertiary,
+                'K — search…',
+                style: AppTypography.mono.copyWith(
+                  fontSize: 11.5,
+                  color: s.muted,
                 ),
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(
-                  color: isDark
-                      ? AppColors.darkBorderPrimary
-                      : AppColors.lightBorderPrimary,
-                ),
-              ),
-              child: Text(
-                '\u2318K',
-                style: AppTypography.caption.copyWith(
-                  fontSize: 10,
-                  color: isDark
-                      ? AppColors.darkTextQuaternary
-                      : AppColors.lightTextTertiary,
-                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -269,8 +247,7 @@ class _SearchBar extends ConsumerWidget {
 // ─── Category Section ───
 
 class _CategorySection extends ConsumerWidget {
-  const _CategorySection({required this.isDark});
-  final bool isDark;
+  const _CategorySection();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -278,7 +255,7 @@ class _CategorySection extends ConsumerWidget {
     final counts = ref.watch(categoryCountsProvider);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+      padding: const EdgeInsets.fromLTRB(12, AppSpacing.sm, 12, AppSpacing.sm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: SecretCategory.values.map((cat) {
@@ -289,7 +266,6 @@ class _CategorySection extends ConsumerWidget {
             label: cat.label,
             count: count,
             isActive: isActive,
-            isDark: isDark,
             onTap: () {
               ref.read(selectedCategoryProvider.notifier).state = cat;
               ref.read(selectedServiceProvider.notifier).state = null;
@@ -309,7 +285,6 @@ class _CategoryItem extends StatelessWidget {
     required this.label,
     required this.count,
     required this.isActive,
-    required this.isDark,
     required this.onTap,
   });
 
@@ -317,73 +292,48 @@ class _CategoryItem extends StatelessWidget {
   final String label;
   final int count;
   final bool isActive;
-  final bool isDark;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 2),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(6),
+          hoverColor: s.hover,
+          borderRadius: BorderRadius.circular(AppRadii.md),
           child: Container(
             height: 32,
             decoration: BoxDecoration(
-              color: isActive
-                  ? (isDark ? AppColors.darkCategoryActive : AppColors.brand50)
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
+              color: isActive ? s.hover : Colors.transparent,
+              borderRadius: BorderRadius.circular(AppRadii.md),
               border: isActive
-                  ? Border(
-                      left: BorderSide(
-                        color: isDark
-                            ? AppColors.darkCategoryActiveBorder
-                            : AppColors.brand600,
-                        width: 2,
-                      ),
-                    )
+                  ? Border(left: BorderSide(color: s.accent, width: 2))
                   : null,
             ),
             padding: const EdgeInsets.symmetric(horizontal: 10),
             child: Row(
               children: [
-                Icon(
-                  icon,
-                  size: 14,
-                  color: isActive
-                      ? (isDark
-                            ? AppColors.darkTextPrimary
-                            : AppColors.lightTextPrimary)
-                      : (isDark
-                            ? AppColors.darkTextTertiary
-                            : AppColors.lightTextSecondary),
-                ),
-                const SizedBox(width: 8),
+                Icon(icon, size: 14, color: isActive ? s.accent : s.muted),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
                     label,
                     style: AppTypography.bodySmall.copyWith(
                       fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                      color: isActive
-                          ? (isDark
-                                ? AppColors.darkTextPrimary
-                                : AppColors.lightTextPrimary)
-                          : (isDark
-                                ? AppColors.darkTextSecondary
-                                : AppColors.lightTextSecondary),
+                      color: isActive ? s.accent : s.ink,
                     ),
                   ),
                 ),
                 Text(
                   '$count',
-                  style: AppTypography.caption.copyWith(
-                    color: isDark
-                        ? AppColors.darkTextQuaternary
-                        : AppColors.lightTextTertiary,
+                  style: AppTypography.mono.copyWith(
                     fontSize: 11,
+                    color: s.muted,
                   ),
                 ),
               ],

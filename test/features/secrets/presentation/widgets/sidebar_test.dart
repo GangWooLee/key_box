@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/database/database.dart';
+import 'package:key_box/core/theme/app_theme.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/features/secrets/domain/secrets_providers.dart';
@@ -46,22 +47,15 @@ void main() {
 
   group('Sidebar', () {
     group('structure', () {
-      testWidgets('renders search bar placeholder', (tester) async {
+      testWidgets('renders mono ⌘K search placeholder', (tester) async {
         await tester.pumpProviderWidget(
           const Sidebar(),
           overrides: sidebarOverrides(),
         );
 
-        expect(find.text('Search secrets...'), findsOneWidget);
-      });
-
-      testWidgets('renders ⌘K badge', (tester) async {
-        await tester.pumpProviderWidget(
-          const Sidebar(),
-          overrides: sidebarOverrides(),
-        );
-
-        expect(find.text('\u2318K'), findsOneWidget);
+        // ⌘ renders as the Lucide command icon (Plex Mono lacks the glyph).
+        expect(find.byIcon(LucideIcons.command), findsOneWidget);
+        expect(find.text('K — search…'), findsOneWidget);
       });
 
       testWidgets('renders collapse button with Hide sidebar tooltip', (
@@ -89,7 +83,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: Sidebar()),
                     );
                   },
@@ -155,7 +149,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: Sidebar()),
                     );
                   },
@@ -208,7 +202,9 @@ void main() {
         expect(find.byIcon(LucideIcons.panelLeftOpen), findsOneWidget);
       });
 
-      testWidgets('renders 5 category icon tooltips', (tester) async {
+      testWidgets('renders 5 category rail items with tooltips', (
+        tester,
+      ) async {
         await tester.pumpProviderWidget(
           const Sidebar(collapsed: true),
           overrides: sidebarOverrides(sidebarCollapsed: true),
@@ -217,6 +213,21 @@ void main() {
         for (final cat in SecretCategory.values) {
           expect(find.byTooltip(cat.label), findsOneWidget);
         }
+      });
+
+      testWidgets('rail items show mono initials, not icons', (tester) async {
+        await tester.pumpProviderWidget(
+          const Sidebar(collapsed: true),
+          overrides: sidebarOverrides(sidebarCollapsed: true),
+        );
+
+        // First two letters of each category label, uppercase.
+        for (final initials in ['AL', 'AP', 'TO', 'PA', 'CE']) {
+          expect(find.text(initials), findsOneWidget);
+        }
+        // The silence principle: no category icons on the rail.
+        expect(find.byIcon(LucideIcons.key), findsNothing);
+        expect(find.byIcon(LucideIcons.zap), findsNothing);
       });
 
       testWidgets('does not render category labels', (tester) async {
@@ -255,7 +266,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: Sidebar(collapsed: true)),
                     );
                   },
@@ -285,7 +296,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: Sidebar(collapsed: true)),
                     );
                   },
@@ -316,7 +327,7 @@ void main() {
                   builder: (context, ref, _) {
                     container = ProviderScope.containerOf(context);
                     return MaterialApp(
-                      theme: ThemeData.dark(),
+                      theme: AppTheme.terminal(),
                       home: const Scaffold(body: Sidebar()),
                     );
                   },
@@ -326,7 +337,7 @@ void main() {
           ),
         );
 
-        await tester.tap(find.text('Search secrets...'));
+        await tester.tap(find.text('K — search…'));
         await tester.pump();
 
         expect(container.read(showCommandPaletteProvider), isTrue);

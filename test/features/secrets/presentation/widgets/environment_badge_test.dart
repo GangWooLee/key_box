@@ -1,46 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:key_box/core/theme/colors.dart';
 import 'package:key_box/features/secrets/presentation/widgets/environment_badge.dart';
 
 import '../../../../helpers/widget_test_helpers.dart';
 
 void main() {
-  group('EnvironmentBadge', () {
-    testWidgets('Production badge renders with red colors', (tester) async {
+  group('EnvironmentBadge (V9 — weight-coded, no fill)', () {
+    Text badgeText(WidgetTester tester, String label) =>
+        tester.widget<Text>(find.text(label));
+
+    testWidgets('Production renders PROD with SemiBold weight', (tester) async {
       await tester.pumpProviderWidget(
         const EnvironmentBadge(environment: 'production'),
       );
 
-      expect(find.text('Production'), findsOneWidget);
-      final container = tester.widget<Container>(find.byType(Container).first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.envProdBg);
-      final border = decoration.border as Border;
-      expect(border.top.color, AppColors.envProdStroke);
+      expect(find.text('PROD'), findsOneWidget);
+      expect(badgeText(tester, 'PROD').style?.fontWeight, FontWeight.w600);
+      // Weight, not color chips: no decorated pill container.
+      expect(find.byType(Container), findsNothing);
     });
 
-    testWidgets('Development badge renders with green colors', (tester) async {
+    testWidgets('Development renders DEV with regular weight', (tester) async {
       await tester.pumpProviderWidget(
         const EnvironmentBadge(environment: 'development'),
       );
 
-      expect(find.text('Development'), findsOneWidget);
-      final container = tester.widget<Container>(find.byType(Container).first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.envDevBg);
+      expect(find.text('DEV'), findsOneWidget);
+      expect(badgeText(tester, 'DEV').style?.fontWeight, FontWeight.w400);
     });
 
-    testWidgets('Staging badge renders with amber colors', (tester) async {
+    testWidgets('Staging renders STG with regular weight', (tester) async {
       await tester.pumpProviderWidget(
         const EnvironmentBadge(environment: 'staging'),
       );
 
-      expect(find.text('Staging'), findsOneWidget);
-      final container = tester.widget<Container>(find.byType(Container).first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.envStagingBg);
+      expect(find.text('STG'), findsOneWidget);
+      expect(badgeText(tester, 'STG').style?.fontWeight, FontWeight.w400);
+    });
+
+    testWidgets('PROD is visually heavier than DEV (weight distinction)', (
+      tester,
+    ) async {
+      await tester.pumpProviderWidget(
+        const Row(
+          children: [
+            EnvironmentBadge(environment: 'production'),
+            EnvironmentBadge(environment: 'development'),
+          ],
+        ),
+      );
+
+      final prod = badgeText(tester, 'PROD').style!;
+      final dev = badgeText(tester, 'DEV').style!;
+      expect(prod.fontWeight!.value, greaterThan(dev.fontWeight!.value));
+      expect(prod.color, isNot(dev.color));
     });
 
     testWidgets('null environment returns SizedBox.shrink', (tester) async {
@@ -49,14 +63,14 @@ void main() {
       );
 
       expect(find.byType(SizedBox), findsOneWidget);
-      expect(find.byType(Container), findsNothing);
+      expect(find.byType(Text), findsNothing);
     });
 
     testWidgets('empty string returns SizedBox.shrink', (tester) async {
       await tester.pumpProviderWidget(const EnvironmentBadge(environment: ''));
 
       expect(find.byType(SizedBox), findsOneWidget);
-      expect(find.byType(Container), findsNothing);
+      expect(find.byType(Text), findsNothing);
     });
 
     testWidgets('case-insensitive: PRODUCTION matches production', (
@@ -66,28 +80,21 @@ void main() {
         const EnvironmentBadge(environment: 'PRODUCTION'),
       );
 
-      expect(find.text('Production'), findsOneWidget);
+      expect(find.text('PROD'), findsOneWidget);
     });
 
-    testWidgets('pill shape border radius', (tester) async {
-      await tester.pumpProviderWidget(
-        const EnvironmentBadge(environment: 'production'),
-      );
-
-      final container = tester.widget<Container>(find.byType(Container).first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.borderRadius, BorderRadius.circular(10));
-    });
-
-    testWidgets('unknown environment uses raw text as label', (tester) async {
+    testWidgets('unknown environment uppercases the raw label, muted weight', (
+      tester,
+    ) async {
       await tester.pumpProviderWidget(
         const EnvironmentBadge(environment: 'custom-env'),
       );
 
-      expect(find.text('custom-env'), findsOneWidget);
-      final container = tester.widget<Container>(find.byType(Container).first);
-      final decoration = container.decoration as BoxDecoration;
-      expect(decoration.color, AppColors.darkTableHeaderBg);
+      expect(find.text('CUSTOM-ENV'), findsOneWidget);
+      expect(
+        badgeText(tester, 'CUSTOM-ENV').style?.fontWeight,
+        FontWeight.w400,
+      );
     });
   });
 }
