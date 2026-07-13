@@ -56,7 +56,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             border: Border.all(color: s.hairline),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.2),
+                // Surface-aware shadow: the scrim's warm-dark base at shadow
+                // strength — no untokenized black (silence on Terminal).
+                color: s.scrim.withValues(alpha: 0.35),
                 blurRadius: 24,
                 offset: const Offset(0, 8),
               ),
