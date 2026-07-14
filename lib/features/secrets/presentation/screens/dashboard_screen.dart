@@ -19,6 +19,7 @@ import '../widgets/secret_detail.dart';
 import '../widgets/sheet_modal.dart';
 import '../../domain/secrets_providers.dart';
 import '../widgets/command_palette.dart';
+import '../../../../services/auto_lock_service.dart';
 import '../widgets/vault_status_strip.dart';
 
 /// The 3-column workbench (DESIGN.md §dashboard): tray sidebar (sunken) →
@@ -45,18 +46,25 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final auth = ref.watch(authProvider);
     if (auth is! AuthUnlocked) return const SizedBox.shrink();
     final showPalette = ref.watch(showCommandPaletteProvider);
+    // Instantiate the auto-lock service so it arms its idle timer on unlock.
+    ref.watch(autoLockProvider);
 
     return PlatformMenuBar(
       menus: _buildMenus(context, ref),
-      child: KeyboardListener(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: _handleKeyEvent,
-        child: Stack(
-          children: [
-            _buildLayout(context),
-            if (showPalette) _buildCommandPaletteOverlay(),
-          ],
+      // Any pointer interaction is activity — push the auto-lock deadline out.
+      child: Listener(
+        onPointerDown: (_) => ref.read(autoLockProvider).recordActivity(),
+        onPointerSignal: (_) => ref.read(autoLockProvider).recordActivity(),
+        child: KeyboardListener(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: _handleKeyEvent,
+          child: Stack(
+            children: [
+              _buildLayout(context),
+              if (showPalette) _buildCommandPaletteOverlay(),
+            ],
+          ),
         ),
       ),
     );
@@ -196,6 +204,8 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 
   void _handleKeyEvent(KeyEvent event) {
     if (event is KeyDownEvent) {
+      // Any keypress is activity — keep the vault open while the user works.
+      ref.read(autoLockProvider).recordActivity();
       // Cmd+K → command palette
       if (event.logicalKey == LogicalKeyboardKey.keyK &&
           HardwareKeyboard.instance.isMetaPressed) {

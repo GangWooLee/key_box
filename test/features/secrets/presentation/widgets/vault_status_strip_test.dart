@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/features/secrets/presentation/widgets/vault_status_strip.dart';
+import 'package:key_box/services/auto_lock_service.dart';
 
 import '../../../../helpers/widget_test_helpers.dart';
 
@@ -30,5 +31,33 @@ void main() {
       expect(find.textContaining('backed up'), findsOneWidget);
       expect(find.text('never backed up'), findsNothing);
     });
+
+    testWidgets('hides the auto-lock line when tracking is off (no deadline)', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      await tester.pumpProviderWidget(const VaultStatusStrip());
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('auto-lock'), findsNothing);
+    });
+
+    testWidgets(
+      'shows the remaining minutes when an auto-lock deadline is set',
+      (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        await tester.pumpProviderWidget(
+          const VaultStatusStrip(),
+          overrides: [
+            autoLockDeadlineProvider.overrideWith(
+              (ref) => DateTime.now().add(const Duration(minutes: 15)),
+            ),
+          ],
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.textContaining('auto-lock in'), findsOneWidget);
+      },
+    );
   });
 }

@@ -74,3 +74,6 @@ docs/.smart-env/
 *.keychain
 *.pem
 *.p12
+
+# Golden test diff artifacts (never commit)
+test/golden/failures/
