@@ -9,6 +9,7 @@ import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/date_formatters.dart';
+import '../../../auth/domain/auth_notifier.dart';
 import '../../domain/backup_export.dart';
 
 /// The settings screen (DESIGN.md §settings): Bench/Terminal, a left section
@@ -21,7 +22,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-enum _Section { appearance, backup }
+enum _Section { appearance, security, backup }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   _Section _section = _Section.appearance;
@@ -47,6 +48,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     padding: const EdgeInsets.all(AppSpacing.lg),
                     child: switch (_section) {
                       _Section.appearance => const _AppearanceForm(),
+                      _Section.security => const _SecurityForm(),
                       _Section.backup => const _BackupForm(),
                     },
                   ),
@@ -112,6 +114,7 @@ class _SectionRail extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _railItem(context, s, _Section.appearance, 'Appearance'),
+          _railItem(context, s, _Section.security, 'Security'),
           _railItem(context, s, _Section.backup, 'Backup'),
         ],
       ),
@@ -228,6 +231,181 @@ class _ThemeOption extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// ─── Security form (change master password → key rotation) ───
+
+class _SecurityForm extends ConsumerStatefulWidget {
+  const _SecurityForm();
+
+  @override
+  ConsumerState<_SecurityForm> createState() => _SecurityFormState();
+}
+
+class _SecurityFormState extends ConsumerState<_SecurityForm> {
+  final _current = TextEditingController();
+  final _next = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _busy = false;
+  bool _success = false;
+  String? _message;
+
+  @override
+  void dispose() {
+    _current.dispose();
+    _next.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _busy = true;
+      _message = null;
+    });
+    final error = await ref
+        .read(authProvider.notifier)
+        .changePassword(
+          oldPassword: _current.text,
+          newPassword: _next.text,
+          confirmation: _confirm.text,
+        );
+    if (!mounted) return;
+    setState(() {
+      _busy = false;
+      _success = error == null;
+      _message = error ?? 'password changed';
+      if (_success) {
+        _current.clear();
+        _next.clear();
+        _confirm.clear();
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'CHANGE MASTER PASSWORD',
+          style: AppTypography.tableHeader.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Text(
+          'Rotates the key that protects your vault. Your secrets are re-sealed '
+          'under the new password.',
+          style: AppTypography.bodySmall.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SizedBox(
+          width: 320,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _field(s, 'current password', _current),
+              const SizedBox(height: AppSpacing.sm),
+              _field(s, 'new password', _next),
+              const SizedBox(height: AppSpacing.sm),
+              _field(
+                s,
+                'confirm new password',
+                _confirm,
+                onSubmit: (_) => _submit(),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                height: 36,
+                child: ElevatedButton(
+                  onPressed: _busy ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: s.accent,
+                    foregroundColor: s.onAccent,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadii.md),
+                    ),
+                  ),
+                  child: _busy
+                      ? SizedBox(
+                          height: 16,
+                          width: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: s.onAccent,
+                          ),
+                        )
+                      : Text(
+                          'Change password',
+                          style: AppTypography.bodySmall.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: s.onAccent,
+                          ),
+                        ),
+                ),
+              ),
+              if (_message != null) ...[
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  _message!,
+                  style: AppTypography.mono.copyWith(
+                    fontSize: 11,
+                    color: _success ? s.accent : s.error,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _field(
+    KbSurface s,
+    String label,
+    TextEditingController controller, {
+    ValueChanged<String>? onSubmit,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.tableHeader.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        SizedBox(
+          height: 40,
+          child: TextField(
+            controller: controller,
+            obscureText: true,
+            onSubmitted: onSubmit,
+            style: AppTypography.mono.copyWith(color: s.ink),
+            decoration: InputDecoration(
+              filled: true,
+              fillColor: s.canvas,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: AppSpacing.md,
+                vertical: AppSpacing.sm,
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                borderSide: BorderSide(color: s.hairline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(AppRadii.md),
+                borderSide: BorderSide(color: s.accent),
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

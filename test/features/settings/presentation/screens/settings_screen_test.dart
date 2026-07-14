@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -5,10 +6,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/core/theme/app_theme.dart';
 import 'package:key_box/core/theme/theme_provider.dart';
+import 'package:key_box/features/auth/domain/auth_notifier.dart';
+import 'package:key_box/features/auth/domain/auth_state.dart';
 import 'package:key_box/features/settings/domain/backup_export.dart';
 import 'package:key_box/features/settings/presentation/screens/settings_screen.dart';
 
 import '../../../../helpers/widget_test_helpers.dart';
+
+/// Returns a preset [changePassword] result so the Security form can be tested
+/// without the real (integration-only) keyed rekey.
+class _ChangePasswordFake extends FakeAuthNotifier {
+  _ChangePasswordFake(super.initial, this._result);
+  final String? _result; // null = success
+
+  @override
+  Future<String?> changePassword({
+    required String oldPassword,
+    required String newPassword,
+    required String confirmation,
+  }) async => _result;
+}
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -95,6 +112,63 @@ void main() {
       await tester.pump();
 
       expect(find.text("couldn't read the vault"), findsOneWidget);
+    });
+
+    testWidgets('the Security section changes the master password', (
+      tester,
+    ) async {
+      await tester.pumpProviderWidget(
+        const SettingsScreen(),
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => _ChangePasswordFake(
+              AuthUnlocked(masterEncryptionKey: Uint8List(32), vaultId: 1),
+              null, // success
+            ),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Security'));
+      await tester.pump();
+      expect(find.text('CHANGE MASTER PASSWORD'), findsOneWidget);
+      expect(find.byType(TextField), findsNWidgets(3));
+
+      await tester.enterText(find.byType(TextField).at(0), 'old-password');
+      await tester.enterText(find.byType(TextField).at(1), 'new-password-12');
+      await tester.enterText(find.byType(TextField).at(2), 'new-password-12');
+      await tester.tap(find.text('Change password'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('password changed'), findsOneWidget);
+    });
+
+    testWidgets('a rejected password change shows the clay reason', (
+      tester,
+    ) async {
+      await tester.pumpProviderWidget(
+        const SettingsScreen(),
+        overrides: [
+          authProvider.overrideWith(
+            (ref) => _ChangePasswordFake(
+              AuthUnlocked(masterEncryptionKey: Uint8List(32), vaultId: 1),
+              'Incorrect password',
+            ),
+          ),
+        ],
+      );
+
+      await tester.tap(find.text('Security'));
+      await tester.pump();
+      await tester.enterText(find.byType(TextField).at(0), 'wrong');
+      await tester.enterText(find.byType(TextField).at(1), 'new-password-12');
+      await tester.enterText(find.byType(TextField).at(2), 'new-password-12');
+      await tester.tap(find.text('Change password'));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Incorrect password'), findsOneWidget);
     });
 
     testWidgets('cancelling the save leaves the status unchanged', (

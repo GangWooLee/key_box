@@ -36,6 +36,25 @@ void main() {
     );
   });
 
+  testWidgets('settings_screen — Security / change password (Terminal)', (
+    tester,
+  ) async {
+    await pumpGolden(
+      tester,
+      child: const SettingsScreen(),
+      size: const Size(760, 520),
+      surface: GoldenSurface.terminal,
+      overrides: overrides,
+    );
+    await tester.tap(find.text('Security'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/settings_screen_security.png'),
+    );
+  });
+
   testWidgets('settings_screen — Backup (Bench)', (tester) async {
     await pumpGolden(
       tester,
