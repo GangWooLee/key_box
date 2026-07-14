@@ -47,19 +47,45 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 }
 
+/// First-run hero flag (DESIGN.md §Motion 첫 실행 히어로 규칙): the very first
+/// sweep after setup lands on the Bench (light) regardless of OS/user mode —
+/// the first impression IS the product metaphor. Cleared on the next lock;
+/// afterwards the user's mode is followed.
+final firstRunHeroProvider = StateProvider<bool>((ref) => false);
+
+/// Watches auth transitions to arm/disarm [firstRunHeroProvider]. Kept alive
+/// by [surfaceThemeProvider] watching it.
+final heroWatcherProvider = Provider<void>((ref) {
+  ref.listen<AuthState>(authProvider, (prev, next) {
+    if (prev is AuthFirstRun && next is AuthUnlocked) {
+      ref.read(firstRunHeroProvider.notifier).state = true;
+    } else if (next is! AuthUnlocked) {
+      ref.read(firstRunHeroProvider.notifier).state = false;
+    }
+  });
+});
+
 /// The single [ThemeData] the app renders with.
 ///
 /// Auth state is the primary decider: anything other than [AuthUnlocked] shows
 /// the sealed Slab (locked = the weight of a shut vault). Once unlocked, the
-/// user's [themeModeProvider] selects Bench (light) / Terminal (dark), with
-/// `system` resolved against the current OS brightness.
+/// first-run hero forces the Bench once (see [firstRunHeroProvider]); after
+/// that the user's [themeModeProvider] selects Bench (light) / Terminal
+/// (dark), with `system` resolved against the current OS brightness.
 ///
-/// The unlock "lights come on" sweep motion is Phase B; here the switch is
-/// immediate.
+/// The 320ms "lights come on" sweep itself is rendered by `UnlockSweep`
+/// (mounted via the app builder) — this provider only decides the target
+/// surface the sweep reveals.
 final surfaceThemeProvider = Provider<ThemeData>((ref) {
+  ref.watch(heroWatcherProvider); // keep the hero transition watcher alive
   final auth = ref.watch(authProvider);
   if (auth is! AuthUnlocked) {
     return AppTheme.sealed();
+  }
+
+  // First-run hero: the first open is always the dramatic luminance flip.
+  if (ref.watch(firstRunHeroProvider)) {
+    return AppTheme.bench();
   }
 
   final mode = ref.watch(themeModeProvider);

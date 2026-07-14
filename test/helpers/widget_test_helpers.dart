@@ -25,13 +25,22 @@ void suppressDriftWarning() {
 class FakeAuthNotifier extends AuthNotifier {
   FakeAuthNotifier(this._fixedState) : super(_createDummyDb());
 
-  final AuthState _fixedState;
+  AuthState _fixedState;
 
   static AppDatabase _createDummyDb() =>
       AppDatabase.forTesting(NativeDatabase.memory());
 
   @override
   AuthState get state => _fixedState;
+
+  /// Test-only: drive an auth-state transition (e.g. Locked → Unlocked) so
+  /// provider listeners (unlock sweep, surface theme) fire like production.
+  /// The frozen-getter behavior for real AuthNotifier methods is unchanged —
+  /// only this setter moves the reported state.
+  void setAuthState(AuthState next) {
+    _fixedState = next;
+    state = next; // notifies StateNotifier listeners → ref.listen fires
+  }
 }
 
 // ─── MockSecretOperations ───
