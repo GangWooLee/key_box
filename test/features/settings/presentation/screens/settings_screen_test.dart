@@ -9,6 +9,7 @@ import 'package:key_box/core/theme/theme_provider.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
 import 'package:key_box/features/settings/domain/backup_export.dart';
+import 'package:key_box/features/settings/domain/settings_preferences.dart';
 import 'package:key_box/features/settings/presentation/screens/settings_screen.dart';
 
 import '../../../../helpers/widget_test_helpers.dart';
@@ -62,6 +63,38 @@ void main() {
       await tester.pump();
 
       expect(container.read(themeModeProvider), ThemeMode.light);
+    });
+
+    testWidgets('Preferences sets auto-lock time and reveal default', (
+      tester,
+    ) async {
+      late ProviderContainer container;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: Consumer(
+            builder: (context, ref, _) {
+              container = ProviderScope.containerOf(context);
+              return MaterialApp(
+                theme: AppTheme.terminal(),
+                home: const SettingsScreen(),
+              );
+            },
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Preferences'));
+      await tester.pump();
+      expect(find.text('AUTO-LOCK'), findsOneWidget);
+      expect(find.text('5m'), findsOneWidget);
+
+      await tester.tap(find.text('5m'));
+      await tester.pump();
+      expect(container.read(autoLockMinutesProvider), 5);
+
+      await tester.tap(find.byType(Switch));
+      await tester.pump();
+      expect(container.read(revealByDefaultProvider), isTrue);
     });
 
     testWidgets('the Backup section exports and records the timestamp', (

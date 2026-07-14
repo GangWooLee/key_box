@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../core/constants/app_constants.dart';
 import '../features/auth/domain/auth_notifier.dart';
 import '../features/auth/domain/auth_state.dart';
+import '../features/settings/domain/settings_preferences.dart';
 
 final autoLockProvider = Provider<AutoLockService>((ref) {
   final service = AutoLockService(ref);
@@ -42,10 +42,10 @@ class AutoLockService {
 
   void _resetTimer() {
     _timer?.cancel();
-    _timer = Timer(
-      const Duration(minutes: AppConstants.autoLockMinutes),
-      _onTimeout,
-    );
+    // Read the configured timeout each reset, so a settings change takes
+    // effect on the next activity without restarting the service.
+    final minutes = _ref.read(autoLockMinutesProvider);
+    _timer = Timer(Duration(minutes: minutes), _onTimeout);
   }
 
   void _onTimeout() {

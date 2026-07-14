@@ -11,6 +11,7 @@ import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/date_formatters.dart';
 import '../../../auth/domain/auth_notifier.dart';
 import '../../domain/backup_export.dart';
+import '../../domain/settings_preferences.dart';
 
 /// The settings screen (DESIGN.md §settings): Bench/Terminal, a left section
 /// rail + a right form. Surfaces existing backend that had no UI — the theme,
@@ -22,7 +23,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-enum _Section { appearance, security, backup }
+enum _Section { appearance, security, preferences, backup }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   _Section _section = _Section.appearance;
@@ -49,6 +50,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     child: switch (_section) {
                       _Section.appearance => const _AppearanceForm(),
                       _Section.security => const _SecurityForm(),
+                      _Section.preferences => const _PreferencesForm(),
                       _Section.backup => const _BackupForm(),
                     },
                   ),
@@ -115,6 +117,7 @@ class _SectionRail extends StatelessWidget {
         children: [
           _railItem(context, s, _Section.appearance, 'Appearance'),
           _railItem(context, s, _Section.security, 'Security'),
+          _railItem(context, s, _Section.preferences, 'Preferences'),
           _railItem(context, s, _Section.backup, 'Backup'),
         ],
       ),
@@ -406,6 +409,112 @@ class _SecurityFormState extends ConsumerState<_SecurityForm> {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Preferences form (auto-lock + reveal default) ───
+
+class _PreferencesForm extends ConsumerWidget {
+  const _PreferencesForm();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+    final autoLock = ref.watch(autoLockMinutesProvider);
+    final revealDefault = ref.watch(revealByDefaultProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'AUTO-LOCK',
+          style: AppTypography.tableHeader.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Text(
+          'Lock the vault after this much idle time.',
+          style: AppTypography.bodySmall.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          children: [
+            for (final minutes in autoLockOptions)
+              _Chip(
+                label: '${minutes}m',
+                selected: autoLock == minutes,
+                onTap: () =>
+                    ref.read(autoLockMinutesProvider.notifier).set(minutes),
+              ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        Text(
+          'REVEAL',
+          style: AppTypography.tableHeader.copyWith(color: s.muted),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Show secret values immediately when opened',
+                style: AppTypography.bodySmall.copyWith(color: s.ink),
+              ),
+            ),
+            Switch(
+              value: revealDefault,
+              activeThumbColor: s.onAccent,
+              activeTrackColor: s.accent,
+              onChanged: (v) =>
+                  ref.read(revealByDefaultProvider.notifier).set(v),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final s = Theme.of(context).extension<KbSurface>()!;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadii.md),
+        child: Container(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.md,
+            vertical: AppSpacing.sm,
+          ),
+          decoration: BoxDecoration(
+            color: selected ? s.accent : s.canvas,
+            borderRadius: BorderRadius.circular(AppRadii.md),
+            border: Border.all(color: selected ? s.accent : s.hairline),
+          ),
+          child: Text(
+            label,
+            style: AppTypography.mono.copyWith(
+              fontSize: 12,
+              color: selected ? s.onAccent : s.ink,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

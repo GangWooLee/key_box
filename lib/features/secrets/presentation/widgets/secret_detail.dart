@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
 import '../../../../core/utils/date_formatters.dart';
+import '../../../settings/domain/settings_preferences.dart';
 import '../../domain/secrets_providers.dart';
 import 'environment_badge.dart';
 import 'sheet_modal.dart';
@@ -32,11 +33,24 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
   bool _copied = false;
   bool _detailsExpanded = false;
   bool _foldersExpanded = false;
+  int? _autoRevealScheduledFor;
 
   @override
   Widget build(BuildContext context) {
     final selectedId = ref.watch(selectedSecretIdProvider);
+    final revealDefault = ref.watch(revealByDefaultProvider);
     final s = Theme.of(context).extension<KbSurface>()!;
+
+    // Switching secrets re-masks the value (security: never carry a revealed
+    // value across selections) and re-arms the reveal-default auto-reveal.
+    ref.listen<int?>(selectedSecretIdProvider, (_, __) {
+      if (!mounted) return;
+      setState(() {
+        _isRevealed = false;
+        _decryptedValue = null;
+        _copied = false;
+      });
+    });
 
     if (selectedId == null) {
       return const _EmptyDetail();
@@ -55,14 +69,35 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
           duration: const Duration(milliseconds: 160),
           child: KeyedSubtree(
             key: ValueKey(secret.id),
-            child: _buildDetail(context, secret, s),
+            child: _buildDetail(context, secret, s, revealDefault),
           ),
         );
       },
     );
   }
 
-  Widget _buildDetail(BuildContext context, Secret secret, KbSurface s) {
+  Widget _buildDetail(
+    BuildContext context,
+    Secret secret,
+    KbSurface s,
+    bool revealDefault,
+  ) {
+    // Reveal-by-default: auto-reveal each newly-opened secret once (settings
+    // preference; off by default — masking is the safer posture).
+    if (revealDefault &&
+        !_isRevealed &&
+        _decryptedValue == null &&
+        _autoRevealScheduledFor != secret.id) {
+      _autoRevealScheduledFor = secret.id;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted &&
+            !_isRevealed &&
+            ref.read(selectedSecretIdProvider) == secret.id) {
+          _toggleReveal(secret);
+        }
+      });
+    }
+
     return Column(
       children: [
         // Scrollable content

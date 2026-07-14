@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
@@ -21,6 +22,9 @@ void main() {
   });
 
   setUp(() async {
+    // Reset the process-global prefs so reveal-by-default stays off unless a
+    // test opts in (otherwise one test's true would leak into the others).
+    SharedPreferences.setMockInitialValues({});
     vault = await createSeededVault(secretCount: 1);
     mockOps = MockSecretOperations();
     mockClipboard = MockClipboardService();
@@ -98,6 +102,26 @@ void main() {
     });
 
     group('value box interactions', () {
+      testWidgets('reveal-by-default auto-reveals the opened secret', (
+        tester,
+      ) async {
+        final secret = vault.secrets.first;
+        when(
+          () => mockOps.reveal(any()),
+        ).thenAnswer((_) async => 'auto-revealed-value');
+
+        SharedPreferences.setMockInitialValues({'reveal_by_default': true});
+        await tester.pumpProviderWidget(
+          const SecretDetail(),
+          overrides: buildOverrides(selectedId: secret.id),
+        );
+        await tester.pumpAndSettle();
+
+        // No tap — the preference revealed it on open.
+        expect(find.text('auto-revealed-value'), findsOneWidget);
+        expect(find.text('Hide'), findsOneWidget);
+      });
+
       testWidgets('Reveal button calls ops.reveal and shows decrypted value', (
         tester,
       ) async {

@@ -55,6 +55,23 @@ void main() {
     );
   });
 
+  testWidgets('settings_screen — Preferences (Bench)', (tester) async {
+    await pumpGolden(
+      tester,
+      child: const SettingsScreen(),
+      size: const Size(760, 520),
+      surface: GoldenSurface.bench,
+      overrides: overrides,
+    );
+    await tester.tap(find.text('Preferences'));
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/settings_screen_preferences.png'),
+    );
+  });
+
   testWidgets('settings_screen — Backup (Bench)', (tester) async {
     await pumpGolden(
       tester,

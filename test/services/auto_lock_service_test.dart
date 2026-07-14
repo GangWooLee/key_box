@@ -4,13 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/services/auto_lock_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   group('AutoLockService', () {
     late AppDatabase db;
     late ProviderContainer container;
 
     setUp(() {
+      // The configurable timeout reads SharedPreferences on first activity.
+      SharedPreferences.setMockInitialValues({});
       db = AppDatabase.forTesting(NativeDatabase.memory());
       container = ProviderContainer(
         overrides: [databaseProvider.overrideWithValue(db)],

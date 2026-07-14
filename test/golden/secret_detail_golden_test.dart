@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
@@ -15,7 +16,11 @@ import '../helpers/widget_test_helpers.dart';
 import 'golden_helpers.dart';
 
 void main() {
-  setUp(suppressDriftWarning);
+  setUp(() {
+    suppressDriftWarning();
+    // reveal-by-default reads SharedPreferences; keep it off (masked).
+    SharedPreferences.setMockInitialValues({});
+  });
 
   // Masked (not-yet-revealed) state. secretDetailProvider is overridden with a
   // fixed-timestamp fabricated secret so the "updated N ago" header and the
