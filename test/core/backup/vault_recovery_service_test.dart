@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -226,6 +227,17 @@ void main() {
     expect(restored, isNull);
   });
 
+  // Flip one base64 char in the first record's ciphertext: the header (salt,
+  // wrappedMek) still unwraps, but the record fails GCM authentication.
+  String tamperFirstRecord(String archive) {
+    final json = jsonDecode(archive) as Map<String, dynamic>;
+    final records = json['records'] as List<dynamic>;
+    final first = records.first as Map<String, dynamic>;
+    final ev = first['encryptedValue'] as String;
+    first['encryptedValue'] = (ev[0] == 'A' ? 'B' : 'A') + ev.substring(1);
+    return jsonEncode(json);
+  }
+
   test('round-trips tricky payloads: unicode, empty, and long values', () {
     const password = 'edge-case-vault';
     final v = makeVault(password);
@@ -254,6 +266,61 @@ void main() {
     expect(restored[1].value, '');
     expect(restored[2].value, longValue);
   });
+
+  test(
+    'describeRestore distinguishes wrong password (오답) from corruption (손상)',
+    () {
+      const password = 'the-real-password';
+      final v = makeVault(password);
+      final archive = service.buildArchive(
+        salt: v.salt,
+        wrappedMek: v.wrappedMek,
+        secrets: [storedSecret(id: 1, name: 'x', value: 'v', mek: v.mek)],
+        mek: v.mek,
+      )!;
+      final dest = makeVault('new');
+
+      // Right salt/wrap but the password can't unwrap the MEK → 오답.
+      expect(
+        service.describeRestore(
+          archive: archive,
+          password: 'WRONG',
+          destinationMek: dest.mek,
+        ),
+        isA<RestoreWrongPassword>(),
+      );
+
+      // Unparseable archive → 손상.
+      expect(
+        service.describeRestore(
+          archive: '{"format":"not-a-keybox-archive"}',
+          password: password,
+          destinationMek: dest.mek,
+        ),
+        isA<RestoreCorrupt>(),
+      );
+
+      // A tampered record (unwrap succeeds, GCM fails) → 손상, not 오답.
+      final tampered = tamperFirstRecord(archive);
+      expect(
+        service.describeRestore(
+          archive: tampered,
+          password: password,
+          destinationMek: dest.mek,
+        ),
+        isA<RestoreCorrupt>(),
+      );
+
+      // The happy path carries the recovered secrets.
+      final ok = service.describeRestore(
+        archive: archive,
+        password: password,
+        destinationMek: dest.mek,
+      );
+      expect(ok, isA<RestoreSuccess>());
+      expect((ok as RestoreSuccess).secrets.single.value, 'v');
+    },
+  );
 
   test('preserves count + order across many records', () {
     const password = 'bulk-vault';

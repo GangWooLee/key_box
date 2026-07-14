@@ -28,6 +28,31 @@ class VaultBackupRecord {
   final EncryptedSecret encrypted;
 }
 
+/// The outcome of parsing + verifying a vault archive, distinguishing the
+/// failure modes the restore UI needs to voice (손상 vs 오답, DESIGN.md
+/// §restore-from-backup).
+sealed class ArchiveImport {
+  const ArchiveImport();
+}
+
+/// Every record decrypted and re-encrypted under the destination MEK.
+final class ArchiveImportSuccess extends ArchiveImport {
+  const ArchiveImportSuccess(this.records);
+  final List<VaultBackupRecord> records;
+}
+
+/// The archive JSON is unparseable, the wrong format/version, carries a
+/// divergent KDF, or a record fails GCM authentication — the file is corrupt.
+final class ArchiveImportCorrupt extends ArchiveImport {
+  const ArchiveImportCorrupt();
+}
+
+/// The archive is well-formed but the password cannot unwrap its MEK — the
+/// password is wrong (not the file).
+final class ArchiveImportWrongPassword extends ArchiveImport {
+  const ArchiveImportWrongPassword();
+}
+
 /// Backup / recovery net for the vault (PR-A, archive format v2 since PR-B).
 ///
 /// Provides verifiable integrity checks and export/import round-trips
@@ -146,10 +171,26 @@ class VaultBackupService {
     required String password,
     required Uint8List destinationMek,
   }) {
+    final result = describeImport(
+      archive: archive,
+      password: password,
+      destinationMek: destinationMek,
+    );
+    return result is ArchiveImportSuccess ? result.records : null;
+  }
+
+  /// Like [importArchive] but reports *why* it failed — malformed/corrupt file
+  /// vs wrong password — so the restore UI can voice the right clay reason
+  /// (DESIGN.md §restore-from-backup).
+  ArchiveImport describeImport({
+    required String archive,
+    required String password,
+    required Uint8List destinationMek,
+  }) {
     final json = _parseArchive(archive);
-    if (json == null) return null;
+    if (json == null) return const ArchiveImportCorrupt();
     final body = _parseBinaryFields(json);
-    if (body == null) return null;
+    if (body == null) return const ArchiveImportCorrupt();
     final (salt, wrappedMek, rawRecords) = body;
     final isV2 = json['formatVersion'] == _archiveFormatVersion;
 
@@ -160,8 +201,12 @@ class VaultBackupService {
       pdk = _kdf.deriveKey(password: password, salt: salt);
       final wrappingKey = isV2 ? (kek = _keyHierarchy.deriveKek(pdk)) : pdk;
       sourceMek = _mks.unwrap(wrappedKey: wrappedMek, wrappingKey: wrappingKey);
-      if (sourceMek == null) return null;
-      return _reencryptRecords(rawRecords, sourceMek, destinationMek);
+      // A well-formed archive whose MEK won't unwrap = wrong password.
+      if (sourceMek == null) return const ArchiveImportWrongPassword();
+      final records = _reencryptRecords(rawRecords, sourceMek, destinationMek);
+      // Unwrap succeeded but a record failed GCM = tampered/corrupt file.
+      if (records == null) return const ArchiveImportCorrupt();
+      return ArchiveImportSuccess(records);
     } finally {
       // Key material must not linger in memory (project security rule).
       if (pdk != null) _zeroOut(pdk);

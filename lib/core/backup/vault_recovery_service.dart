@@ -29,6 +29,28 @@ class RestoredSecret {
   final String value;
 }
 
+/// The outcome of a restore attempt, distinguishing the failure the UI voices:
+/// a corrupt file (손상) vs a wrong password (오답) — DESIGN.md
+/// §restore-from-backup.
+sealed class RestoreOutcome {
+  const RestoreOutcome();
+}
+
+final class RestoreSuccess extends RestoreOutcome {
+  const RestoreSuccess(this.secrets);
+  final List<RestoredSecret> secrets;
+}
+
+/// The archive is unparseable or a record fails authentication.
+final class RestoreCorrupt extends RestoreOutcome {
+  const RestoreCorrupt();
+}
+
+/// The archive is well-formed but the password is wrong.
+final class RestoreWrongPassword extends RestoreOutcome {
+  const RestoreWrongPassword();
+}
+
 /// Orchestrates vault backup **export** and **restore** across the AAD
 /// asymmetry.
 ///
@@ -86,46 +108,64 @@ class VaultRecoveryService {
   }
 
   /// Parses + verifies [archive] and recovers each secret's plaintext under a
-  /// fresh [destinationMek], ready to insert into a new vault. Returns null on
-  /// any failure (malformed archive, wrong [password], or a corrupt record).
-  ///
-  /// Phase 2 (the restore screen) refines the null into a corrupt-vs-wrong-
-  /// password distinction for the clay-toned reason line.
+  /// fresh [destinationMek], ready to insert into a new vault. Distinguishes
+  /// corrupt-file (손상) from wrong-password (오답) for the restore screen's
+  /// clay reason line.
+  RestoreOutcome describeRestore({
+    required String archive,
+    required String password,
+    required Uint8List destinationMek,
+  }) {
+    final imported = _backup.describeImport(
+      archive: archive,
+      password: password,
+      destinationMek: destinationMek,
+    );
+    switch (imported) {
+      case ArchiveImportWrongPassword():
+        return const RestoreWrongPassword();
+      case ArchiveImportCorrupt():
+        return const RestoreCorrupt();
+      case ArchiveImportSuccess(records: final records):
+        final restored = <RestoredSecret>[];
+        for (final r in records) {
+          // Re-encrypted empty-AAD under destinationMek by importArchive.
+          final plaintext = _enc.decrypt(
+            encryptedValue: r.encrypted.encryptedValue,
+            iv: r.encrypted.iv,
+            authTag: r.encrypted.authTag,
+            key: destinationMek,
+          );
+          if (plaintext == null) return const RestoreCorrupt();
+          restored.add(
+            RestoredSecret(
+              name: r.name,
+              secretType: r.secretType,
+              serviceName: r.serviceName,
+              environment: r.environment,
+              notes: r.notes,
+              tags: r.tags,
+              value: plaintext,
+            ),
+          );
+        }
+        return RestoreSuccess(restored);
+    }
+  }
+
+  /// Plaintext entries on success, or null on any failure. Thin wrapper over
+  /// [describeRestore] for callers that don't need the failure distinction.
   List<RestoredSecret>? restore({
     required String archive,
     required String password,
     required Uint8List destinationMek,
   }) {
-    final records = _backup.importArchive(
+    final outcome = describeRestore(
       archive: archive,
       password: password,
       destinationMek: destinationMek,
     );
-    if (records == null) return null;
-
-    final restored = <RestoredSecret>[];
-    for (final r in records) {
-      // importArchive re-encrypted each record empty-AAD under destinationMek.
-      final plaintext = _enc.decrypt(
-        encryptedValue: r.encrypted.encryptedValue,
-        iv: r.encrypted.iv,
-        authTag: r.encrypted.authTag,
-        key: destinationMek,
-      );
-      if (plaintext == null) return null;
-      restored.add(
-        RestoredSecret(
-          name: r.name,
-          secretType: r.secretType,
-          serviceName: r.serviceName,
-          environment: r.environment,
-          notes: r.notes,
-          tags: r.tags,
-          value: plaintext,
-        ),
-      );
-    }
-    return restored;
+    return outcome is RestoreSuccess ? outcome.secrets : null;
   }
 
   /// AAD-aware read of a stored secret: the AAD-bound form first (post-B2
