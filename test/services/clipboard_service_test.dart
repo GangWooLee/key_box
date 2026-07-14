@@ -30,5 +30,21 @@ void main() {
       // but the method should complete without throwing.
       await service.copyWithAutoClear('test-secret');
     });
+
+    test(
+      'copyWithAutoClear fires onCopy so the UI can start the countdown',
+      () async {
+        var copies = 0;
+        final s = ClipboardService(onCopy: () => copies++);
+        addTearDown(s.dispose);
+
+        await s.copyWithAutoClear('secret');
+        expect(copies, 1);
+
+        // A second copy re-arms the countdown (fires again).
+        await s.copyWithAutoClear('another');
+        expect(copies, 2);
+      },
+    );
   });
 }

@@ -19,6 +19,7 @@ import '../widgets/secret_detail.dart';
 import '../widgets/sheet_modal.dart';
 import '../../domain/secrets_providers.dart';
 import '../widgets/command_palette.dart';
+import '../widgets/clipboard_countdown.dart';
 
 /// The 3-column workbench (DESIGN.md §dashboard): tray sidebar (sunken) →
 /// canvas table → lamp detail. Light comes from the right — the thing you
@@ -107,7 +108,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             color: s.lamp,
                             border: Border(left: BorderSide(color: s.hairline)),
                           ),
-                          child: const SecretDetail(),
+                          // The clipboard countdown lives outside SecretDetail
+                          // so it survives switching between secrets (보안 UX #3).
+                          child: const Stack(
+                            children: [
+                              SecretDetail(),
+                              Positioned(
+                                left: AppSpacing.md,
+                                bottom: 48,
+                                child: ClipboardCountdown(),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),

@@ -203,8 +203,15 @@ final searchResultsProvider = FutureProvider<List<Secret>>((ref) async {
 
 // ─── Clipboard ───
 
+/// Bumps every time a secret is copied, so the detail panel can (re)start the
+/// quiet auto-clear countdown ring (보안 UX #3). The ring runs the same 30s as
+/// the service's wipe timer, so no explicit "cleared" signal is needed.
+final clipboardCopyEventProvider = StateProvider<int>((ref) => 0);
+
 final clipboardServiceProvider = Provider<ClipboardService>((ref) {
-  final service = ClipboardService();
+  final service = ClipboardService(
+    onCopy: () => ref.read(clipboardCopyEventProvider.notifier).state++,
+  );
   ref.onDispose(() => service.dispose());
   return service;
 });
