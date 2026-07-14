@@ -46,12 +46,12 @@ void main() {
 
   group('AppRouter', () {
     group('route definitions', () {
-      test('has 8 routes', () {
+      test('has 9 routes', () {
         final router = buildRouter(const AuthInitial());
         final goRoutes = router.configuration.routes
             .whereType<GoRoute>()
             .toList();
-        expect(goRoutes.length, 8);
+        expect(goRoutes.length, 9);
       });
 
       test('all route paths are unique', () {

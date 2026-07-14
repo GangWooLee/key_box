@@ -11,6 +11,7 @@ import '../../features/auth/presentation/screens/unlock_screen.dart';
 import '../../features/auth/presentation/screens/vault_error_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/secrets/presentation/screens/dashboard_screen.dart';
+import '../../features/settings/presentation/screens/settings_screen.dart';
 import 'route_names.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
@@ -90,6 +91,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.auditLog,
         name: RouteNames.auditLog,
         builder: (context, state) => const AuditLogScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.settings,
+        name: RouteNames.settings,
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

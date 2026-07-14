@@ -346,6 +346,22 @@ class _TopBar extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: AppSpacing.xs),
+            // Settings button
+            Tooltip(
+              message: 'Settings',
+              child: InkWell(
+                onTap: () => context.pushNamed(RouteNames.settings),
+                borderRadius: BorderRadius.circular(AppRadii.sm),
+                child: SizedBox(
+                  width: kMinHitTarget,
+                  height: kMinHitTarget,
+                  child: Center(
+                    child: Icon(LucideIcons.settings, size: 16, color: s.muted),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.xs),
             // Theme toggle button
             Tooltip(
               message: isCurrentlyDark
