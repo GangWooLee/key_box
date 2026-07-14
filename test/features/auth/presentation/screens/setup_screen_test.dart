@@ -95,7 +95,7 @@ void main() {
           ],
         );
 
-        // Enter short password (less than 8 chars)
+        // Enter short password (below the 12-char minimum)
         await tester.enterText(find.byType(TextField).first, 'short');
         await tester.enterText(find.byType(TextField).last, 'short');
 
@@ -103,9 +103,44 @@ void main() {
         await tester.tap(find.text('Create Vault'));
         await tester.pumpAndSettle();
 
-        // The validator renders "At least 8 characters" — plus the hint text
-        // There may be 2+ instances (hint + error), just check at least one error shows
+        // The validator renders "At least 12 characters" — plus the hint text.
+        // There may be 2+ instances (hint + error); check at least one shows.
         expect(find.textContaining('At least'), findsWidgets);
+      });
+
+      testWidgets('weak-strength hint band shows for 12–15, gone at 16', (
+        tester,
+      ) async {
+        // Guards the hint band (setup_screen _strongLength=16 vs
+        // minPasswordLength=12): raising the minimum without raising
+        // _strongLength collapses this band to empty — a silent UX loss.
+        await tester.pumpProviderWidget(
+          const SetupScreen(),
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => FakeAuthNotifier(const AuthFirstRun()),
+            ),
+          ],
+        );
+
+        // 13 chars — inside the weak band (12..15): the non-blocking hint shows.
+        await tester.enterText(find.byType(TextField).first, 'thirteenchars');
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('a longer password is stronger'),
+          findsOneWidget,
+        );
+
+        // 16 chars — strong: the weak hint is gone.
+        await tester.enterText(
+          find.byType(TextField).first,
+          'sixteencharslong',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.textContaining('a longer password is stronger'),
+          findsNothing,
+        );
       });
 
       testWidgets('mismatched passwords show error', (tester) async {

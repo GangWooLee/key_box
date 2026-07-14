@@ -146,7 +146,7 @@ void main() {
           newPassword: 'short',
           confirmation: 'short',
         ),
-        contains('at least 8'),
+        contains('at least 12'),
       );
       // Nothing was staged by rejected attempts.
       expect(await sidecar.readStaged(), isA<SidecarMissing>());

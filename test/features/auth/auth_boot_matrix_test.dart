@@ -243,8 +243,8 @@ void main() {
       );
 
       final error = await notifier.setup(
-        password: 'testpass1',
-        confirmation: 'testpass1',
+        password: 'testpass1234',
+        confirmation: 'testpass1234',
       );
 
       expect(error, isNull);

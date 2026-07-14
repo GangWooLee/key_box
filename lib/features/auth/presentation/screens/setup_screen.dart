@@ -22,9 +22,11 @@ class SetupScreen extends ConsumerStatefulWidget {
 }
 
 class _SetupScreenState extends ConsumerState<SetupScreen> {
-  /// Below this length the (non-blocking) weak hint shows. Blocking minimum
-  /// stays [CryptoConstants.minPasswordLength] via the validator.
-  static const _strongLength = 12;
+  /// At or above this length the password reads as strong (no hint). Between
+  /// the blocking minimum ([CryptoConstants.minPasswordLength], 12) and this,
+  /// a non-blocking "weak" hint nudges toward a longer password. Kept above
+  /// the minimum so the hint band never collapses to empty.
+  static const _strongLength = 16;
 
   final _passwordController = TextEditingController();
   final _confirmController = TextEditingController();

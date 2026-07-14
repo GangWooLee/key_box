@@ -62,8 +62,29 @@ void main() {
           confirmation: 'short',
         );
 
-        expect(error, contains('at least 8'));
+        expect(error, contains('at least 12'));
         expect(notifier.state, isA<AuthInitial>());
+      });
+
+      test('rejects an 11-char password (below the 12-char floor)', () async {
+        final error = await notifier.setup(
+          password: 'eleven_char', // 11 chars — one below the minimum
+          confirmation: 'eleven_char',
+        );
+
+        expect(error, contains('at least 12'));
+        expect(notifier.state, isA<AuthInitial>());
+      });
+
+      test('accepts a 12-char password (at the floor)', () async {
+        final error = await notifier.setup(
+          password: 'twelve_chars', // exactly 12 chars
+          confirmation: 'twelve_chars',
+        );
+
+        // No length rejection — setup proceeds to a created vault.
+        expect(error, isNull);
+        expect(notifier.state, isA<AuthUnlocked>());
       });
 
       test('creates default General folder', () async {
@@ -140,8 +161,8 @@ void main() {
         final notifier2 = AuthNotifier(db2);
 
         await notifier2.setup(
-          password: 'mypassword',
-          confirmation: 'mypassword',
+          password: 'mypassword12',
+          confirmation: 'mypassword12',
         );
         // Snapshot the MEK value (a copy) before locking: lock() now zeroes
         // the live buffer in place, so a plain reference would read back as
@@ -151,7 +172,7 @@ void main() {
         );
 
         notifier2.lock();
-        await notifier2.unlock(password: 'mypassword');
+        await notifier2.unlock(password: 'mypassword12');
 
         final unlockMek = (notifier2.state as AuthUnlocked).masterEncryptionKey;
         expect(unlockMek, equals(setupMek));

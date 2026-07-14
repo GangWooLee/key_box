@@ -101,7 +101,7 @@ void main() {
 
         final error = await container
             .read(authProvider.notifier)
-            .setup(password: 'testpass1', confirmation: 'testpass1');
+            .setup(password: 'testpass1234', confirmation: 'testpass1234');
 
         expect(error, isNull);
         expect(container.read(databaseHolderProvider), isNotNull);
@@ -125,8 +125,8 @@ void main() {
         final notifier = container.read(authProvider.notifier);
         expect(
           await notifier.setup(
-            password: 'testpass1',
-            confirmation: 'testpass1',
+            password: 'testpass1234',
+            confirmation: 'testpass1234',
           ),
           isNull,
         );
@@ -136,8 +136,8 @@ void main() {
 
         expect(
           await notifier.setup(
-            password: 'testpass2',
-            confirmation: 'testpass2',
+            password: 'testpass2345',
+            confirmation: 'testpass2345',
           ),
           isNull,
         );

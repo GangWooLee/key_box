@@ -26,6 +26,10 @@ abstract final class CryptoConstants {
   // record version (blocks rollback to a previously rotated value).
   static const String aadSecretPrefix = 'keybox/v1/secret';
 
-  // Minimum password
-  static const int minPasswordLength = 8;
+  // Minimum master-password length. Raised 8→12 (CSO threat model T7): an
+  // 8-char lowercase password (~2e11 space) is within offline-brute-force
+  // reach against the vault; 12 chars (~1e17) closes that window. Enforced
+  // only at setup / password-change — never re-checked at unlock, so existing
+  // shorter vaults still open.
+  static const int minPasswordLength = 12;
 }
