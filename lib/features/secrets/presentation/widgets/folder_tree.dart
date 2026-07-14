@@ -209,10 +209,9 @@ class _FolderTreeNode extends ConsumerWidget {
       ref.read(selectedFolderIdProvider.notifier).state = null;
       ref.read(selectedCategoryProvider.notifier).state = SecretCategory.all;
     } else {
-      // Select folder → clear category/service
+      // Select folder → clear category
       ref.read(selectedFolderIdProvider.notifier).state = folder.id;
       ref.read(selectedCategoryProvider.notifier).state = SecretCategory.all;
-      ref.read(selectedServiceProvider.notifier).state = null;
     }
     ref.read(selectedSecretIdProvider.notifier).state = null;
   }

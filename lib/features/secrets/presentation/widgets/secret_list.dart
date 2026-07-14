@@ -184,13 +184,12 @@ class _EmptyState extends ConsumerWidget {
     final s = Theme.of(context).extension<KbSurface>()!;
     final folderId = ref.watch(selectedFolderIdProvider);
     final category = ref.watch(selectedCategoryProvider);
-    final service = ref.watch(selectedServiceProvider);
 
     // A filter is narrowing the view — quiet one-liner, not the hero.
     if (folderId != null) {
       return _QuietEmpty(message: 'this folder is empty', surface: s);
     }
-    if (category != SecretCategory.all || service != null) {
+    if (category != SecretCategory.all) {
       return _QuietEmpty(message: 'no secrets in this view', surface: s);
     }
 

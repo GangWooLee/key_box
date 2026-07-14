@@ -134,7 +134,6 @@ class _CollapsedSidebar extends ConsumerWidget {
               child: InkWell(
                 onTap: () {
                   ref.read(selectedCategoryProvider.notifier).state = cat;
-                  ref.read(selectedServiceProvider.notifier).state = null;
                   ref.read(selectedFolderIdProvider.notifier).state = null;
                   ref.read(selectedSecretIdProvider.notifier).state = null;
                 },
@@ -276,7 +275,6 @@ class _CategorySection extends ConsumerWidget {
             isActive: isActive,
             onTap: () {
               ref.read(selectedCategoryProvider.notifier).state = cat;
-              ref.read(selectedServiceProvider.notifier).state = null;
               ref.read(selectedFolderIdProvider.notifier).state = null;
               ref.read(selectedSecretIdProvider.notifier).state = null;
             },

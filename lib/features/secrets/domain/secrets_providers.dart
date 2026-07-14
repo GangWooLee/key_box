@@ -81,29 +81,6 @@ final selectedCategoryProvider = StateProvider<SecretCategory>(
   (ref) => SecretCategory.all,
 );
 
-final selectedServiceProvider = StateProvider<String?>((ref) => null);
-
-/// Aggregated service list with counts, derived from all vault secrets.
-final serviceListProvider = Provider<List<({String name, int count})>>((ref) {
-  final secretsAsync = ref.watch(secretsProvider);
-  return secretsAsync.when(
-    data: (secrets) {
-      final map = <String, int>{};
-      for (final s in secrets) {
-        if (s.serviceName != null && s.serviceName!.isNotEmpty) {
-          map[s.serviceName!] = (map[s.serviceName!] ?? 0) + 1;
-        }
-      }
-      final list =
-          map.entries.map((e) => (name: e.key, count: e.value)).toList()
-            ..sort((a, b) => b.count.compareTo(a.count));
-      return list;
-    },
-    loading: () => [],
-    error: (_, __) => [],
-  );
-});
-
 /// Category counts derived from all vault secrets.
 final categoryCountsProvider = Provider<Map<SecretCategory, int>>((ref) {
   final secretsAsync = ref.watch(secretsProvider);
@@ -136,9 +113,8 @@ final folderSecretsProvider = StreamProvider.family<List<Secret>, int>((
   return db.folderSecretsDao.watchSecretsByFolderId(folderId);
 });
 
-/// Filtered secrets based on selected category + service OR folder.
-/// Folder selection takes priority — when a folder is selected, category
-/// and service filters are ignored.
+/// Filtered secrets based on selected category OR folder. Folder selection
+/// takes priority — when a folder is selected, the category filter is ignored.
 final filteredSecretsProvider = Provider<List<Secret>>((ref) {
   final selectedFolder = ref.watch(selectedFolderIdProvider);
 
@@ -152,19 +128,13 @@ final filteredSecretsProvider = Provider<List<Secret>>((ref) {
     );
   }
 
-  // Category/service mode: existing logic
+  // Category mode
   final secretsAsync = ref.watch(secretsProvider);
   final category = ref.watch(selectedCategoryProvider);
-  final service = ref.watch(selectedServiceProvider);
 
   return secretsAsync.when(
-    data: (secrets) {
-      var result = secrets.where((s) => category.matches(s.secretType));
-      if (service != null) {
-        result = result.where((s) => s.serviceName == service);
-      }
-      return result.toList();
-    },
+    data: (secrets) =>
+        secrets.where((s) => category.matches(s.secretType)).toList(),
     loading: () => [],
     error: (_, __) => [],
   );

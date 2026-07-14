@@ -39,7 +39,6 @@ void main() {
       showCommandPaletteProvider.overrideWith((ref) => showPalette),
       selectedSecretIdProvider.overrideWith((ref) => null),
       selectedCategoryProvider.overrideWith((ref) => SecretCategory.all),
-      selectedServiceProvider.overrideWith((ref) => null),
       filteredSecretsProvider.overrideWith((ref) => <Secret>[]),
       categoryCountsProvider.overrideWith((ref) => <SecretCategory, int>{}),
       rootFoldersProvider.overrideWith((ref) => Stream.value(<Folder>[])),

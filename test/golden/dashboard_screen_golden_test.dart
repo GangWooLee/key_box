@@ -76,7 +76,6 @@ void main() {
         // Empty detail panel — avoids the DB-backed secretDetailProvider fetch.
         selectedSecretIdProvider.overrideWith((ref) => null),
         selectedCategoryProvider.overrideWith((ref) => SecretCategory.all),
-        selectedServiceProvider.overrideWith((ref) => null),
         selectedFolderIdProvider.overrideWith((ref) => null),
         filteredSecretsProvider.overrideWith((ref) => secrets),
         categoryCountsProvider.overrideWith(

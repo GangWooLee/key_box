@@ -19,14 +19,12 @@ void main() {
   // Overrides that make Sidebar renderable without a real DB.
   List<Override> sidebarOverrides({
     SecretCategory selectedCategory = SecretCategory.all,
-    String? selectedService,
     Map<SecretCategory, int>? counts,
     List<Folder>? rootFolders,
     bool sidebarCollapsed = false,
   }) {
     return [
       selectedCategoryProvider.overrideWith((ref) => selectedCategory),
-      selectedServiceProvider.overrideWith((ref) => selectedService),
       categoryCountsProvider.overrideWith((ref) {
         return counts ??
             {

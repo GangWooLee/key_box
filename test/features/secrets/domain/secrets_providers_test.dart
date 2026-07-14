@@ -120,50 +120,6 @@ void main() {
     });
   });
 
-  group('serviceListProvider (unit-like)', () {
-    test('aggregates by serviceName, sorted by count desc', () {
-      final secrets = [
-        makeTestSecret(id: 1, serviceName: 'GitHub'),
-        makeTestSecret(id: 2, serviceName: 'AWS'),
-        makeTestSecret(id: 3, serviceName: 'GitHub'),
-        makeTestSecret(id: 4, serviceName: 'GitHub'),
-        makeTestSecret(id: 5, serviceName: 'AWS'),
-      ];
-
-      final map = <String, int>{};
-      for (final s in secrets) {
-        if (s.serviceName != null && s.serviceName!.isNotEmpty) {
-          map[s.serviceName!] = (map[s.serviceName!] ?? 0) + 1;
-        }
-      }
-      final list =
-          map.entries.map((e) => (name: e.key, count: e.value)).toList()
-            ..sort((a, b) => b.count.compareTo(a.count));
-
-      expect(list[0].name, 'GitHub');
-      expect(list[0].count, 3);
-      expect(list[1].name, 'AWS');
-      expect(list[1].count, 2);
-    });
-
-    test('null/empty serviceName excluded', () {
-      final secrets = [
-        makeTestSecret(id: 1, serviceName: null),
-        makeTestSecret(id: 2, serviceName: ''),
-        makeTestSecret(id: 3, serviceName: 'GitHub'),
-      ];
-
-      final map = <String, int>{};
-      for (final s in secrets) {
-        if (s.serviceName != null && s.serviceName!.isNotEmpty) {
-          map[s.serviceName!] = (map[s.serviceName!] ?? 0) + 1;
-        }
-      }
-      expect(map.length, 1);
-      expect(map['GitHub'], 1);
-    });
-  });
-
   group('searchResultsProvider (unit-like)', () {
     test('empty query returns no results', () {
       const query = '';
