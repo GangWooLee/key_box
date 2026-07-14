@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/cipher_params.dart';
 import '../../../core/database/database.dart';
 import '../../../core/database/vault_paths.dart';
+import '../../../core/backup/vault_recovery_service.dart';
 import '../../../core/encryption/key_derivation_service.dart';
 import '../../../core/encryption/key_hierarchy_service.dart';
 import '../../../core/encryption/master_key_service.dart';
+import '../../../core/encryption/secret_encryption_service.dart';
 import '../../../core/constants/crypto_constants.dart';
 import '../../../core/vault/sidecar_store.dart';
 import '../../../core/vault/vault_migrator.dart';
@@ -102,6 +104,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final _kds = KeyDerivationService();
   final _mks = MasterKeyService();
   final _keyHierarchy = KeyHierarchyService();
+  final _secretEnc = SecretEncryptionService();
+  final _recovery = VaultRecoveryService();
 
   AppDatabase _ensureDb({Uint8List? dbKey}) =>
       _db ??= _openDatabase!(dbKey: dbKey);
@@ -284,6 +288,114 @@ class AuthNotifier extends StateNotifier<AuthState> {
         isFirstSetup: true,
       );
       return null; // success
+    } finally {
+      _zeroOut(pdk);
+      _zeroOut(kek);
+      _zeroOut(salt);
+      _zeroOut(wrappedMek);
+    }
+  }
+
+  /// Restores a vault from a backup [archive], keyed with [password] — which
+  /// both unwraps the archive's MEK and protects the newly-created vault (one
+  /// password, DESIGN.md §restore-from-backup). Verifies + recovers BEFORE
+  /// touching the DB, so a corrupt file or wrong password leaves no half-built
+  /// vault behind. On success creates a fresh vault, re-inserts every secret
+  /// AAD-bound into the default folder, and unlocks.
+  ///
+  /// Assumes a fresh vault (entered after reset / from vault-error). Returns
+  /// the [RestoreOutcome] so the restore screen can voice 손상 vs 오답.
+  Future<RestoreOutcome> restoreFromBackup({
+    required String archive,
+    required String password,
+  }) async {
+    final salt = _kds.generateSalt();
+    final pdk = _kds.deriveKey(password: password, salt: salt);
+    final dbKey = _keyHierarchy.deriveDbKey(pdk);
+    final kek = _keyHierarchy.deriveKek(pdk);
+    final mek = _mks.generateMasterKey();
+    final wrappedMek = _mks.wrap(masterKey: mek, wrappingKey: kek);
+
+    try {
+      // Verify + recover first — never create a vault for a bad archive.
+      final outcome = _recovery.describeRestore(
+        archive: archive,
+        password: password,
+        destinationMek: mek,
+      );
+      if (outcome is! RestoreSuccess) {
+        _zeroOut(mek);
+        return outcome;
+      }
+
+      final db = _ensureDb(dbKey: dbKey);
+      late int vaultId;
+      await db.transaction(() async {
+        final vault = await db.vaultDao.create(name: 'Personal');
+        vaultId = vault.id;
+        await db.vaultConfigDao.create(
+          vaultId: vault.id,
+          masterKeySalt: salt,
+          encryptedMasterKey: wrappedMek,
+        );
+        final folder = await db.folderDao.create(
+          vaultId: vault.id,
+          name: 'General',
+          icon: 'folder',
+          position: 0,
+        );
+        await db.auditEventDao.create(
+          vaultId: vault.id,
+          action: 'vault.restore',
+        );
+        // Re-bind AAD per row: the id autoincrement only reveals after insert,
+        // so placeholder → encrypt under that identity → land the ciphertext.
+        for (final rs in outcome.secrets) {
+          final placeholder = await db.secretDao.create(
+            vaultId: vault.id,
+            folderId: folder.id,
+            name: rs.name,
+            encryptedValue: Uint8List(0),
+            encryptedValueIv: Uint8List(0),
+            encryptedValueAuthTag: Uint8List(0),
+            secretType: rs.secretType,
+            serviceName: rs.serviceName,
+            environment: rs.environment,
+            notes: rs.notes,
+            tags: rs.tags,
+          );
+          final enc = _secretEnc.encrypt(
+            value: rs.value,
+            key: mek,
+            aad: secretAad(
+              secretId: placeholder.id,
+              recordVersion: placeholder.recordVersion,
+            ),
+          );
+          await db.secretDao.updateSecret(
+            placeholder.id,
+            encryptedValue: enc.encryptedValue,
+            encryptedValueIv: enc.iv,
+            encryptedValueAuthTag: enc.authTag,
+          );
+          await db.folderSecretsDao.link(folder.id, placeholder.id);
+          await db.folderDao.incrementSecretsCount(folder.id);
+        }
+      });
+
+      // Sidecar write after commit (non-fatal — the salt is in the DB).
+      try {
+        await _sidecar.write(salt);
+      } catch (e) {
+        if (kDebugMode) debugPrint('[Auth:restore] sidecar write failed: $e');
+      }
+
+      state = AuthUnlocked(
+        masterEncryptionKey: mek,
+        vaultId: vaultId,
+        isFirstSetup: false,
+      );
+      return RestoreSuccess(outcome.secrets);
     } finally {
       _zeroOut(pdk);
       _zeroOut(kek);
