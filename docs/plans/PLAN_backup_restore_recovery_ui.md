@@ -97,3 +97,7 @@ export 성공 → 마지막 백업 시각 갱신 → Phase 4 신호 활성.
 - **다음: Phase 3(settings — export 트리거 포함) + Phase 4(보안상태 2/3·3/3).** 주의: 사용자 개시 export는 Phase 3(settings)에 있음 — 현재 복원 소스는 마이그레이션 자동 백업. buildArchive(Phase 1)는 이미 완성, UI 트리거+파일 저장만 남음.
 - 2026-07-14 Phase 3.1 완료(7eb1020): settings 화면(Appearance 테마 + Backup export)+대시보드 진입+routing. **복구망 루프 완성**(Phase2 restore ↔ Phase3 export). export gather 종단 라운드트립+위젯 5+골든 2. LastBackupStore 신설(Phase4 언블록).
 - **Phase 3 잔여**: 비번 변경(키 회전 changePassword UI)·자동잠금 시간 config·reveal 기본값. **Phase 4**: 보안상태 3/3(마지막 백업 시각 — LastBackupStore 준비됨, 디테일 하단 배선만)·2/3(자동잠금 잔여).
+- 2026-07-14 Phase 3.2 완료(550e2c6): settings Security 섹션 — 비번 변경(키 회전) UI.
+- 2026-07-14 Phase 3.3 완료(b344896): settings Preferences — 자동잠금 시간 config + reveal 기본값. **Phase 3 완성**(테마·export·비번변경·자동잠금·reveal 전 항목).
+- 2026-07-14 Phase 4 3/3 완료(325cddc): 마지막 백업 시각(VaultStatusStrip, 디테일 하단). 보안상태 1/3(클립보드)·3/3(백업) 완료.
+- **Phase 4 잔여 2/3(자동잠금 잔여)**: 활동 리셋마다 타이머가 full로 리셋 → 라이브 카운트다운이 노이즈. 정보성 유지하며 지터 억제할 설계 필요(정책 표시 'auto-lock 15m' vs coarse remaining) — 별도 패스. 그 외 복구망 전 페이즈 완료.
