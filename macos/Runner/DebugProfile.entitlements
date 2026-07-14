@@ -6,9 +6,12 @@
 	<true/>
 	<key>com.apple.security.cs.allow-jit</key>
 	<true/>
+	<!-- network.server is required under the sandbox for the Dart VM service
+	     (hot reload / DevTools / flutter attach) to accept inbound connections
+	     in debug — do NOT remove it. network.client (outbound) was removed
+	     (CSO F4): a local-only vault makes zero outbound calls, so keeping it
+	     only widened the supply-chain exfil surface. Release is already clean. -->
 	<key>com.apple.security.network.server</key>
-	<true/>
-	<key>com.apple.security.network.client</key>
 	<true/>
 	<!-- Backup export/restore: the user picks the .kbx location via the native
 	     panel. Minimal grant — no broad file or downloads access. -->
