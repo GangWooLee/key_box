@@ -6,6 +6,7 @@ import '../../features/auth/domain/auth_state.dart';
 import '../../features/auth/domain/auth_notifier.dart';
 import '../../features/auth/presentation/screens/loading_screen.dart';
 import '../../features/auth/presentation/screens/setup_screen.dart';
+import '../../features/auth/presentation/screens/restore_screen.dart';
 import '../../features/auth/presentation/screens/unlock_screen.dart';
 import '../../features/auth/presentation/screens/vault_error_screen.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
@@ -74,6 +75,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: RoutePaths.vaultError,
         name: RouteNames.vaultError,
         builder: (context, state) => const VaultErrorScreen(),
+      ),
+      GoRoute(
+        path: RoutePaths.restore,
+        name: RouteNames.restore,
+        builder: (context, state) => const RestoreScreen(),
       ),
       GoRoute(
         path: RoutePaths.dashboard,

@@ -46,12 +46,12 @@ void main() {
 
   group('AppRouter', () {
     group('route definitions', () {
-      test('has 7 routes', () {
+      test('has 8 routes', () {
         final router = buildRouter(const AuthInitial());
         final goRoutes = router.configuration.routes
             .whereType<GoRoute>()
             .toList();
-        expect(goRoutes.length, 7);
+        expect(goRoutes.length, 8);
       });
 
       test('all route paths are unique', () {
@@ -224,13 +224,14 @@ void main() {
   });
 
   group('RoutePaths constants', () {
-    test('authRoutes contains exactly 5 auth paths', () {
+    test('authRoutes contains exactly the pre-unlock paths', () {
       expect(RoutePaths.authRoutes, {
         RoutePaths.loading,
         RoutePaths.setup,
         RoutePaths.unlock,
         RoutePaths.onboarding,
         RoutePaths.vaultError,
+        RoutePaths.restore,
       });
     });
 

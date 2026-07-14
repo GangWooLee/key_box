@@ -37,8 +37,9 @@ void main() {
       await pumpScreen(tester, VaultErrorReason.vaultFileMissing);
 
       expect(find.text('Vault data file is missing'), findsOneWidget);
-      // Data-loss warning must point the user toward backup restore.
-      expect(find.textContaining('backup'), findsOneWidget);
+      // Data-loss recovery: the non-destructive restore path is offered
+      // alongside the destructive reset fallback.
+      expect(find.text('Restore from backup'), findsOneWidget);
       expect(find.text('Reset vault'), findsOneWidget);
     });
 

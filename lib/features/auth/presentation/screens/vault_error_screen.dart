@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
@@ -11,8 +13,9 @@ import '../../domain/auth_state.dart';
 /// remains on the Slab (DESIGN.md §vault-error). The reason reads in calm
 /// clay, not an alarm; no warning iconography.
 ///
-/// Backup restore will be wired here in a follow-up; for now the only exit
-/// is an explicit, confirmed reset back to first-run.
+/// Two exits: the non-destructive **restore from backup** (the out-trust
+/// recovery path), and, as a last resort, an explicit confirmed reset back to
+/// first-run.
 class VaultErrorScreen extends ConsumerWidget {
   const VaultErrorScreen({super.key});
 
@@ -53,6 +56,20 @@ class VaultErrorScreen extends ConsumerWidget {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: AppSpacing.xl),
+                // Primary recovery: non-destructive restore from a backup.
+                Center(
+                  child: TextButton(
+                    onPressed: () => context.pushNamed(RouteNames.restore),
+                    child: Text(
+                      'Restore from backup',
+                      style: AppTypography.bodySmall.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: s.accent,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.md),
                 Semantics(
                   label: 'Reset vault and delete all data',
                   child: Center(
