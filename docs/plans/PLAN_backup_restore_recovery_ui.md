@@ -34,7 +34,7 @@
   RestoreResult { corrupt | wrongPassword | success }) 필요. 언랩 성공했으나 레코드
   무결성 실패 = 손상 / 언랩 자체 실패 = 오답.
 
-## Phase 1 — 복구 오케스트레이션 + 마지막 백업 시각 (순수/테스터블, 이번 착수)
+## Phase 1 — 복구 오케스트레이션 + 마지막 백업 시각 ✅ 완료(2026-07-14)
 
 **목표**: 파일 픽업·화면 없이, export/restore의 순수 로직을 TDD로 확정. 왕복 라운드트립
 (export → restore → 모든 시크릿 보존) 테스트가 크라운 주얼 — 복구망이 실제로 작동함을
@@ -52,7 +52,7 @@
   손상 아카이브 거부, 오답 거부, recordCount 불일치 거부, 빈 볼트 export, 마지막 백업
   시각 기록/복원.
 
-## Phase 2 — restore-from-backup 화면 (Slab 3-step) + 파일 선택 + 진입점
+## Phase 2 — restore-from-backup 화면 (Slab 3-step) + 파일 선택 + 진입점 ✅ 완료(2026-07-14)
 
 DESIGN.md §restore: Slab 유지, 3스텝 — ①`.kbx` 파일 선택 ②마스터 비번 ③무결성 검사
 (conic ring, verifyIntegrity 결과) → 성공=벤치 진입 스윕 / 실패=클레이 사유(손상·오답
@@ -87,3 +87,11 @@ export 성공 → 마지막 백업 시각 갱신 → Phase 4 신호 활성.
   등 확대 금지.
 - **복원 중 자동잠금/기존 볼트**: 복원은 새 볼트로 진입하므로 기존 볼트 파일 처리 정책
   (덮어쓰기 vs 별도)은 Phase 2에서 확정.
+
+
+## 진행 로그
+- 2026-07-14 Phase 1 완료(2b78edf): VaultRecoveryService 왕복 8케이스.
+- 2026-07-14 Phase 2.1 완료(f7093b8): 손상/오답 구분(sealed RestoreOutcome).
+- 2026-07-14 Phase 2.2 완료(de473fd): AuthNotifier.restoreFromBackup 종단 4케이스.
+- 2026-07-14 Phase 2.3/2.4 완료(c2147b5): restore 화면(Slab 3-step)+file_selector+엔타이틀먼트+vault-error 진입+라우팅. 위젯 5+골든 2.
+- **다음: Phase 3(settings — export 트리거 포함) + Phase 4(보안상태 2/3·3/3).** 주의: 사용자 개시 export는 Phase 3(settings)에 있음 — 현재 복원 소스는 마이그레이션 자동 백업. buildArchive(Phase 1)는 이미 완성, UI 트리거+파일 저장만 남음.
