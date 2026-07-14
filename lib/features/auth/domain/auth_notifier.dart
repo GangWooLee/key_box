@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/database/cipher_params.dart';
 import '../../../core/database/database.dart';
 import '../../../core/database/vault_paths.dart';
+import '../../../core/backup/pre_rotation_backup_store.dart';
 import '../../../core/backup/vault_recovery_service.dart';
 import '../../../core/encryption/key_derivation_service.dart';
 import '../../../core/encryption/key_hierarchy_service.dart';
@@ -66,14 +67,19 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Kept generative — FakeAuthNotifier and existing tests construct/extend
   /// through this. DB-file existence is judged by `vaultConfigDao.exists()`,
   /// which maps the legacy scenarios onto the boot matrix naturally.
-  AuthNotifier(AppDatabase db, {SidecarStore? sidecar})
-    : _db = db,
-      _sidecar = sidecar ?? InMemorySidecarStore(),
-      _openDatabase = null,
-      _dbFileExists = null,
-      _releaseDatabase = null,
-      _migrator = VaultMigrator(),
-      super(const AuthInitial());
+  AuthNotifier(
+    AppDatabase db, {
+    SidecarStore? sidecar,
+    PreRotationBackupStore? preRotationBackup,
+  }) : _db = db,
+       _sidecar = sidecar ?? InMemorySidecarStore(),
+       _preRotationBackup =
+           preRotationBackup ?? InMemoryPreRotationBackupStore(),
+       _openDatabase = null,
+       _dbFileExists = null,
+       _releaseDatabase = null,
+       _migrator = VaultMigrator(),
+       super(const AuthInitial());
 
   /// Production constructor: zero IO until needed. The database is opened
   /// lazily via [openDatabase] only when the boot matrix requires it —
@@ -87,8 +93,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required Future<bool> Function() dbFileExists,
     Future<void> Function()? releaseDatabase,
     VaultMigrator? migrator,
+    PreRotationBackupStore? preRotationBackup,
   }) : _db = null,
        _sidecar = sidecar,
+       _preRotationBackup =
+           preRotationBackup ?? const FilePreRotationBackupStore(),
        _openDatabase = openDatabase,
        _dbFileExists = dbFileExists,
        _releaseDatabase = releaseDatabase,
@@ -97,6 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   AppDatabase? _db;
   final SidecarStore _sidecar;
+  final PreRotationBackupStore _preRotationBackup;
   final AppDatabase Function({Uint8List? dbKey})? _openDatabase;
   final Future<bool> Function()? _dbFileExists;
   final Future<void> Function()? _releaseDatabase;
@@ -575,6 +585,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
       );
       if (mek == null) return 'Incorrect password';
 
+      // Recovery net: the "case B" crash window (rewrap committed at ④, file
+      // not yet rekeyed at ⑤) is unlockable by NEITHER the old nor the new
+      // password — completing it needs the old password to open the file AND
+      // the new password to unwrap the MEK. Snapshot the current vault —
+      // restorable with the OLD password — BEFORE any mutation; if the net
+      // can't be secured, abort rather than rotate into that window.
+      final netError = await _writePreRotationBackup(
+        db: db,
+        vaultId: current.vaultId,
+        saltOld: saltOld,
+        wrappedMekOld: Uint8List.fromList(config.encryptedMasterKey),
+        mek: mek,
+      );
+      if (netError != null) return netError;
+
       // ② New key hierarchy (salt rotates with the password).
       saltNew = _kds.generateSalt();
       pdkNew = _kds.deriveKey(password: newPassword, salt: saltNew);
@@ -598,6 +623,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
       await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
       // ⑥ Promote the journal — the rotation's commit point.
       await _sidecar.promoteStaged();
+      // Rotation committed — drop the net. Best-effort: a lingering snapshot
+      // is a stale (old-password) backup the next rotation overwrites, not a
+      // hazard, so its removal must not fail an already-successful rotation.
+      try {
+        await _preRotationBackup.delete();
+      } catch (_) {
+        /* non-fatal — the rotation already committed */
+      }
       return null; // ⑦ session MEK unchanged — no relock needed
     } finally {
       _zeroOut(pdkOld);
@@ -617,11 +650,47 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Rotation resume — case B (crash between the DB commit ④ and the
-  /// rekey ⑤): the config already holds the new wrap, but the file is still
-  /// keyed with the pre-rotation dbKey (which is how this connection was
-  /// opened). If the typed password unwraps under the STAGED salt's KEK,
-  /// finish the rotation: rekey, checkpoint, promote.
+  /// Writes the pre-rotation recovery snapshot — restorable with the OLD
+  /// password — before a rotation mutates anything. Returns an error string to
+  /// abort the rotation when the net can't be secured: a lossy (a secret
+  /// unreadable) or unwritable snapshot must never let a rotation proceed into
+  /// the unrecoverable case-B window.
+  Future<String?> _writePreRotationBackup({
+    required AppDatabase db,
+    required int vaultId,
+    required Uint8List saltOld,
+    required Uint8List wrappedMekOld,
+    required Uint8List mek,
+  }) async {
+    final secrets = await db.secretDao.getByVaultId(vaultId);
+    final archive = _recovery.buildArchive(
+      salt: saltOld,
+      wrappedMek: wrappedMekOld,
+      secrets: secrets,
+      mek: mek,
+    );
+    if (archive == null) {
+      return 'Could not secure a pre-change backup — password unchanged';
+    }
+    try {
+      await _preRotationBackup.write(archive);
+    } catch (_) {
+      return 'Could not secure a pre-change backup — password unchanged';
+    }
+    return null;
+  }
+
+  /// Rotation resume — case B (crash between the DB commit ④ and the rekey ⑤):
+  /// the config already holds the new wrap, but the file is still keyed with
+  /// the pre-rotation dbKey.
+  ///
+  /// This converges ONLY a salt-only rotation (old password == new password):
+  /// the dispatcher reaches here only when the typed password opened the
+  /// (old-keyed) file, and this handler only unwraps the new wrap when the
+  /// typed password matches the NEW password — both hold together iff the two
+  /// passwords are equal. A genuine password change that crashes in case B is
+  /// unlockable by neither password; that window is recovered by restoring the
+  /// pre-rotation snapshot ([PreRotationBackupStore]) with the OLD password.
   Future<String?> _resumeRotationBeforeRekey({
     required AppDatabase db,
     required String password,

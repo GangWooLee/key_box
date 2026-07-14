@@ -3,11 +3,14 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:key_box/core/backup/pre_rotation_backup_store.dart';
+import 'package:key_box/core/backup/vault_recovery_service.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/database/vault_paths.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/encryption/key_hierarchy_service.dart';
 import 'package:key_box/core/encryption/master_key_service.dart';
+import 'package:key_box/core/encryption/secret_encryption_service.dart';
 import 'package:key_box/core/vault/sidecar_store.dart';
 import 'package:key_box/core/vault/vault_migrator.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
@@ -20,6 +23,17 @@ import '../../helpers/widget_test_helpers.dart';
 class _NoopMigrator extends VaultMigrator {
   @override
   Future<void> recoverInterrupted() async {}
+}
+
+/// Backup store whose write always fails — proves rotation refuses to proceed
+/// without a recovery net.
+class _ThrowingBackupStore implements PreRotationBackupStore {
+  @override
+  Future<void> write(String archive) async =>
+      throw Exception('disk full — cannot secure the net');
+
+  @override
+  Future<void> delete() async {}
 }
 
 void main() {
@@ -54,9 +68,13 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  AuthNotifier makeLazy({required SidecarStore sidecar}) {
+  AuthNotifier makeLazy({
+    required SidecarStore sidecar,
+    PreRotationBackupStore? preRotationBackup,
+  }) {
     return AuthNotifier.lazy(
       sidecar: sidecar,
+      preRotationBackup: preRotationBackup ?? InMemoryPreRotationBackupStore(),
       dbFileExists: () async => true,
       openDatabase: ({Uint8List? dbKey}) {
         if (holderDb != null) return holderDb!;
@@ -392,4 +410,148 @@ void main() {
       expect(openCalls, 2, reason: 'main open, then staged-salt reopen');
     });
   });
+
+  group(
+    'changePassword — pre-rotation recovery net (case-B lockout defense)',
+    () {
+      test(
+        'secures the net before rotating and drops it after commit',
+        () async {
+          final backup = InMemoryPreRotationBackupStore();
+          final notifier = makeLazy(
+            sidecar: InMemorySidecarStore(),
+            preRotationBackup: backup,
+          );
+          await notifier.setup(
+            password: oldPassword,
+            confirmation: oldPassword,
+          );
+
+          final error = await notifier.changePassword(
+            oldPassword: oldPassword,
+            newPassword: newPassword,
+            confirmation: newPassword,
+          );
+
+          expect(error, isNull);
+          expect(
+            backup.writeCount,
+            1,
+            reason: 'net written before any mutation',
+          );
+          expect(
+            backup.deleteCount,
+            1,
+            reason: 'and dropped once rotation commits',
+          );
+          expect(
+            backup.archive,
+            isNull,
+            reason: 'no snapshot lingers on success',
+          );
+        },
+      );
+
+      test(
+        'the net is restorable with the OLD password, not the new',
+        () async {
+          final backup = InMemoryPreRotationBackupStore();
+          final notifier = makeLazy(
+            sidecar: InMemorySidecarStore(),
+            preRotationBackup: backup,
+          );
+          await notifier.setup(
+            password: oldPassword,
+            confirmation: oldPassword,
+          );
+          final vaultId = (notifier.state as AuthUnlocked).vaultId;
+          final mek = (notifier.state as AuthUnlocked).masterEncryptionKey;
+
+          // Seed one secret (canonical empty-AAD form buildArchive can read).
+          final sealed = SecretEncryptionService().encrypt(
+            value: 'launch-codes',
+            key: mek,
+          );
+          final folders = await holderDb!.folderDao.getByVaultId(vaultId);
+          await holderDb!.secretDao.create(
+            vaultId: vaultId,
+            folderId: folders.first.id,
+            name: 'Nukes',
+            encryptedValue: sealed.encryptedValue,
+            encryptedValueIv: sealed.iv,
+            encryptedValueAuthTag: sealed.authTag,
+          );
+
+          await notifier.changePassword(
+            oldPassword: oldPassword,
+            newPassword: newPassword,
+            confirmation: newPassword,
+          );
+
+          // The captured pre-rotation archive restores with the OLD password.
+          final outcome = VaultRecoveryService().describeRestore(
+            archive: backup.lastWritten!,
+            password: oldPassword,
+            destinationMek: mks.generateMasterKey(),
+          );
+          expect(outcome, isA<RestoreSuccess>());
+          final restored = (outcome as RestoreSuccess).secrets;
+          expect(restored, hasLength(1));
+          expect(restored.single.name, 'Nukes');
+          expect(restored.single.value, 'launch-codes');
+
+          // MUTATION: the NEW password must NOT open the pre-rotation archive.
+          expect(
+            VaultRecoveryService().describeRestore(
+              archive: backup.lastWritten!,
+              password: newPassword,
+              destinationMek: mks.generateMasterKey(),
+            ),
+            isA<RestoreWrongPassword>(),
+          );
+        },
+      );
+
+      test(
+        'aborts the rotation when the net cannot be written — vault untouched',
+        () async {
+          final sidecar = InMemorySidecarStore();
+          final notifier = makeLazy(
+            sidecar: sidecar,
+            preRotationBackup: _ThrowingBackupStore(),
+          );
+          await notifier.setup(
+            password: oldPassword,
+            confirmation: oldPassword,
+          );
+          final saltBefore = (await sidecar.read() as SidecarFound).salt;
+
+          final error = await notifier.changePassword(
+            oldPassword: oldPassword,
+            newPassword: newPassword,
+            confirmation: newPassword,
+          );
+
+          expect(error, contains('backup'));
+          // Nothing mutated: no staged journal, salt unchanged, old KEK still works.
+          expect(await sidecar.readStaged(), isA<SidecarMissing>());
+          expect(
+            (await sidecar.read() as SidecarFound).salt,
+            equals(saltBefore),
+          );
+          final config = await holderDb!.vaultConfigDao.getByVaultId(
+            (notifier.state as AuthUnlocked).vaultId,
+          );
+          expect(
+            mks.unwrap(
+              wrappedKey: Uint8List.fromList(config!.encryptedMasterKey),
+              wrappingKey: kekFor(oldPassword, saltBefore),
+            ),
+            isNotNull,
+            reason: 'the old password still unwraps — no rewrap happened',
+          );
+        },
+      );
+    },
+  );
 }

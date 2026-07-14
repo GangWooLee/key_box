@@ -33,6 +33,14 @@ abstract final class VaultPaths {
   static const backupFilePrefix = 'key_box.backup-';
   static const backupFileSuffix = '.kbx';
 
+  /// Transient recovery net for a password change (changePassword): the vault
+  /// snapshot written BEFORE the rewrap/rekey and deleted once the rotation
+  /// commits. Its purpose is the "case B" crash window (rewrap committed, file
+  /// not yet rekeyed) which no single password can unlock — the user restores
+  /// this snapshot with the OLD password. Distinct from the kept migration
+  /// backups; this one is deleted on success.
+  static const preRotationBackupFileName = 'key_box.vault.prerotate.kbx';
+
   /// Injectable for tests; defaults to [getApplicationSupportDirectory].
   static Future<Directory> Function() supportDir = _defaultSupportDir;
 
