@@ -11,17 +11,38 @@ class ClipboardService {
   final VoidCallback? onCopy;
   final VoidCallback? onClear;
 
+  /// Native bridge to the macOS pasteboard. The handler tags the item
+  /// `org.nspasteboard.ConcealedType` so clipboard managers (Paste, Maccy…)
+  /// skip persisting/syncing the secret (보안 — CSO F6 위협 완화). Best-effort:
+  /// on any platform that lacks the handler (widget tests, other OSes) we fall
+  /// back to the plain system clipboard.
+  static const _secureChannel = MethodChannel('keybox/secure_clipboard');
+
   Timer? _clearTimer;
 
   /// Copy value to clipboard and auto-clear after 30 seconds.
   Future<void> copyWithAutoClear(String value) async {
-    await Clipboard.setData(ClipboardData(text: value));
+    await _writeConcealed(value);
     _clearTimer?.cancel();
     onCopy?.call();
     _clearTimer = Timer(
       const Duration(seconds: AppConstants.clipboardClearSeconds),
       _clearClipboard,
     );
+  }
+
+  /// Write via the concealed-pasteboard channel; fall back to the plain
+  /// clipboard when the native handler is unavailable so a copy never fails.
+  Future<void> _writeConcealed(String value) async {
+    try {
+      await _secureChannel.invokeMethod<void>('copyConcealed', {
+        'value': value,
+      });
+    } on PlatformException {
+      await Clipboard.setData(ClipboardData(text: value));
+    } on MissingPluginException {
+      await Clipboard.setData(ClipboardData(text: value));
+    }
   }
 
   void _clearClipboard() {
