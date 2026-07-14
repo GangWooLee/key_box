@@ -100,4 +100,4 @@ export 성공 → 마지막 백업 시각 갱신 → Phase 4 신호 활성.
 - 2026-07-14 Phase 3.2 완료(550e2c6): settings Security 섹션 — 비번 변경(키 회전) UI.
 - 2026-07-14 Phase 3.3 완료(b344896): settings Preferences — 자동잠금 시간 config + reveal 기본값. **Phase 3 완성**(테마·export·비번변경·자동잠금·reveal 전 항목).
 - 2026-07-14 Phase 4 3/3 완료(325cddc): 마지막 백업 시각(VaultStatusStrip, 디테일 하단). 보안상태 1/3(클립보드)·3/3(백업) 완료.
-- **Phase 4 잔여 2/3(자동잠금 잔여)**: 활동 리셋마다 타이머가 full로 리셋 → 라이브 카운트다운이 노이즈. 정보성 유지하며 지터 억제할 설계 필요(정책 표시 'auto-lock 15m' vs coarse remaining) — 별도 패스. 그 외 복구망 전 페이즈 완료.
+- 2026-07-14 Phase 4 2/3 완료(71e6c37): 자동잠금 잔여(VaultStatusStrip `_AutoLockLine`, 30초 coarse 틱 `auto-lock in Nm`). **지터 결론**: 활동 시 full 리셋은 올바른 UX(활동 중 사용자에게 임박 잠금 미표시) + 30초 틱으로 노이즈 억제 → 라이브 잔여 채택(정책표시 대안 기각). **부수 발견·수정**: `autoLockProvider`가 앱 어디에서도 watch 안 됨 = 자동잠금이 실행조차 안 되던 죽은 보안 기능 → 대시보드 build()에서 활성화 + 포인터/키 활동 배선. 라이프사이클 버그(onDispose→stop()이 disposed provider read) → dispose(타이머만)/stop(타이머+deadline) 분리. file_selector_macos 네이티브 등록 갭 보정(Phase 2 파일피커 macOS 실동작 필수). **복구망 UI 전 페이즈 완료.**
