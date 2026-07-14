@@ -59,7 +59,7 @@ DESIGN.md §restore: Slab 유지, 3스텝 — ①`.kbx` 파일 선택 ②마스�
 구분). vault-error 화면 "복원" 링크에서 진입 + routing(RouteNames.restore 신설).
 file_selector 의존성 + 엔타이틀먼트. golden(3스텝 각). 위젯 테스트(파일 읽기 주입 mock).
 
-## Phase 3 — settings 화면 (Bench/Terminal)
+## Phase 3 — settings 화면 (Bench/Terminal) — 3.1 완료(export), 3.2+ 잔여
 
 DESIGN.md §settings: 3-Column, 좌측 섹션 목록 + 우측 폼. 항목: 자동잠금 시간·테마
 (라이트/다크/시스템 — themeModeProvider 기존)·reveal 기본값·**비번 변경(→키 회전
@@ -95,3 +95,5 @@ export 성공 → 마지막 백업 시각 갱신 → Phase 4 신호 활성.
 - 2026-07-14 Phase 2.2 완료(de473fd): AuthNotifier.restoreFromBackup 종단 4케이스.
 - 2026-07-14 Phase 2.3/2.4 완료(c2147b5): restore 화면(Slab 3-step)+file_selector+엔타이틀먼트+vault-error 진입+라우팅. 위젯 5+골든 2.
 - **다음: Phase 3(settings — export 트리거 포함) + Phase 4(보안상태 2/3·3/3).** 주의: 사용자 개시 export는 Phase 3(settings)에 있음 — 현재 복원 소스는 마이그레이션 자동 백업. buildArchive(Phase 1)는 이미 완성, UI 트리거+파일 저장만 남음.
+- 2026-07-14 Phase 3.1 완료(7eb1020): settings 화면(Appearance 테마 + Backup export)+대시보드 진입+routing. **복구망 루프 완성**(Phase2 restore ↔ Phase3 export). export gather 종단 라운드트립+위젯 5+골든 2. LastBackupStore 신설(Phase4 언블록).
+- **Phase 3 잔여**: 비번 변경(키 회전 changePassword UI)·자동잠금 시간 config·reveal 기본값. **Phase 4**: 보안상태 3/3(마지막 백업 시각 — LastBackupStore 준비됨, 디테일 하단 배선만)·2/3(자동잠금 잔여).
