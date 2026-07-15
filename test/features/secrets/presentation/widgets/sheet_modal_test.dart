@@ -9,6 +9,7 @@ import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/encryption/master_key_service.dart';
 import 'package:key_box/core/theme/app_theme.dart';
+import 'package:key_box/core/utils/result.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
 import 'package:key_box/features/secrets/domain/secrets_providers.dart';
@@ -56,7 +57,11 @@ void main() {
     await db.close();
   });
 
-  Future<void> pumpModal(WidgetTester tester, {int? selectedFolderId}) async {
+  Future<void> pumpModal(
+    WidgetTester tester, {
+    int? selectedFolderId,
+    Secret? secret,
+  }) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -74,8 +79,11 @@ void main() {
             builder: (context, ref, _) => Scaffold(
               body: Center(
                 child: ElevatedButton(
-                  onPressed: () =>
-                      showSecretSheetModal(context: context, ref: ref),
+                  onPressed: () => showSecretSheetModal(
+                    context: context,
+                    ref: ref,
+                    secret: secret,
+                  ),
                   child: const Text('open'),
                 ),
               ),
@@ -87,6 +95,95 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
   }
+
+  /// Creates a real encrypted secret (via ops) so edit-mode tests have a row
+  /// whose value the modal must decrypt + pre-fill.
+  Future<Secret> seedSecret(String name, String value, int folderId) async {
+    final container = ProviderContainer(
+      overrides: [
+        databaseProvider.overrideWithValue(db),
+        authProvider.overrideWith(
+          (ref) => FakeAuthNotifier(
+            AuthUnlocked(masterEncryptionKey: mek, vaultId: vaultId),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    final result = await container
+        .read(secretOpsProvider)
+        .create(name: name, value: value, folderId: folderId);
+    return (result as Success<Secret>).data;
+  }
+
+  group('edit value pre-fill (#4)', () {
+    testWidgets('edit pre-fills the decrypted value, masked by default', (
+      tester,
+    ) async {
+      final secret = await seedSecret('GH', 'ghp_original', workId);
+      final current = (await db.secretDao.getById(secret.id))!;
+
+      await pumpModal(tester, secret: current);
+      await tester.pumpAndSettle(); // post-frame decrypt + setState
+
+      final valueField = tester.widget<TextField>(find.byType(TextField).at(1));
+      expect(valueField.controller!.text, 'ghp_original');
+      expect(
+        valueField.obscureText,
+        isTrue,
+        reason: 'masked by default (reveal parity)',
+      );
+    });
+
+    testWidgets('saving without changing the value does NOT rotate', (
+      tester,
+    ) async {
+      final secret = await seedSecret('GH', 'ghp_original', workId);
+      final current = (await db.secretDao.getById(secret.id))!;
+      expect(current.recordVersion, 1);
+
+      await pumpModal(tester, secret: current);
+      await tester.pumpAndSettle();
+      // Change only the Title, leave the pre-filled value untouched.
+      await tester.enterText(find.byType(TextField).at(0), 'GH renamed');
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      Secret? after;
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        after = await db.secretDao.getById(secret.id);
+      });
+      expect(after!.name, 'GH renamed');
+      expect(
+        after!.recordVersion,
+        1,
+        reason: 'unchanged value must not bump recordVersion',
+      );
+    });
+
+    testWidgets('changing the value rotates (recordVersion + 1)', (
+      tester,
+    ) async {
+      final secret = await seedSecret('GH', 'ghp_original', workId);
+      final current = (await db.secretDao.getById(secret.id))!;
+
+      await pumpModal(tester, secret: current);
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).at(1), 'ghp_rotated');
+      await tester.pump();
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+
+      Secret? after;
+      await tester.runAsync(() async {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        after = await db.secretDao.getById(secret.id);
+      });
+      expect(after!.recordVersion, 2, reason: 'changed value rotates');
+    });
+  });
 
   testWidgets(
     'create lands the secret in the SELECTED folder (Work), not general',

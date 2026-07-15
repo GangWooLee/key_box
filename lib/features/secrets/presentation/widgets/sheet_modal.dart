@@ -73,6 +73,11 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
   String? _nameError;
   String? _valueError;
 
+  /// The decrypted value at edit-entry, kept so Save can diff against it — an
+  /// unchanged value must not rotate (bump recordVersion). Null until the
+  /// post-frame decrypt lands (and always null in create mode).
+  String? _originalValue;
+
   bool get _isEdit => widget.secret != null;
 
   @override
@@ -95,6 +100,22 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
     ]) {
       c.addListener(_onFormChanged);
     }
+    if (_isEdit) {
+      // Edit shows the current value (partial edit). Masked by default —
+      // reveal parity with the detail panel. Decrypt after the first frame
+      // (initState can't await); Save diffs against [_originalValue].
+      _valueRevealed = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadValue());
+    }
+  }
+
+  Future<void> _loadValue() async {
+    final plain = await ref.read(secretOpsProvider).decrypt(widget.secret!);
+    if (!mounted || plain == null) return;
+    _originalValue = plain;
+    // Setting .text fires the controller listener → setState, reflecting the
+    // pre-filled (still not-dirty) value.
+    _valueController.text = plain;
   }
 
   void _onFormChanged() {
@@ -118,7 +139,7 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
           _environment != null;
     }
     return _nameController.text != sec.name ||
-        _valueController.text.isNotEmpty ||
+        _valueController.text != (_originalValue ?? '') ||
         _serviceController.text != (sec.serviceName ?? '') ||
         _notesController.text != (sec.notes ?? '') ||
         _secretType != sec.secretType ||
@@ -127,6 +148,20 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
 
   @override
   void dispose() {
+    // Drop the change listeners BEFORE scrubbing, so blanking the controller
+    // doesn't fire _onFormChanged → setState during teardown.
+    for (final c in [
+      _nameController,
+      _valueController,
+      _serviceController,
+      _notesController,
+    ]) {
+      c.removeListener(_onFormChanged);
+    }
+    // Best-effort scrub of the decrypted plaintext (Dart String can't be truly
+    // zeroed, but drop our reference and blank the controller buffer).
+    _valueController.clear();
+    _originalValue = null;
     _nameController.dispose();
     _valueController.dispose();
     _serviceController.dispose();
@@ -203,13 +238,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                       ),
                       const SizedBox(height: AppSpacing.lg - 4),
                       _ModalInput(
-                        label: _isEdit
-                            ? 'New Value — empty keeps current'
-                            : 'Key Value',
+                        label: 'Key Value',
                         controller: _valueController,
-                        hint: _isEdit
-                            ? 'Enter new value...'
-                            : 'Paste your secret here...',
+                        hint: 'Paste your secret here...',
                         maxLines: _valueRevealed ? 4 : 1,
                         obscureText: !_valueRevealed,
                         isMono: true,
@@ -309,7 +340,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
         _nameError = 'name is required';
         valid = false;
       }
-      if (!_isEdit && _valueController.text.isEmpty) {
+      // Value is required in both modes now (edit pre-fills it) — an empty
+      // secret is never valid.
+      if (_valueController.text.isEmpty) {
         _valueError = 'value is required';
         valid = false;
       }
@@ -321,9 +354,12 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
     final ops = ref.read(secretOpsProvider);
 
     if (_isEdit) {
-      final newValue = _valueController.text.isNotEmpty
-          ? _valueController.text
-          : null;
+      // Rotate only when the value actually changed from the decrypted
+      // original — an untouched pre-filled value passes null (no re-encrypt,
+      // recordVersion held).
+      final newValue = _valueController.text == _originalValue
+          ? null
+          : _valueController.text;
       await ops.update(
         widget.secret!.id,
         name: name,
