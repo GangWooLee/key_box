@@ -98,5 +98,49 @@ void main() {
           .first;
       expect(secrets, isEmpty);
     });
+
+    group('watchCountsByFolder (derived count — single source of truth)', () {
+      test('returns per-folder live member counts', () async {
+        final s1 = await createSecret('S1', folder1Id);
+        final s2 = await createSecret('S2', folder1Id);
+        final s3 = await createSecret('S3', folder2Id);
+        await db.folderSecretsDao.link(folder1Id, s1.id);
+        await db.folderSecretsDao.link(folder1Id, s2.id);
+        await db.folderSecretsDao.link(folder2Id, s3.id);
+
+        final counts = await db.folderSecretsDao.watchCountsByFolder().first;
+        expect(counts[folder1Id], 2);
+        expect(counts[folder2Id], 1);
+      });
+
+      test('omits folders with no links (caller uses ?? 0)', () async {
+        final s1 = await createSecret('S1', folder1Id);
+        await db.folderSecretsDao.link(folder1Id, s1.id);
+
+        final counts = await db.folderSecretsDao.watchCountsByFolder().first;
+        expect(counts[folder1Id], 1);
+        expect(counts[folder2Id], isNull);
+      });
+
+      test(
+        'reflects unlink live (matches the join table, no cache drift)',
+        () async {
+          final s1 = await createSecret('S1', folder1Id);
+          final s2 = await createSecret('S2', folder1Id);
+          await db.folderSecretsDao.link(folder1Id, s1.id);
+          await db.folderSecretsDao.link(folder1Id, s2.id);
+          expect(
+            (await db.folderSecretsDao.watchCountsByFolder().first)[folder1Id],
+            2,
+          );
+
+          await db.folderSecretsDao.unlinkAllForSecret(s1.id);
+          expect(
+            (await db.folderSecretsDao.watchCountsByFolder().first)[folder1Id],
+            1,
+          );
+        },
+      );
+    });
   });
 }

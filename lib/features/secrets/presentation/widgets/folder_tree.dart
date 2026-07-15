@@ -103,6 +103,10 @@ class _FolderTreeNode extends ConsumerWidget {
     final isExpanded = expandedIds.contains(folder.id);
     final children = ref.watch(folderChildrenProvider(folder.id));
     final hasChildren = children.whenOrNull(data: (c) => c.isNotEmpty) ?? false;
+    // Count derived live from the M:N join table (single source of truth) —
+    // not the folders.secretsCount cache, which drifted from the real members.
+    final counts =
+        ref.watch(folderSecretCountsProvider).valueOrNull ?? const {};
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -169,7 +173,7 @@ class _FolderTreeNode extends ConsumerWidget {
                     ),
                     // Count — mono, the ledger's numerals.
                     Text(
-                      '${folder.secretsCount}',
+                      '${counts[folder.id] ?? 0}',
                       style: AppTypography.mono.copyWith(
                         fontSize: 11,
                         color: s.muted,

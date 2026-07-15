@@ -113,6 +113,17 @@ final folderSecretsProvider = StreamProvider.family<List<Secret>, int>((
   return db.folderSecretsDao.watchSecretsByFolderId(folderId);
 });
 
+/// Live secret counts per folder, derived from the M:N join table — the single
+/// source of truth (mirrors [categoryCountsProvider]). Replaces the drift-prone
+/// `folders.secretsCount` cache, whose write paths diverged. Folders with no
+/// links are absent from the map; the sidebar reads `counts[id] ?? 0`.
+final folderSecretCountsProvider = StreamProvider<Map<int, int>>((ref) {
+  final auth = ref.watch(authProvider);
+  if (auth is! AuthUnlocked) return const Stream.empty();
+  final db = ref.read(databaseProvider);
+  return db.folderSecretsDao.watchCountsByFolder();
+});
+
 /// Filtered secrets based on selected category OR folder. Folder selection
 /// takes priority — when a folder is selected, the category filter is ignored.
 final filteredSecretsProvider = Provider<List<Secret>>((ref) {
@@ -246,9 +257,9 @@ class SecretOperations {
         return (await _db.secretDao.getById(placeholder.id))!;
       });
 
-      // M:N: auto-link to the home folder
+      // M:N link is the source of truth for membership + count (derived via
+      // folderSecretCountsProvider) — no cache column to keep in sync.
       await _db.folderSecretsDao.link(folderId, secret.id);
-      await _db.folderDao.incrementSecretsCount(folderId);
       await _logAudit('secret.create', secret.id, {'name': name});
 
       return Success(secret);
@@ -331,10 +342,9 @@ class SecretOperations {
 
   Future<Result<void>> delete(Secret secret) async {
     try {
-      // M:N: remove all folder links first
+      // M:N: remove all folder links (count is derived, so no decrement).
       await _db.folderSecretsDao.unlinkAllForSecret(secret.id);
       await _db.secretDao.deleteSecret(secret.id);
-      await _db.folderDao.decrementSecretsCount(secret.folderId);
       await _logAudit('secret.delete', null, {'name': secret.name});
       return const Success(null);
     } catch (e) {

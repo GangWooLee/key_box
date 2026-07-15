@@ -338,13 +338,20 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
             : null,
       );
     } else {
-      // For create, we need a folderId — use the first available folder or create one
+      // Resolve the target folder: the one the user is currently viewing
+      // (selectedFolderIdProvider) so "Add secret" lands where they expect.
+      // Fall back to the first folder (general) only in a category/all view
+      // where no folder is selected, or create one if the vault has none.
       final auth = ref.read(authProvider);
       if (auth is! AuthUnlocked) return;
       final db = ref.read(databaseProvider);
+      final selectedFolderId = ref.read(selectedFolderIdProvider);
       final folders = await db.folderDao.getByVaultId(auth.vaultId);
       int folderId;
-      if (folders.isEmpty) {
+      if (selectedFolderId != null &&
+          folders.any((f) => f.id == selectedFolderId)) {
+        folderId = selectedFolderId;
+      } else if (folders.isEmpty) {
         final folder = await db.folderDao.create(
           vaultId: auth.vaultId,
           name: 'Default',

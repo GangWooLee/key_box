@@ -77,6 +77,11 @@ void main() {
         selectedSecretIdProvider.overrideWith((ref) => null),
         selectedCategoryProvider.overrideWith((ref) => SecretCategory.all),
         selectedFolderIdProvider.overrideWith((ref) => null),
+        // Folder counts are now derived from the join table; feed the sidebar
+        // the same numbers the fake folders advertise (Personal 3, Work 1).
+        folderSecretCountsProvider.overrideWith(
+          (ref) => Stream.value(const {1: 3, 2: 1}),
+        ),
         filteredSecretsProvider.overrideWith((ref) => secrets),
         categoryCountsProvider.overrideWith(
           (ref) => const {

@@ -84,6 +84,11 @@ void main() {
           selectedSecretIdProvider.overrideWith((ref) => null),
           selectedCategoryProvider.overrideWith((ref) => SecretCategory.all),
           selectedFolderIdProvider.overrideWith((ref) => null),
+          // Folder counts are now derived — feed the sidebar the fake folders'
+          // advertised numbers (Personal 3, Work 1).
+          folderSecretCountsProvider.overrideWith(
+            (ref) => Stream.value(const {1: 3, 2: 1}),
+          ),
           filteredSecretsProvider.overrideWith((ref) => secrets),
           categoryCountsProvider.overrideWith(
             (ref) => const {

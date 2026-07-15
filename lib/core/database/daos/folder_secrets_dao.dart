@@ -47,6 +47,24 @@ class FolderSecretsDao extends DatabaseAccessor<AppDatabase>
     );
   }
 
+  /// Watch live member counts per folder, derived straight from the M:N join
+  /// table — the single source of truth for folder counts. Folders with no
+  /// links are absent from the map (callers use `?? 0`). Replaces the
+  /// drift-prone `folders.secretsCount` cache column, whose write paths
+  /// (migration, link/unlink, delete) diverged from the join table.
+  Stream<Map<int, int>> watchCountsByFolder() {
+    final countExpr = folderSecrets.secretId.count();
+    final query = selectOnly(folderSecrets)
+      ..addColumns([folderSecrets.folderId, countExpr])
+      ..groupBy([folderSecrets.folderId]);
+    return query.watch().map(
+      (rows) => {
+        for (final row in rows)
+          row.read(folderSecrets.folderId)!: row.read(countExpr)!,
+      },
+    );
+  }
+
   /// Get all folder IDs a secret belongs to.
   Future<List<int>> getFolderIdsBySecretId(int secretId) {
     final query = select(folderSecrets)
