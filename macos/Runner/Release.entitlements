@@ -4,6 +4,16 @@
 <dict>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
+	<!-- Required alongside hardened runtime (T10) so the app can load its
+	     bundled third-party frameworks (SQLCipher.framework, Flutter engine)
+	     when they are NOT co-signed with the main executable's Team ID — i.e.
+	     ad-hoc local builds and any build not re-signed under one Developer ID.
+	     Without this, hardened-runtime library validation aborts the process at
+	     launch ("different Team IDs"). This relaxes dylib co-signing only; it
+	     does NOT re-enable debugger attach, so the F2 (MEK extraction) defense
+	     from hardened runtime + absent get-task-allow stays intact. -->
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
 	<!-- Backup export/restore: the user picks the .kbx location via the native
 	     panel. Minimal grant — no broad file, network, or downloads access. -->
 	<key>com.apple.security.files.user-selected.read-write</key>
