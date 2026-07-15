@@ -249,10 +249,13 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                           tooltip: _valueRevealed
                               ? 'Mask value'
                               : 'Reveal value',
+                          // Icon mirrors STATE (revealed = open eye, masked =
+                          // eyeOff), matching the auth screens; the tooltip
+                          // carries the action.
                           icon: Icon(
                             _valueRevealed
-                                ? LucideIcons.eyeOff
-                                : LucideIcons.eye,
+                                ? LucideIcons.eye
+                                : LucideIcons.eyeOff,
                             size: 14,
                             color: s.muted,
                           ),

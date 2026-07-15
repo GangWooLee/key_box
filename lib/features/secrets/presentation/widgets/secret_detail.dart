@@ -385,7 +385,9 @@ class _ValueBox extends StatelessWidget {
             children: [
               _GhostButton(
                 label: isRevealed ? 'Hide' : 'Reveal',
-                icon: isRevealed ? LucideIcons.eyeOff : LucideIcons.eye,
+                // Icon mirrors STATE (revealed = open eye, masked = eyeOff),
+                // matching the auth screens; the label carries the action.
+                icon: isRevealed ? LucideIcons.eye : LucideIcons.eyeOff,
                 onTap: onReveal,
               ),
               const SizedBox(width: AppSpacing.sm),

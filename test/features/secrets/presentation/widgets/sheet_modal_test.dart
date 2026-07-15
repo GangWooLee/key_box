@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
@@ -115,6 +116,20 @@ void main() {
         .create(name: name, value: value, folderId: folderId);
     return (result as Success<Secret>).data;
   }
+
+  testWidgets(
+    'value toggle icon mirrors state — eye when revealed, eyeOff when masked (#1)',
+    (tester) async {
+      await pumpModal(tester); // create mode starts revealed
+      expect(find.byIcon(LucideIcons.eye), findsOneWidget);
+      expect(find.byIcon(LucideIcons.eyeOff), findsNothing);
+
+      await tester.tap(find.byIcon(LucideIcons.eye)); // → masked
+      await tester.pump();
+      expect(find.byIcon(LucideIcons.eyeOff), findsOneWidget);
+      expect(find.byIcon(LucideIcons.eye), findsNothing);
+    },
+  );
 
   group('edit value pre-fill (#4)', () {
     testWidgets('edit pre-fills the decrypted value, masked by default', (
