@@ -471,7 +471,8 @@ class _AdvancedToggle extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadii.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6),
+          // Same 8pt header rhythm as the detail panel's collapsible sections.
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
           child: Row(
             children: [
               AnimatedRotation(

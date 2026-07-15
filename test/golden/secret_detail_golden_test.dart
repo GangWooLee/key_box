@@ -59,4 +59,44 @@ void main() {
       matchesGoldenFile('goldens/secret_detail.png'),
     );
   });
+
+  // Details expanded — the #3 spacing fix (header→child breathing room via
+  // _CollapsibleSection) is only visible when a section is open, so capture it.
+  testWidgets('secret_detail — Details expanded spacing (terminal)', (
+    tester,
+  ) async {
+    final secret = makeTestSecret(
+      id: 1,
+      name: 'Stripe Secret Key',
+      secretType: 'api_key',
+      serviceName: 'Stripe',
+      environment: 'production',
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 1),
+    );
+
+    await pumpGolden(
+      tester,
+      child: const Scaffold(body: SecretDetail()),
+      size: GoldenSizes.detailPanel,
+      overrides: [
+        authProvider.overrideWith(
+          (ref) => FakeAuthNotifier(
+            AuthUnlocked(masterEncryptionKey: Uint8List(32), vaultId: 1),
+          ),
+        ),
+        selectedSecretIdProvider.overrideWith((ref) => 1),
+        secretDetailProvider(1).overrideWith((ref) => secret),
+      ],
+    );
+    await tester.pumpAndSettle();
+    // Expand the Details section to show the header→child spacing.
+    await tester.tap(find.text('Details'));
+    await tester.pumpAndSettle();
+
+    await expectLater(
+      find.byType(MaterialApp),
+      matchesGoldenFile('goldens/secret_detail_expanded.png'),
+    );
+  });
 }

@@ -509,7 +509,14 @@ class _CollapsibleSection extends StatelessWidget {
         ),
         if (isExpanded)
           Padding(
-            padding: const EdgeInsets.only(left: 20, bottom: AppSpacing.sm),
+            // A distinct header→child gap (top) so the header's hover fill
+            // doesn't crowd the content; bottom on the same 8pt rhythm gives
+            // each section room from the next.
+            padding: const EdgeInsets.only(
+              left: 20,
+              top: AppSpacing.smd,
+              bottom: AppSpacing.md,
+            ),
             child: child,
           ),
       ],
