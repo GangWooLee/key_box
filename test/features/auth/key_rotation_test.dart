@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/backup/pre_rotation_backup_store.dart';
+import 'package:key_box/core/backup/vault_backup_service.dart';
 import 'package:key_box/core/backup/vault_recovery_service.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/database/vault_paths.dart';
@@ -39,7 +40,15 @@ class _ThrowingBackupStore implements PreRotationBackupStore {
 void main() {
   const oldPassword = 'rotation-old-pw-1';
   const newPassword = 'rotation-new-pw-2';
-  final kds = KeyDerivationService();
+  // Behavioral suite: it asserts rotation state transitions + KEK rewrap, not
+  // KDF strength. A single production 600k-iteration PBKDF2 derive is ~3s in
+  // pure-Dart pointycastle, and rotation/resume paths derive several per call —
+  // enough to blow the 30s budget under whole-suite CPU load (the historical
+  // flake). A tiny work factor keeps the SAME algorithm/output shape while
+  // making every derive instant. The notifier shares THIS instance (via
+  // makeLazy), so its derivations stay byte-consistent with the expectations
+  // computed through kekFor / seedVault below.
+  final kds = KeyDerivationService(iterations: 1);
   final mks = MasterKeyService();
   final hierarchy = KeyHierarchyService();
 
@@ -88,6 +97,7 @@ void main() {
         holderDb = null;
       },
       migrator: _NoopMigrator(),
+      keyDerivationService: kds,
     );
   }
 
@@ -489,11 +499,16 @@ void main() {
           );
 
           // The captured pre-rotation archive restores with the OLD password.
-          final outcome = VaultRecoveryService().describeRestore(
-            archive: backup.lastWritten!,
-            password: oldPassword,
-            destinationMek: mks.generateMasterKey(),
-          );
+          // The notifier wrapped it under the fast-KDS KEK, so the recovery
+          // reader must derive with the same work factor to unwrap it.
+          final outcome =
+              VaultRecoveryService(
+                backupService: VaultBackupService(keyDerivationService: kds),
+              ).describeRestore(
+                archive: backup.lastWritten!,
+                password: oldPassword,
+                destinationMek: mks.generateMasterKey(),
+              );
           expect(outcome, isA<RestoreSuccess>());
           final restored = (outcome as RestoreSuccess).secrets;
           expect(restored, hasLength(1));
@@ -502,7 +517,9 @@ void main() {
 
           // MUTATION: the NEW password must NOT open the pre-rotation archive.
           expect(
-            VaultRecoveryService().describeRestore(
+            VaultRecoveryService(
+              backupService: VaultBackupService(keyDerivationService: kds),
+            ).describeRestore(
               archive: backup.lastWritten!,
               password: newPassword,
               destinationMek: mks.generateMasterKey(),

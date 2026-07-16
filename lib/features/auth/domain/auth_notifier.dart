@@ -71,6 +71,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     AppDatabase db, {
     SidecarStore? sidecar,
     PreRotationBackupStore? preRotationBackup,
+    KeyDerivationService? keyDerivationService,
+    VaultRecoveryService? recoveryService,
   }) : _db = db,
        _sidecar = sidecar ?? InMemorySidecarStore(),
        _preRotationBackup =
@@ -79,6 +81,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
        _dbFileExists = null,
        _releaseDatabase = null,
        _migrator = VaultMigrator(),
+       _kds = keyDerivationService ?? KeyDerivationService(),
+       _recovery = recoveryService ?? VaultRecoveryService(),
        super(const AuthInitial());
 
   /// Production constructor: zero IO until needed. The database is opened
@@ -94,6 +98,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     Future<void> Function()? releaseDatabase,
     VaultMigrator? migrator,
     PreRotationBackupStore? preRotationBackup,
+    KeyDerivationService? keyDerivationService,
+    VaultRecoveryService? recoveryService,
   }) : _db = null,
        _sidecar = sidecar,
        _preRotationBackup =
@@ -102,6 +108,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
        _dbFileExists = dbFileExists,
        _releaseDatabase = releaseDatabase,
        _migrator = migrator ?? VaultMigrator(),
+       _kds = keyDerivationService ?? KeyDerivationService(),
+       _recovery = recoveryService ?? VaultRecoveryService(),
        super(const AuthInitial());
 
   AppDatabase? _db;
@@ -111,11 +119,11 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final Future<bool> Function()? _dbFileExists;
   final Future<void> Function()? _releaseDatabase;
   final VaultMigrator _migrator;
-  final _kds = KeyDerivationService();
+  final KeyDerivationService _kds;
   final _mks = MasterKeyService();
   final _keyHierarchy = KeyHierarchyService();
   final _secretEnc = SecretEncryptionService();
-  final _recovery = VaultRecoveryService();
+  final VaultRecoveryService _recovery;
 
   AppDatabase _ensureDb({Uint8List? dbKey}) =>
       _db ??= _openDatabase!(dbKey: dbKey);

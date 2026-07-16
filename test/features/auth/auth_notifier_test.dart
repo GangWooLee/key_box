@@ -7,12 +7,22 @@ import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
 
 void main() {
+  // Fast KDF shared across every AuthNotifier so setup↔unlock pairs derive
+  // under the SAME work factor (a 600k mismatch between the wrap and the
+  // unwrap would fail spuriously). A single production 600k-iteration PBKDF2
+  // derive is ~3s in pure-Dart pointycastle — enough per-derive cost to flake
+  // the 30s test budget under whole-suite load. The KeyDerivationService
+  // behavior group below reuses this instance (its determinism/difference/
+  // length assertions are iteration-independent); production 600k strength is
+  // pinned separately in test/core/encryption/key_derivation_service_test.dart.
+  final kds = KeyDerivationService(iterations: 1);
+
   late AppDatabase db;
   late AuthNotifier notifier;
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    notifier = AuthNotifier(db);
+    notifier = AuthNotifier(db, keyDerivationService: kds);
   });
 
   tearDown(() async {
@@ -158,7 +168,7 @@ void main() {
         // Store the MEK from setup before locking
         // (We already locked in setUp, so setup again)
         final db2 = AppDatabase.forTesting(NativeDatabase.memory());
-        final notifier2 = AuthNotifier(db2);
+        final notifier2 = AuthNotifier(db2, keyDerivationService: kds);
 
         await notifier2.setup(
           password: 'mypassword12',
@@ -182,7 +192,7 @@ void main() {
 
       test('unlocks with special character password', () async {
         final db2 = AppDatabase.forTesting(NativeDatabase.memory());
-        final notifier2 = AuthNotifier(db2);
+        final notifier2 = AuthNotifier(db2, keyDerivationService: kds);
 
         final error = await notifier2.setup(
           password: 'p@ss!word#123',
@@ -202,7 +212,7 @@ void main() {
 
       test('unlocks with symbols and mixed case password', () async {
         final db2 = AppDatabase.forTesting(NativeDatabase.memory());
-        final notifier2 = AuthNotifier(db2);
+        final notifier2 = AuthNotifier(db2, keyDerivationService: kds);
 
         const pwd = r'C0mpl3x!@#$%^&*()_+-=[]{}';
         final error = await notifier2.setup(password: pwd, confirmation: pwd);
@@ -220,7 +230,7 @@ void main() {
       test('unlock with new notifier simulates app restart', () async {
         // notifier already has a vault set up and is locked (from group setUp)
         // Create a fresh notifier on the same DB to simulate restart
-        final notifier2 = AuthNotifier(db);
+        final notifier2 = AuthNotifier(db, keyDerivationService: kds);
         await notifier2.initialize();
         expect(notifier2.state, isA<AuthLocked>());
 
@@ -294,7 +304,7 @@ void main() {
         );
 
         // Simulate app restart with a new notifier on the same DB
-        final notifier2 = AuthNotifier(db);
+        final notifier2 = AuthNotifier(db, keyDerivationService: kds);
         await notifier2.initialize();
         expect(notifier2.state, isA<AuthLocked>());
       });
@@ -302,8 +312,6 @@ void main() {
   });
 
   group('KeyDerivationService', () {
-    final kds = KeyDerivationService();
-
     test('produces consistent PDK for same password and salt', () {
       final salt = kds.generateSalt();
       final pdk1 = kds.deriveKey(password: 'test!@#', salt: salt);

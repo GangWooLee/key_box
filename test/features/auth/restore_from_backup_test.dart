@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:key_box/core/backup/vault_backup_service.dart';
 import 'package:key_box/core/backup/vault_recovery_service.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/encryption/key_derivation_service.dart';
@@ -20,7 +21,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final enc = SecretEncryptionService();
-  final kdf = KeyDerivationService();
+  // Behavioral suite: it asserts the restore round-trip (archive → AAD-bound
+  // rows), not KDF strength. A single production 600k-iteration PBKDF2 derive
+  // is ~3s in pure-Dart pointycastle; a tiny work factor keeps the SAME
+  // algorithm/output shape while making every derive instant. This single
+  // instance backs BOTH sides — the archive's wrappedMek (via makeVault) AND
+  // the notifier's restore reader (injected below) — so they stay
+  // byte-consistent and the unwrap matches.
+  final kdf = KeyDerivationService(iterations: 1);
   final kh = KeyHierarchyService();
   final mks = MasterKeyService();
   final recovery = VaultRecoveryService();
@@ -105,7 +113,16 @@ void main() {
 
   setUp(() {
     db = AppDatabase.forTesting(NativeDatabase.memory());
-    notifier = AuthNotifier(db);
+    // Share the fast KDS across the notifier's own derivations AND its restore
+    // reader: restoreFromBackup unwraps the archive through _recovery, whose
+    // backing KDS must match the one that wrapped it (makeVault above).
+    notifier = AuthNotifier(
+      db,
+      keyDerivationService: kdf,
+      recoveryService: VaultRecoveryService(
+        backupService: VaultBackupService(keyDerivationService: kdf),
+      ),
+    );
   });
 
   tearDown(() async {

@@ -51,7 +51,14 @@ class _FakeMigrator extends VaultMigrator {
 
 void main() {
   const password = 'flip-test-passw0rd';
-  final kds = KeyDerivationService();
+  // Behavioral suite: it asserts unlock/migration state transitions, not KDF
+  // strength (that has its own vector tests). A single production 600k-iteration
+  // PBKDF2 derive is ~3s in pure-Dart pointycastle, and unlock does one per
+  // call — four per looped test blow the 30s budget under whole-suite CPU load
+  // (the historical flake). A tiny work factor keeps the SAME algorithm/output
+  // shape while making every derive instant. The notifier below shares THIS
+  // instance, so its derivations stay byte-consistent with the expectations.
+  final kds = KeyDerivationService(iterations: 1);
   final mks = MasterKeyService();
   final hierarchy = KeyHierarchyService();
 
@@ -104,6 +111,7 @@ void main() {
         holderDb = null;
       },
       migrator: migrator,
+      keyDerivationService: kds,
     );
   }
 

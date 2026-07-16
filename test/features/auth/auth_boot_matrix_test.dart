@@ -5,6 +5,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:key_box/core/database/database.dart';
 import 'package:key_box/core/database/vault_paths.dart';
+import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/vault/sidecar_store.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
 import 'package:key_box/features/auth/domain/auth_state.dart';
@@ -28,6 +29,13 @@ class _CorruptedSidecarStore extends InMemorySidecarStore {
 }
 
 void main() {
+  // Fast KDF: the boot-matrix + setup/unlock cases here assert state
+  // transitions, not KDF strength. A single production 600k-iteration PBKDF2
+  // derive is ~3s in pure-Dart pointycastle; a tiny work factor keeps the SAME
+  // algorithm/output shape while making the setup/unlock derivations instant,
+  // clearing the 30s flake window under whole-suite load.
+  final kds = KeyDerivationService(iterations: 1);
+
   late Directory tempDir;
   late Future<Directory> Function() originalSupportDir;
 
@@ -74,6 +82,7 @@ void main() {
       sidecar: sidecar,
       dbFileExists: () async => dbExists,
       openDatabase: ({Uint8List? dbKey}) => db,
+      keyDerivationService: kds,
     );
   }
 
