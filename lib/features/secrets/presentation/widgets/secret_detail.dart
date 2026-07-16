@@ -660,10 +660,14 @@ class _FolderLinksSection extends ConsumerWidget {
                     isHome: folder.id == homeFolderId,
                     onRemove: folder.id == homeFolderId
                         ? null
-                        : () {
-                            ref
+                        : () async {
+                            await ref
                                 .read(secretOpsProvider)
                                 .unlinkFromFolder(secretId, folder.id);
+                            // Refresh the chips: folderIdsBySecretProvider is a
+                            // one-shot cache that would otherwise show the
+                            // just-removed folder.
+                            ref.invalidate(folderIdsBySecretProvider(secretId));
                           },
                   ),
                 ),
@@ -803,9 +807,14 @@ class _AddFolderButton extends ConsumerWidget {
                   folder.name,
                   style: AppTypography.bodySmall.copyWith(color: s.ink),
                 ),
-                onTap: () {
-                  ref.read(secretOpsProvider).linkToFolder(secretId, folder.id);
-                  Navigator.pop(ctx);
+                onTap: () async {
+                  await ref
+                      .read(secretOpsProvider)
+                      .linkToFolder(secretId, folder.id);
+                  // Refresh the chips: folderIdsBySecretProvider is a one-shot
+                  // cache that would otherwise omit the just-added folder.
+                  ref.invalidate(folderIdsBySecretProvider(secretId));
+                  if (ctx.mounted) Navigator.pop(ctx);
                 },
               );
             },
