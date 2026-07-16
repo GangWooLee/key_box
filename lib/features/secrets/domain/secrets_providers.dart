@@ -30,6 +30,11 @@ final folderChildrenProvider = StreamProvider.family<List<Folder>, int>((
   ref,
   parentId,
 ) {
+  // Watch auth so the stream rebinds to the fresh keyed connection on
+  // lock→unlock; without it this non-autoDispose family keeps serving the
+  // previous closed connection's dead stream (and throws while locked).
+  final auth = ref.watch(authProvider);
+  if (auth is! AuthUnlocked) return const Stream.empty();
   final db = ref.read(databaseProvider);
   return db.folderDao.watchChildren(parentId);
 });
@@ -109,6 +114,10 @@ final folderSecretsProvider = StreamProvider.family<List<Secret>, int>((
   ref,
   folderId,
 ) {
+  // Watch auth (see folderChildrenProvider) so the stream rebinds to the fresh
+  // keyed connection on lock→unlock instead of serving the closed one.
+  final auth = ref.watch(authProvider);
+  if (auth is! AuthUnlocked) return const Stream.empty();
   final db = ref.read(databaseProvider);
   return db.folderSecretsDao.watchSecretsByFolderId(folderId);
 });
