@@ -21,6 +21,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # Drift 생성 코드(*.g.dart)는 .gitignore로 미커밋 — CI는 매 런 재생성해야
+      # 한다. 이 스텝이 없으면 analyze가 605건(undefined DAO getter 등)으로
+      # 즉사한다(Flutter 마이그레이션 이후 CI가 한 번도 green이 아니었던 원인).
+      - name: Generate code (Drift)
+        run: dart run build_runner build --delete-conflicting-outputs
+
       - name: Analyze
         run: flutter analyze
 
