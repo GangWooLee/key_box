@@ -6,7 +6,12 @@ import '../../auth/domain/auth_state.dart';
 
 final auditPageProvider = StateProvider<int>((ref) => 0);
 
-final auditEventsProvider = FutureProvider<List<AuditEvent>>((ref) async {
+// autoDispose so leaving and re-entering the audit screen re-fetches: a plain
+// one-shot FutureProvider caches the first page forever, hiding events logged
+// after the first view until an app restart.
+final auditEventsProvider = FutureProvider.autoDispose<List<AuditEvent>>((
+  ref,
+) async {
   final auth = ref.watch(authProvider);
   if (auth is! AuthUnlocked) return [];
   final db = ref.read(databaseProvider);

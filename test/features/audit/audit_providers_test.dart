@@ -62,6 +62,48 @@ void main() {
       expect(events.length, greaterThanOrEqualTo(2));
     });
 
+    test(
+      're-fetches fresh events on re-entry (autoDispose freshness)',
+      () async {
+        final notifier = AuthNotifier(db);
+        await notifier.setup(
+          password: 'testpassword123',
+          confirmation: 'testpassword123',
+        );
+        final auth = notifier.state as AuthUnlocked;
+        final container = ProviderContainer(
+          overrides: [
+            databaseProvider.overrideWithValue(db),
+            authProvider.overrideWith((ref) => notifier),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        // First view of the audit screen.
+        final sub1 = container.listen(auditEventsProvider, (_, __) {});
+        final first = await container.read(auditEventsProvider.future);
+        sub1.close(); // leave the screen → autoDispose drops the cached page
+        await Future<void>.delayed(Duration.zero);
+
+        // A new event is logged while away.
+        await db.auditEventDao.create(
+          vaultId: auth.vaultId,
+          action: 'secret.read',
+        );
+
+        // Re-enter → a fresh fetch includes the new event.
+        final sub2 = container.listen(auditEventsProvider, (_, __) {});
+        addTearDown(sub2.close);
+        final second = await container.read(auditEventsProvider.future);
+        expect(
+          second.length,
+          greaterThan(first.length),
+          reason:
+              'autoDispose re-fetches on re-entry, showing events logged away',
+        );
+      },
+    );
+
     test('page provider defaults to 0', () {
       final container = ProviderContainer();
       addTearDown(container.dispose);
