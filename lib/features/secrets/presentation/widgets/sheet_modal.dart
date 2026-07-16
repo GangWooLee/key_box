@@ -376,6 +376,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
             ? _notesController.text.trim()
             : null,
       );
+      // Refresh the detail panel: it caches a one-shot getById, so without this
+      // it would keep showing (and decrypting) the pre-edit row.
+      ref.invalidate(secretDetailProvider(widget.secret!.id));
     } else {
       // Resolve the target folder: the one the user is currently viewing
       // (selectedFolderIdProvider) so "Add secret" lands where they expect.

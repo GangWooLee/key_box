@@ -162,6 +162,10 @@ final filteredSecretsProvider = Provider<List<Secret>>((ref) {
 
 // ─── Secret detail (single secret by ID, cached) ───
 
+/// One-shot fetch of a secret by id. It is [ref.invalidate]d after an in-place
+/// edit (sheet_modal `_save`) so the detail panel re-fetches the fresh row —
+/// otherwise a just-edited credential would keep showing (and, on the stale
+/// object, decrypting) the OLD value, a secrets-manager footgun.
 final secretDetailProvider = FutureProvider.autoDispose.family<Secret?, int>((
   ref,
   id,

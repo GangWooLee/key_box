@@ -58,6 +58,21 @@ class _SecretDetailState extends ConsumerState<SecretDetail> {
 
     final secretAsync = ref.watch(secretDetailProvider(selectedId));
 
+    // Re-mask the displayed value when the underlying secret's content changes
+    // (an in-place edit bumps recordVersion). Copy/reveal already re-decrypt the
+    // fresh object, so this only keeps the on-screen revealed text from lagging.
+    ref.listen(secretDetailProvider(selectedId), (prev, next) {
+      final pv = prev?.valueOrNull?.recordVersion;
+      final nv = next.valueOrNull?.recordVersion;
+      if (pv != null && nv != null && pv != nv && mounted) {
+        setState(() {
+          _isRevealed = false;
+          _decryptedValue = null;
+          _copied = false;
+        });
+      }
+    });
+
     return secretAsync.when(
       loading: () => Center(child: CircularProgressIndicator(color: s.accent)),
       error: (_, __) => const _EmptyDetail(),
