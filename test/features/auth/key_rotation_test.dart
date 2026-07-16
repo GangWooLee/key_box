@@ -212,6 +212,66 @@ void main() {
     );
   });
 
+  group('changePassword — auto-lock concurrency', () {
+    // Dart yields the event loop at every await. An auto-lock timer
+    // (AutoLockService._onTimeout → notifier.lock()) can therefore fire while a
+    // rotation is suspended between ④ (rewrap committed) and ⑤ (file rekeyed) —
+    // closing the keyed connection and zeroing the session MEK mid-rekey drives
+    // the vault into the unrecoverable case-B window with NO crash.
+    test('an interleaved auto-lock does not abort the rotation — the lock is '
+        'deferred until the rotation commits', () async {
+      final sidecar = InMemorySidecarStore();
+      final notifier = makeLazy(sidecar: sidecar);
+      await notifier.setup(password: oldPassword, confirmation: oldPassword);
+      final saltOld = (await sidecar.read() as SidecarFound).salt;
+
+      // Start the rotation but do NOT await it: it runs synchronously up to its
+      // first await (sidecar.read) and suspends there with the guard held.
+      final rotation = notifier.changePassword(
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        confirmation: newPassword,
+      );
+      // Fire the auto-lock tick while the rotation is suspended.
+      final lockCall = notifier.lock();
+
+      final error = await rotation;
+      await lockCall;
+
+      expect(
+        error,
+        isNull,
+        reason: 'an interleaved auto-lock must not abort the rotation',
+      );
+      // Reached ⑥: new salt promoted, journal cleared.
+      final saltNew = (await sidecar.read() as SidecarFound).salt;
+      expect(saltNew, isNot(equals(saltOld)));
+      expect(await sidecar.readStaged(), isA<SidecarMissing>());
+      // The deferred lock still applied afterward — auto-lock intent preserved.
+      expect(notifier.state, isA<AuthLocked>());
+    });
+
+    test('rejects a re-entrant rotation while one is in flight', () async {
+      final sidecar = InMemorySidecarStore();
+      final notifier = makeLazy(sidecar: sidecar);
+      await notifier.setup(password: oldPassword, confirmation: oldPassword);
+
+      final first = notifier.changePassword(
+        oldPassword: oldPassword,
+        newPassword: newPassword,
+        confirmation: newPassword,
+      );
+      final second = await notifier.changePassword(
+        oldPassword: oldPassword,
+        newPassword: 'other-new-pw-9',
+        confirmation: 'other-new-pw-9',
+      );
+
+      expect(second, contains('in progress'));
+      expect(await first, isNull);
+    });
+  });
+
   group('changePassword — rotation commit', () {
     test('rotates salt + rewraps under the new KEK (mutation: old KEK must '
         'fail), promotes the sidecar, keeps the session MEK intact', () async {

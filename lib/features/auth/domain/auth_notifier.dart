@@ -125,6 +125,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final _secretEnc = SecretEncryptionService();
   final VaultRecoveryService _recovery;
 
+  /// True only for the span of a changePassword rotation. lock() reads it to
+  /// defer an auto-lock tick that would otherwise tear down the keyed
+  /// connection mid-rekey — Dart yields the event loop at every await, so an
+  /// interleaved lock() would strand the vault in the unrecoverable case-B
+  /// window (rewrap committed, file not yet rekeyed).
+  bool _rotating = false;
+
+  /// Set when lock() was requested (e.g. the auto-lock timer fired) during a
+  /// rotation. The rotation replays the lock once it settles, so auto-lock
+  /// intent is preserved rather than silently dropped.
+  bool _lockRequestedWhileRotating = false;
+
   AppDatabase _ensureDb({Uint8List? dbKey}) =>
       _db ??= _openDatabase!(dbKey: dbKey);
 
@@ -558,103 +570,119 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
     final current = state;
     if (current is! AuthUnlocked) return 'Vault must be unlocked';
+    if (_rotating) return 'A password change is already in progress';
     if (newPassword != confirmation) return 'Passwords do not match';
     if (newPassword.length < CryptoConstants.minPasswordLength) {
       return 'Password must be at least '
           '${CryptoConstants.minPasswordLength} characters';
     }
 
-    final sidecarResult = await _sidecar.read();
-    if (sidecarResult is! SidecarFound) {
-      return 'Vault metadata unavailable — recovery required';
-    }
-    final saltOld = sidecarResult.salt;
-    // ① Cryptographic old-password proof: unwrap the stored MEK under the
-    // old KEK — never trust the session state for this.
-    final pdkOld = _kds.deriveKey(password: oldPassword, salt: saltOld);
-    Uint8List? kekOld;
-    Uint8List? mek;
-    Uint8List? saltNew;
-    Uint8List? pdkNew;
-    Uint8List? kekNew;
-    Uint8List? dbKeyNew;
-    Uint8List? wrappedNew;
+    // Critical section: hold the re-entrancy guard across every await so an
+    // auto-lock tick cannot interleave and tear down the keyed connection
+    // mid-rekey. lock() defers while _rotating is set; the outer finally
+    // replays any deferred lock once the rotation settles.
+    _rotating = true;
     try {
-      kekOld = _keyHierarchy.deriveKek(pdkOld);
-      final db = _ensureDb();
-      final config = await db.vaultConfigDao.getByVaultId(current.vaultId);
-      if (config == null) {
-        state = const AuthVaultError(reason: VaultErrorReason.configMissing);
-        return 'Vault configuration missing — recovery required';
+      final sidecarResult = await _sidecar.read();
+      if (sidecarResult is! SidecarFound) {
+        return 'Vault metadata unavailable — recovery required';
       }
-      mek = _mks.unwrap(
-        wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
-        wrappingKey: kekOld,
-      );
-      if (mek == null) return 'Incorrect password';
-
-      // Recovery net: the "case B" crash window (rewrap committed at ④, file
-      // not yet rekeyed at ⑤) is unlockable by NEITHER the old nor the new
-      // password — completing it needs the old password to open the file AND
-      // the new password to unwrap the MEK. Snapshot the current vault —
-      // restorable with the OLD password — BEFORE any mutation; if the net
-      // can't be secured, abort rather than rotate into that window.
-      final netError = await _writePreRotationBackup(
-        db: db,
-        vaultId: current.vaultId,
-        saltOld: saltOld,
-        wrappedMekOld: Uint8List.fromList(config.encryptedMasterKey),
-        mek: mek,
-      );
-      if (netError != null) return netError;
-
-      // ② New key hierarchy (salt rotates with the password).
-      saltNew = _kds.generateSalt();
-      pdkNew = _kds.deriveKey(password: newPassword, salt: saltNew);
-      dbKeyNew = _keyHierarchy.deriveDbKey(pdkNew);
-      kekNew = _keyHierarchy.deriveKek(pdkNew);
-      wrappedNew = _mks.wrap(masterKey: mek, wrappingKey: kekNew);
-
-      // ③ Journal: stage the new salt BEFORE any DB mutation.
-      await _sidecar.writeStaged(saltNew);
-      // ④ Commit rewrap + salt to the DB (single row update).
-      await db.vaultConfigDao.updateKeyMaterial(
-        vaultId: current.vaultId,
-        masterKeySalt: saltNew,
-        encryptedMasterKey: wrappedNew,
-      );
-      // ⑤ Rekey the file; SQLCipher keeps the live connection valid across
-      // a rekey. Checkpoint so no old-key pages linger in the WAL.
-      await db.customStatement(
-        'PRAGMA rekey = "x\'${sqlcipherRawKeyHex(dbKeyNew)}\'";',
-      );
-      await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
-      // ⑥ Promote the journal — the rotation's commit point.
-      await _sidecar.promoteStaged();
-      // Rotation committed — drop the net. Best-effort: a lingering snapshot
-      // is a stale (old-password) backup the next rotation overwrites, not a
-      // hazard, so its removal must not fail an already-successful rotation.
+      final saltOld = sidecarResult.salt;
+      // ① Cryptographic old-password proof: unwrap the stored MEK under the
+      // old KEK — never trust the session state for this.
+      final pdkOld = _kds.deriveKey(password: oldPassword, salt: saltOld);
+      Uint8List? kekOld;
+      Uint8List? mek;
+      Uint8List? saltNew;
+      Uint8List? pdkNew;
+      Uint8List? kekNew;
+      Uint8List? dbKeyNew;
+      Uint8List? wrappedNew;
       try {
-        await _preRotationBackup.delete();
-      } catch (_) {
-        /* non-fatal — the rotation already committed */
+        kekOld = _keyHierarchy.deriveKek(pdkOld);
+        final db = _ensureDb();
+        final config = await db.vaultConfigDao.getByVaultId(current.vaultId);
+        if (config == null) {
+          state = const AuthVaultError(reason: VaultErrorReason.configMissing);
+          return 'Vault configuration missing — recovery required';
+        }
+        mek = _mks.unwrap(
+          wrappedKey: Uint8List.fromList(config.encryptedMasterKey),
+          wrappingKey: kekOld,
+        );
+        if (mek == null) return 'Incorrect password';
+
+        // Recovery net: the "case B" crash window (rewrap committed at ④, file
+        // not yet rekeyed at ⑤) is unlockable by NEITHER the old nor the new
+        // password — completing it needs the old password to open the file AND
+        // the new password to unwrap the MEK. Snapshot the current vault —
+        // restorable with the OLD password — BEFORE any mutation; if the net
+        // can't be secured, abort rather than rotate into that window.
+        final netError = await _writePreRotationBackup(
+          db: db,
+          vaultId: current.vaultId,
+          saltOld: saltOld,
+          wrappedMekOld: Uint8List.fromList(config.encryptedMasterKey),
+          mek: mek,
+        );
+        if (netError != null) return netError;
+
+        // ② New key hierarchy (salt rotates with the password).
+        saltNew = _kds.generateSalt();
+        pdkNew = _kds.deriveKey(password: newPassword, salt: saltNew);
+        dbKeyNew = _keyHierarchy.deriveDbKey(pdkNew);
+        kekNew = _keyHierarchy.deriveKek(pdkNew);
+        wrappedNew = _mks.wrap(masterKey: mek, wrappingKey: kekNew);
+
+        // ③ Journal: stage the new salt BEFORE any DB mutation.
+        await _sidecar.writeStaged(saltNew);
+        // ④ Commit rewrap + salt to the DB (single row update).
+        await db.vaultConfigDao.updateKeyMaterial(
+          vaultId: current.vaultId,
+          masterKeySalt: saltNew,
+          encryptedMasterKey: wrappedNew,
+        );
+        // ⑤ Rekey the file; SQLCipher keeps the live connection valid across
+        // a rekey. Checkpoint so no old-key pages linger in the WAL.
+        await db.customStatement(
+          'PRAGMA rekey = "x\'${sqlcipherRawKeyHex(dbKeyNew)}\'";',
+        );
+        await db.customStatement('PRAGMA wal_checkpoint(TRUNCATE);');
+        // ⑥ Promote the journal — the rotation's commit point.
+        await _sidecar.promoteStaged();
+        // Rotation committed — drop the net. Best-effort: a lingering snapshot
+        // is a stale (old-password) backup the next rotation overwrites, not a
+        // hazard, so its removal must not fail an already-successful rotation.
+        try {
+          await _preRotationBackup.delete();
+        } catch (_) {
+          /* non-fatal — the rotation already committed */
+        }
+        return null; // ⑦ session MEK unchanged — no relock needed
+      } finally {
+        _zeroOut(pdkOld);
+        _zeroOut(saltOld);
+        if (kekOld != null) _zeroOut(kekOld);
+        // The unwrap above is a fresh copy — zeroing it leaves the session
+        // MEK (inside AuthUnlocked) untouched.
+        if (mek != null) _zeroOut(mek);
+        if (saltNew != null) _zeroOut(saltNew);
+        if (pdkNew != null) _zeroOut(pdkNew);
+        if (kekNew != null) _zeroOut(kekNew);
+        // Unlike unlock's dbKey (kept by the connection's setup callback for
+        // reopens), dbKeyNew was only rendered into the rekey statement — the
+        // connection holds the key internally, so it is zeroed here.
+        if (dbKeyNew != null) _zeroOut(dbKeyNew);
+        if (wrappedNew != null) _zeroOut(wrappedNew);
       }
-      return null; // ⑦ session MEK unchanged — no relock needed
     } finally {
-      _zeroOut(pdkOld);
-      _zeroOut(saltOld);
-      if (kekOld != null) _zeroOut(kekOld);
-      // The unwrap above is a fresh copy — zeroing it leaves the session
-      // MEK (inside AuthUnlocked) untouched.
-      if (mek != null) _zeroOut(mek);
-      if (saltNew != null) _zeroOut(saltNew);
-      if (pdkNew != null) _zeroOut(pdkNew);
-      if (kekNew != null) _zeroOut(kekNew);
-      // Unlike unlock's dbKey (kept by the connection's setup callback for
-      // reopens), dbKeyNew was only rendered into the rekey statement — the
-      // connection holds the key internally, so it is zeroed here.
-      if (dbKeyNew != null) _zeroOut(dbKeyNew);
-      if (wrappedNew != null) _zeroOut(wrappedNew);
+      _rotating = false;
+      // Replay a lock that arrived (e.g. the auto-lock timer) while the
+      // rotation held the guard, so auto-lock intent survives the deferral.
+      if (_lockRequestedWhileRotating) {
+        _lockRequestedWhileRotating = false;
+        await lock();
+      }
     }
   }
 
@@ -911,6 +939,14 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// freshly derived key. The backward-compat path keeps its in-memory DB
   /// open — closing would destroy its data.
   Future<void> lock() async {
+    if (_rotating) {
+      // A rotation is mid-flight. Tearing down the keyed connection or flipping
+      // to Locked now would abort the rekey and strand the vault in the
+      // unrecoverable case-B window. Defer — changePassword replays this lock
+      // once it settles; the session MEK stays valid meanwhile.
+      _lockRequestedWhileRotating = true;
+      return;
+    }
     final current = state;
     if (current is! AuthUnlocked) return;
     _zeroOut(current.masterEncryptionKey);
