@@ -465,6 +465,7 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 - **macOS deployment target**: Podfile + project.pbxproj 모두 일치 필수
 - **pointycastle GCM**: `getOutputSize()`는 최대 버퍼 크기. 실제 길이는 `processBytes() + doFinal()` 반환값 합
 - **pumpAndSettle 타임아웃**: 무한 애니메이션(CircularProgressIndicator) 있으면 타임아웃 → `pump()` 사용
+- **dogfood 재빌드**: 실앱 테스트 전 반드시 `scripts/dogfood.sh` — "소스 수정 ≠ 바이너리 재빌드" (2026-07-17 스테일 빌드로 이미 고친 버그가 실앱에서 재보고된 사고)
 
 ### Hook 관련
 - **PreCompact는 차단 불가** — exit 2를 반환해도 압축은 진행됨. 저장만 가능
