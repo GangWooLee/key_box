@@ -79,9 +79,23 @@
 
 **판정**: #2는 소스·바이너리·눈 3계층 모두에서 닫힘. A10 각주의 갭은 규율(A3)로 재발 방지. 잔여: 사용자 볼트의 기존 3키가 General에 있음(스테일 빌드 시절 산물) — 원하면 detail 패널 "Add to folder"로 toss에 재배치 가능(데이터 손실 아님, 사용자 선택).
 
-## Tier 2 (미착수 — 다음 세션)
-- **Phase 4 레포 정리(#3)**: stale 브랜치 12+(Rails dependabot 등)·`claude/musing-snyder-9206b6`+워크트리 삭제(삭제 전 병합/고유커밋 확인)·docs/ 지층 재편(`_archive` 분리, 이 3개 분석 문서 정식화)·main 통합 전략(69커밋). 원격삭제·main 통합은 사용자 지시.
-- **Phase 5 설계 문서(#4)**: docs/ARCHITECTURE·SECURITY·PRD·CONTRACTS + 용어집. 비-AI톤. SECURITY는 [security-threat-model.md](security-threat-model.md), 아키텍처는 이 스코어카드가 입력.
+## ▲ Tier 2 완료 — 레포 총정리 + 설계 문서 (2026-07-17)
+
+**Phase 4 레포 총정리**:
+- 브랜치: 로컬 `main`·`spike/sqlite3-multiple-ciphers`·`claude/musing-snyder-9206b6`(+워크트리) 삭제(전부 HEAD 조상·고유커밋 0 실측 후). 원격 dependabot 12종 삭제(Rails 시대 무의미). 결과 = **feat + main 둘뿐**.
+- main 통합: `895e7a6`(Rails, 3/1) → `72e4d59` **fast-forward** — main이 4개월 만에 현재를 가리킴. 로컬·원격 CI 둘 다 green(72e4d59, run 29564121828·29564019408).
+- docs/ 지층 재편: 과정 산출물 ~30파일 → `docs/_archive/`(사유 README). 최상위 = 정본만. 분석 문서 3종 최초 커밋. `.pdca-snapshots`→gitignore, 빈 디렉토리 정리.
+- README: Rails 템플릿 → KeyBox 정본(문제부터, entitlements 실측).
+
+**Phase 5 설계 문서(비-AI톤, docs/ 정본 5종)**:
+- [ARCHITECTURE.md](ARCHITECTURE.md)·[SECURITY.md](SECURITY.md)·[PRD.md](PRD.md)·[CONTRACTS.md](CONTRACTS.md)·[GLOSSARY.md](GLOSSARY.md). 사실 수집=opus 에이전트 2기 병렬, 문서화=메인 직접. 게이트: 마크다운 링크·상대경로 전수 실재 + 인용 코드 주장(계층위반 줄번호·빈 디렉토리·schemaVersion·redirect 매핑) 실코드 대조.
+- '정직한 흠' 절로 계층위반 3곳·빈 스캐폴딩·레거시 표면·감사 페이지네이션을 문서에 명시(축소 없음).
+
+**전체 마무리 판정**: 5대 작업(리뷰·보안·정리·문서·완성도) + Phase A(스테일 빌드 봉합) 완료. 처음 읽는 사람이 README→설계 정본으로 자립 이해 가능. 커밋 전부 CI-green·푸시.
+
+## B-장부 (A-필수 아님, 차기)
+- 코드: `secrets_providers:275` 폴더링크 트랜잭션 밖(orphan)·미테스트 356/140·죽은코드 watchRecent(39)·sheet_modal 계층(391)·folder_dialogs 죽은캐시(194)·계층위반 3곳(folder_dialogs·sheet_modal·onboarding→domain 승격)·빈 스캐폴딩 features/folders·search·vault
+- 보안(방어심층/B): 포커스상실·화면잠금 auto-lock(네이티브)·lock/종료 시 클립보드 소거·마이그레이션 평문잔여·화면캡처. gap-accepted: ad-hoc→Developer ID 공증(B2)·T11 복구코드·회전 Tier2 원자성.
 
 ## B-장부 (A-필수 아님, 차기)
 - 코드: `secrets_providers:262` 폴더링크 트랜잭션 밖(orphan)·미테스트 356/140·죽은코드 watchRecent(39)·sheet_modal 계층(386)·folder_dialogs 죽은캐시(194)
