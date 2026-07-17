@@ -77,3 +77,4 @@ docs/.smart-env/
 
 # Golden test diff artifacts (never commit)
 test/golden/failures/
+docs/.pdca-snapshots/

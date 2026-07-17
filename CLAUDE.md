@@ -23,7 +23,7 @@
 | 도전·요구분석 / 계획 / 리뷰 / 실앱QA / 배포 | **gstack** | `/office-hours`·`/spec` / `/autoplan`·`/plan-eng-review` / `/review`·`/codex` / `/qa`·`/investigate` / `/ship` |
 | 코드 장인 규율(TDD·디버깅·완료전검증) | **superpowers** | test-driven-development · systematic-debugging · verification-before-completion |
 | 학습 축적 | **compound-engineering** | `/ce-compound` → `docs/solutions/` |
-| 디자인 | **Figma + shadcn MCP + ui-ux-pro-max** | 신규 디자인=Figma MCP(figma-* 스킬)·컴포넌트=shadcn MCP·추론=ui-ux-pro-max. `key_box_pensil.pen`·docs/design-system은 V8 참조 아카이브(편집 안 함) |
+| 디자인 | **Figma + shadcn MCP + ui-ux-pro-max** | 신규 디자인=Figma MCP(figma-* 스킬)·컴포넌트=shadcn MCP·추론=ui-ux-pro-max. `key_box_pensil.pen`·`docs/_archive/design-system/`은 V8 참조 아카이브(편집 안 함) |
 | 단순화 | code-simplifier | — |
 
 - **정본 규칙**: brainstorm/plan/review는 gstack이 정본. 예외 — TDD·디버깅·검증=superpowers, 학습기록=compound. 중복 loop 스킬(ce-plan·ce-brainstorm 등)은 미사용(컨텍스트 비대 방지).
@@ -478,7 +478,7 @@ Phase 1-N: TDD 구현 (/tdd per phase)
 - **AUTOCOMPACT 80%** — 기본 95%보다 80%에서 시작하면 요약 품질이 향상
 
 ### Pencil (deprecated 2026-07-12 — 참조 전용)
-Pencil MCP는 전역 해제됨(`~/.claude.json`). `key_box_pensil.pen` + `docs/design-system/`은 V8 디자인 시스템 참조 아카이브로 **보존만**(편집 안 함). 신규 디자인은 Figma MCP 사용. (과거 Pencil 작업 교훈은 memory에 참조용으로 남김.)
+Pencil MCP는 전역 해제됨(`~/.claude.json`). `key_box_pensil.pen` + `docs/_archive/design-system/`은 V8 디자인 시스템 참조 아카이브로 **보존만**(편집 안 함). 신규 디자인은 Figma MCP 사용. (과거 Pencil 작업 교훈은 memory에 참조용으로 남김.)
 
 ---
 
@@ -520,4 +520,5 @@ Pencil MCP는 전역 해제됨(`~/.claude.json`). `key_box_pensil.pen` + `docs/d
 - Rails 아카이브: `.claude/rules/_archived-rails/`, `.claude/standards/_archived-rails/` — 참조용 보존
 - Flutter Skills 설치 (2026-03-03): 7개 Flutter 스킬 설치 (`flutter-expert`, `flutter-riverpod-expert`, `dart-drift`, `flutter-architecture`, `flutter-testing`, `flutter-adaptive-ui`, `flutter-animations`)
 - Obsidian MCP 연동: `claude-code-mcp` 플러그인. Vault: `key_box/docs/`
-- 디자인 정본 전환 (2026-07-12): Pencil MCP 전역 해제(`~/.claude.json` mcpServers + `~/.claude/settings.json` 권한) → **Figma + shadcn MCP + ui-ux-pro-max**. `key_box_pensil.pen`·`docs/design-system/`은 V8 참조 아카이브로 보존.
+- 디자인 정본 전환 (2026-07-12): Pencil MCP 전역 해제(`~/.claude.json` mcpServers + `~/.claude/settings.json` 권한) → **Figma + shadcn MCP + ui-ux-pro-max**. `key_box_pensil.pen`·`docs/_archive/design-system/`은 V8 참조 아카이브로 보존.
+- docs/ 지층 재편 (2026-07-17): 과정 산출물을 `docs/_archive/`로 격리 (rails-reference·V8 design-system·디자인 과정문서·리뷰 리포트·완료 계획·개인 노트). 최상위 = 정본만.
