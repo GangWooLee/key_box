@@ -70,8 +70,13 @@ flutter test integration_test/<파일> -d macos  # cipher 실증 (파일당 1회
 
 | 문서 | 내용 |
 |---|---|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 코드가 어떻게 조직되어 있고 왜 그런가 — 상태 머신·provider 그래프·테스트 3계층 |
+| [docs/SECURITY.md](docs/SECURITY.md) | 보안 설계 서사 — 키 계층·방어·잔여 위험 장부 |
+| [docs/PRD.md](docs/PRD.md) | 무엇을 만들고 무엇을 거부했나 — 요구사항과 비목표 |
+| [docs/CONTRACTS.md](docs/CONTRACTS.md) | 모듈 간 내부 계약 — 반환 규약·트랜잭션 경계·무효화 지도 |
+| [docs/GLOSSARY.md](docs/GLOSSARY.md) | 용어집 (PDK·MEK·AAD·sidecar…) |
 | [docs/design/DESIGN.md](docs/design/DESIGN.md) | 비주얼 디자인 정본 (V9) — 테마 토큰의 원천 |
-| [docs/security-threat-model.md](docs/security-threat-model.md) | 공격자 관점 위협모델 33경로 |
+| [docs/security-threat-model.md](docs/security-threat-model.md) | 공격자 관점 위협모델 33경로 (SECURITY의 원자료) |
 | [docs/completeness-scorecard.md](docs/completeness-scorecard.md) | 완성도 판정 (증거 첨부) |
 | [docs/qa-vision-e2e.md](docs/qa-vision-e2e.md) | 실앱 구동 비전 QA 루프 |
 | [docs/_archive/](docs/_archive/) | 과거 과정 산출물 (정본 아님) |
