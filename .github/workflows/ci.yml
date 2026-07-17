@@ -37,5 +37,22 @@ jobs:
       # Golden tests (tag: golden) are excluded — they rasterize real fonts and
       # are sensitive to the runner's OS text renderer. They are a local design
       # -review tool for the V9 redesign, run manually with `--tags golden`.
-      - name: Test
+      - name: Test (unit + widget)
         run: flutter test --exclude-tags golden
+
+      # Cipher gate: macOS `flutter test` loads Apple's system libsqlite3, which
+      # silently ignores `PRAGMA key` — so the encryption / rotation / backup-v3
+      # layers are NOT exercised by the unit suite. Only integration_test builds
+      # the real app (CocoaPods bundles the SQLCipher dylib) and proves the keyed
+      # round-trip. Run each file in its own `flutter test` invocation with one
+      # retry: back-to-back files in a single invocation can hit a macOS app
+      # launch flake, but a fresh invocation per file is reliable.
+      - name: Integration tests (cipher — real SQLCipher)
+        run: |
+          fail=0
+          for f in integration_test/*_test.dart; do
+            echo "::group::$f"
+            flutter test "$f" -d macos || flutter test "$f" -d macos || fail=1
+            echo "::endgroup::"
+          done
+          exit $fail

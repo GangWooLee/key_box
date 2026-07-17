@@ -1,5 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:key_box/features/auth/domain/auth_notifier.dart';
+import 'package:key_box/features/auth/domain/auth_state.dart';
 import 'package:key_box/features/secrets/domain/secrets_providers.dart';
 
 import '../../../helpers/widget_test_helpers.dart';
@@ -126,10 +129,25 @@ void main() {
       expect(query.trim().isEmpty, isTrue);
     });
 
-    test('non-authenticated returns empty', () {
-      // The provider checks auth state — if not AuthUnlocked, returns []
-      // Testing the guard condition directly
-      expect(true, isTrue); // guard: if (auth is! AuthUnlocked) return [];
-    });
+    test(
+      'searchResultsProvider returns empty when the vault is locked',
+      () async {
+        // Actually execute the provider (the previous test asserted a tautology,
+        // giving illusory coverage). Locked auth must short-circuit to [] before
+        // touching databaseProvider.
+        final container = ProviderContainer(
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => FakeAuthNotifier(const AuthLocked()),
+            ),
+            searchQueryProvider.overrideWith((ref) => 'github'),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final results = await container.read(searchResultsProvider.future);
+        expect(results, isEmpty);
+      },
+    );
   });
 }
