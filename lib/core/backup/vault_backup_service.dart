@@ -53,10 +53,15 @@ final class ArchiveImportWrongPassword extends ArchiveImport {
   const ArchiveImportWrongPassword();
 }
 
-/// Backup / recovery net for the vault (PR-A, archive format v2 since PR-B).
+/// Backup / recovery net for the vault (PR-A; archive format v3 since Phase 2).
 ///
 /// Provides verifiable integrity checks and export/import round-trips
 /// so a user can trust their data survives migration and disk failure.
+///
+/// v3 closes the "stolen backup leaks the inventory" gap: per-record metadata
+/// (name/type/service/env/notes/tags) is MEK-GCM encrypted, so a `.kbx` file
+/// carries only ciphertext. v2/v1 archives (plaintext metadata) stay
+/// import-only for backward compatibility.
 ///
 /// Archive record canonical form: EMPTY-AAD ciphertext under the MEK.
 /// Archives carry no row identity (ids change on restore), so per-record
@@ -65,9 +70,10 @@ final class ArchiveImportWrongPassword extends ArchiveImport {
 /// export, and the restore wiring re-binds AAD when inserting rows.
 ///
 /// MEK wrap semantics by format version:
-/// - v2 (written today): `wrappedMek` is the MEK wrapped under the HKDF KEK
-///   derived from the PDK ([KeyHierarchyService.deriveKek]) — labelled by
-///   the `mekWrap` field.
+/// - v3/v2: `wrappedMek` is the MEK wrapped under the HKDF KEK derived from the
+///   PDK ([KeyHierarchyService.deriveKek]) — labelled by the `mekWrap` field.
+///   v3 (written today) additionally encrypts per-record metadata; v2 is
+///   import-only.
 /// - v1 (legacy, import only): `wrappedMek` is wrapped under the raw PDK.
 class VaultBackupService {
   VaultBackupService({
@@ -86,8 +92,13 @@ class VaultBackupService {
   final KeyHierarchyService _keyHierarchy;
 
   static const String _archiveFormat = 'keybox-vault-archive';
-  static const int _archiveFormatVersion = 2;
-  static const int _legacyFormatVersion = 1;
+  // v3: per-record metadata (name/type/service/env/notes/tags) is MEK-GCM
+  // encrypted so a stolen archive leaks no inventory — only ciphertext. v2
+  // (HKDF-KEK wrap) and v1 (raw-PDK wrap) carry plaintext metadata and remain
+  // import-only for backward compatibility.
+  static const int _archiveFormatVersion = 3;
+  static const int _kekWrapVersion = 2;
+  static const int _legacyPdkVersion = 1;
   static const String _mekWrapKekV1 = 'hkdf-kek-v1';
   static const String _kdfAlgorithm = 'PBKDF2-HMAC-SHA256';
   static const String _cipherAlgorithm = 'AES-256-GCM';
@@ -111,10 +122,11 @@ class VaultBackupService {
     return true;
   }
 
-  /// Serializes [records] into a versioned JSON vault archive (format v2).
+  /// Serializes [records] into a versioned JSON vault archive (format v3:
+  /// encrypted per-record metadata).
   ///
   /// [wrappedMek] MUST be the MEK wrapped under the HKDF KEK
-  /// ([KeyHierarchyService.deriveKek]) — v2 semantics; the raw-PDK wrap of
+  /// ([KeyHierarchyService.deriveKek]) — v3/v2 semantics; the raw-PDK wrap of
   /// v1 is no longer written.
   ///
   /// Runs [verifyIntegrity] first and returns null if any record fails to
@@ -149,7 +161,7 @@ class VaultBackupService {
       'salt': base64Encode(salt),
       'wrappedMek': base64Encode(wrappedMek),
       'recordCount': records.length,
-      'records': records.map(_recordToJson).toList(),
+      'records': records.map((r) => _recordToJson(r, mek)).toList(),
     });
   }
 
@@ -192,18 +204,25 @@ class VaultBackupService {
     final body = _parseBinaryFields(json);
     if (body == null) return const ArchiveImportCorrupt();
     final (salt, wrappedMek, rawRecords) = body;
-    final isV2 = json['formatVersion'] == _archiveFormatVersion;
+    final version = json['formatVersion'] as int;
+    final usesKek = version >= _kekWrapVersion; // v2 and v3
+    final metaEncrypted = version >= _archiveFormatVersion; // v3 only
 
     Uint8List? pdk;
     Uint8List? kek;
     Uint8List? sourceMek;
     try {
       pdk = _kdf.deriveKey(password: password, salt: salt);
-      final wrappingKey = isV2 ? (kek = _keyHierarchy.deriveKek(pdk)) : pdk;
+      final wrappingKey = usesKek ? (kek = _keyHierarchy.deriveKek(pdk)) : pdk;
       sourceMek = _mks.unwrap(wrappedKey: wrappedMek, wrappingKey: wrappingKey);
       // A well-formed archive whose MEK won't unwrap = wrong password.
       if (sourceMek == null) return const ArchiveImportWrongPassword();
-      final records = _reencryptRecords(rawRecords, sourceMek, destinationMek);
+      final records = _reencryptRecords(
+        rawRecords,
+        sourceMek,
+        destinationMek,
+        metaEncrypted,
+      );
       // Unwrap succeeded but a record failed GCM = tampered/corrupt file.
       if (records == null) return const ArchiveImportCorrupt();
       return ArchiveImportSuccess(records);
@@ -215,17 +234,30 @@ class VaultBackupService {
     }
   }
 
-  Map<String, dynamic> _recordToJson(VaultBackupRecord record) => {
-    'name': record.name,
-    'secretType': record.secretType,
-    'serviceName': record.serviceName,
-    'environment': record.environment,
-    'notes': record.notes,
-    'tags': record.tags,
-    'encryptedValue': base64Encode(record.encrypted.encryptedValue),
-    'iv': base64Encode(record.encrypted.iv),
-    'authTag': base64Encode(record.encrypted.authTag),
-  };
+  /// v3 record JSON: the metadata is a single MEK-GCM envelope
+  /// (`encryptedMeta`/`metaIv`/`metaAuthTag`) so the archive carries no
+  /// plaintext inventory; the value keeps its existing envelope.
+  Map<String, dynamic> _recordToJson(VaultBackupRecord record, Uint8List mek) {
+    final meta = _enc.encrypt(
+      value: jsonEncode({
+        'name': record.name,
+        'secretType': record.secretType,
+        'serviceName': record.serviceName,
+        'environment': record.environment,
+        'notes': record.notes,
+        'tags': record.tags,
+      }),
+      key: mek,
+    );
+    return {
+      'encryptedMeta': base64Encode(meta.encryptedValue),
+      'metaIv': base64Encode(meta.iv),
+      'metaAuthTag': base64Encode(meta.authTag),
+      'encryptedValue': base64Encode(record.encrypted.encryptedValue),
+      'iv': base64Encode(record.encrypted.iv),
+      'authTag': base64Encode(record.encrypted.authTag),
+    };
+  }
 
   Map<String, dynamic>? _parseArchive(String archive) {
     final Map<String, dynamic> json;
@@ -236,12 +268,15 @@ class VaultBackupService {
     }
     if (json['format'] != _archiveFormat) return null;
     final version = json['formatVersion'];
-    if (version != _archiveFormatVersion && version != _legacyFormatVersion) {
+    if (version != _archiveFormatVersion &&
+        version != _kekWrapVersion &&
+        version != _legacyPdkVersion) {
       return null;
     }
-    // v2 must carry the known MEK-wrap label; anything else means an
-    // incompatible (or tampered) wrap scheme.
-    if (version == _archiveFormatVersion && json['mekWrap'] != _mekWrapKekV1) {
+    // v2/v3 carry the HKDF-KEK wrap; the label must match or the wrap scheme
+    // is incompatible (or tampered).
+    if ((version == _archiveFormatVersion || version == _kekWrapVersion) &&
+        json['mekWrap'] != _mekWrapKekV1) {
       return null;
     }
     if (!_isValidKdf(json['kdf'])) return null;
@@ -279,10 +314,16 @@ class VaultBackupService {
     List<dynamic> rawRecords,
     Uint8List sourceMek,
     Uint8List destinationMek,
+    bool metaEncrypted,
   ) {
     final result = <VaultBackupRecord>[];
     for (final raw in rawRecords) {
-      final record = _reencryptRecord(raw, sourceMek, destinationMek);
+      final record = _reencryptRecord(
+        raw,
+        sourceMek,
+        destinationMek,
+        metaEncrypted,
+      );
       if (record == null) return null;
       result.add(record);
     }
@@ -293,6 +334,7 @@ class VaultBackupService {
     Object? raw,
     Uint8List sourceMek,
     Uint8List destinationMek,
+    bool metaEncrypted,
   ) {
     if (raw is! Map) return null;
     try {
@@ -303,13 +345,15 @@ class VaultBackupService {
         key: sourceMek,
       );
       if (plaintext == null) return null;
+      final meta = _readMeta(raw, sourceMek, metaEncrypted);
+      if (meta == null) return null;
       return VaultBackupRecord(
-        name: raw['name'] as String,
-        secretType: raw['secretType'] as String,
-        serviceName: raw['serviceName'] as String?,
-        environment: raw['environment'] as String?,
-        notes: raw['notes'] as String?,
-        tags: raw['tags'] as String?,
+        name: meta['name'] as String,
+        secretType: meta['secretType'] as String,
+        serviceName: meta['serviceName'] as String?,
+        environment: meta['environment'] as String?,
+        notes: meta['notes'] as String?,
+        tags: meta['tags'] as String?,
         // Fresh IV: re-encryption under the destination MEK never reuses
         // IVs carried in the archive.
         encrypted: _enc.encrypt(value: plaintext, key: destinationMek),
@@ -317,6 +361,34 @@ class VaultBackupService {
     } catch (_) {
       return null;
     }
+  }
+
+  /// Recovers a record's metadata map. v3 decrypts the `encryptedMeta` envelope
+  /// under [sourceMek] (null if it fails GCM authentication — a tampered file);
+  /// v1/v2 read the plaintext fields carried inline.
+  Map<String, dynamic>? _readMeta(
+    Map raw,
+    Uint8List sourceMek,
+    bool metaEncrypted,
+  ) {
+    if (!metaEncrypted) {
+      return {
+        'name': raw['name'],
+        'secretType': raw['secretType'],
+        'serviceName': raw['serviceName'],
+        'environment': raw['environment'],
+        'notes': raw['notes'],
+        'tags': raw['tags'],
+      };
+    }
+    final plain = _enc.decrypt(
+      encryptedValue: base64Decode(raw['encryptedMeta'] as String),
+      iv: base64Decode(raw['metaIv'] as String),
+      authTag: base64Decode(raw['metaAuthTag'] as String),
+      key: sourceMek,
+    );
+    if (plain == null) return null;
+    return jsonDecode(plain) as Map<String, dynamic>;
   }
 
   void _zeroOut(Uint8List bytes) => bytes.fillRange(0, bytes.length, 0);

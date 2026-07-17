@@ -118,6 +118,56 @@ String _buildLegacyV1Archive({
   });
 }
 
+/// Builds a legacy v2 archive (plaintext metadata, HKDF-KEK MEK wrap) by hand —
+/// the pre-v3 format that v3-capable imports must still read. Frozen fixture.
+String _buildLegacyV2Archive({
+  required KeyDerivationService kdf,
+  required MasterKeyService mks,
+  required SecretEncryptionService enc,
+  required String password,
+  required Uint8List mek,
+  required String name,
+  required String plaintext,
+}) {
+  final salt = Uint8List(32)..fillRange(0, 32, 3);
+  final pdk = kdf.deriveKey(password: password, salt: salt);
+  final kek = KeyHierarchyService().deriveKek(pdk);
+  final wrappedMek = mks.wrap(masterKey: mek, wrappingKey: kek);
+  final record = enc.encrypt(value: plaintext, key: mek);
+  return jsonEncode({
+    'format': 'keybox-vault-archive',
+    'formatVersion': 2,
+    'mekWrap': 'hkdf-kek-v1',
+    'kdf': {
+      'algorithm': 'PBKDF2-HMAC-SHA256',
+      'iterations': CryptoConstants.pbkdf2Iterations,
+      'saltLength': CryptoConstants.saltLength,
+      'keyLength': CryptoConstants.keyLength,
+    },
+    'cipher': {
+      'algorithm': 'AES-256-GCM',
+      'ivLength': CryptoConstants.ivLength,
+      'authTagLength': CryptoConstants.authTagLength,
+    },
+    'salt': base64Encode(salt),
+    'wrappedMek': base64Encode(wrappedMek),
+    'recordCount': 1,
+    'records': [
+      {
+        'name': name,
+        'secretType': 'apiKey',
+        'serviceName': null,
+        'environment': null,
+        'notes': null,
+        'tags': null,
+        'encryptedValue': base64Encode(record.encryptedValue),
+        'iv': base64Encode(record.iv),
+        'authTag': base64Encode(record.authTag),
+      },
+    ],
+  });
+}
+
 void main() {
   late VaultBackupService service;
   late SecretEncryptionService enc;
@@ -162,8 +212,8 @@ void main() {
   });
 
   group('VaultBackupService.exportArchive', () {
-    test('returns archive JSON matching the v2 contract '
-        '(formatVersion 2 + mekWrap label)', () {
+    test('returns archive JSON matching the v3 contract '
+        '(formatVersion 3 + mekWrap label)', () {
       final mks = MasterKeyService();
       final salt = Uint8List(32)..fillRange(0, 32, 3);
       final kek = Uint8List(32)..fillRange(0, 32, 5);
@@ -188,7 +238,7 @@ void main() {
       expect(archive, isNotNull);
       final json = jsonDecode(archive!) as Map<String, dynamic>;
       expect(json['format'], 'keybox-vault-archive');
-      expect(json['formatVersion'], 2);
+      expect(json['formatVersion'], 3);
       expect(json['mekWrap'], 'hkdf-kek-v1');
       expect(json['recordCount'], 1);
       expect(
@@ -225,6 +275,125 @@ void main() {
       );
 
       expect(archive, isNull);
+    });
+  });
+
+  group('VaultBackupService — v3 metadata encryption', () {
+    late _FakeKeyDerivationService fakeKdf;
+    late VaultBackupService fakeService;
+    late MasterKeyService mks;
+    late Uint8List destMek;
+    const password = 'metadata-secrecy-vault';
+
+    setUp(() {
+      fakeKdf = _FakeKeyDerivationService();
+      mks = MasterKeyService();
+      fakeService = VaultBackupService(keyDerivationService: fakeKdf);
+      destMek = Uint8List(32)..fillRange(0, 32, 13);
+    });
+
+    test(
+      'exported archive leaks NO plaintext metadata (name/service/notes)',
+      () {
+        final records = [
+          _record(
+            enc,
+            mek,
+            name: 'GitHub-PAT',
+            secretType: 'token',
+            serviceName: 'github.com',
+            notes: 'prod deploy — rotate quarterly',
+            plaintext: 'ghp_secretvalue',
+          ),
+        ];
+        final archive = _buildArchive(
+          service: fakeService,
+          kdf: fakeKdf,
+          mks: mks,
+          password: password,
+          mek: mek,
+          records: records,
+        );
+
+        final json = jsonDecode(archive) as Map<String, dynamic>;
+        expect(json['formatVersion'], 3, reason: 'metadata-encrypting format');
+        expect(archive, isNot(contains('GitHub-PAT')));
+        expect(archive, isNot(contains('github.com')));
+        expect(archive, isNot(contains('prod deploy')));
+        final rec = (json['records'] as List).first as Map<String, dynamic>;
+        expect(rec.containsKey('encryptedMeta'), isTrue);
+        expect(rec.containsKey('name'), isFalse);
+      },
+    );
+
+    test('v3 round-trips metadata + value through export→import', () {
+      final records = [
+        _record(
+          enc,
+          mek,
+          name: 'AWS',
+          secretType: 'apiKey',
+          serviceName: 'aws',
+          environment: 'prod',
+          notes: 'root key',
+          tags: 'cloud',
+          plaintext: 'AKIA_secret',
+        ),
+      ];
+      final archive = _buildArchive(
+        service: fakeService,
+        kdf: fakeKdf,
+        mks: mks,
+        password: password,
+        mek: mek,
+        records: records,
+      );
+
+      final imported = fakeService.importArchive(
+        archive: archive,
+        password: password,
+        destinationMek: destMek,
+      );
+      expect(imported, isNotNull);
+      final r = imported!.single;
+      expect(r.name, 'AWS');
+      expect(r.serviceName, 'aws');
+      expect(r.environment, 'prod');
+      expect(r.notes, 'root key');
+      expect(r.tags, 'cloud');
+      final value = enc.decrypt(
+        encryptedValue: r.encrypted.encryptedValue,
+        iv: r.encrypted.iv,
+        authTag: r.encrypted.authTag,
+        key: destMek,
+      );
+      expect(value, 'AKIA_secret');
+    });
+
+    test('legacy v2 (plaintext metadata) archive still imports', () {
+      final archive = _buildLegacyV2Archive(
+        kdf: fakeKdf,
+        mks: mks,
+        enc: enc,
+        password: password,
+        mek: mek,
+        name: 'LegacyV2',
+        plaintext: 'old-value',
+      );
+      final imported = fakeService.importArchive(
+        archive: archive,
+        password: password,
+        destinationMek: destMek,
+      );
+      expect(imported, isNotNull);
+      expect(imported!.single.name, 'LegacyV2');
+      final value = enc.decrypt(
+        encryptedValue: imported.single.encrypted.encryptedValue,
+        iv: imported.single.encrypted.iv,
+        authTag: imported.single.encrypted.authTag,
+        key: destMek,
+      );
+      expect(value, 'old-value');
     });
   });
 
@@ -408,7 +577,7 @@ void main() {
       );
     });
 
-    test('returns null on unknown formatVersion (3)', () {
+    test('returns null on unknown formatVersion (99)', () {
       final archive = _buildArchive(
         service: fakeService,
         kdf: fakeKdf,
@@ -420,7 +589,7 @@ void main() {
         ],
       );
       final map = jsonDecode(archive) as Map<String, dynamic>;
-      map['formatVersion'] = 3;
+      map['formatVersion'] = 99;
       final tampered = jsonEncode(map);
 
       expect(
