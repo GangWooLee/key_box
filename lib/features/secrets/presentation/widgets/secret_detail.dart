@@ -658,16 +658,24 @@ class _FolderLinksSection extends ConsumerWidget {
                   (folder) => _FolderChip(
                     folder: folder,
                     isHome: folder.id == homeFolderId,
-                    onRemove: folder.id == homeFolderId
+                    // Any folder can be removed — including home, whose
+                    // pointer removeFromFolder reassigns to a remaining
+                    // folder. Only the LAST folder is locked (a secret must
+                    // stay reachable from >= 1), so its × is hidden.
+                    onRemove: ids.length <= 1
                         ? null
                         : () async {
                             await ref
                                 .read(secretOpsProvider)
-                                .unlinkFromFolder(secretId, folder.id);
+                                .removeFromFolder(secretId, folder.id);
                             // Refresh the chips: folderIdsBySecretProvider is a
                             // one-shot cache that would otherwise show the
                             // just-removed folder.
                             ref.invalidate(folderIdsBySecretProvider(secretId));
+                            // Home may have been reassigned — the detail row
+                            // (and its isHome chips) read secret.folderId from
+                            // this one-shot cache too.
+                            ref.invalidate(secretDetailProvider(secretId));
                           },
                   ),
                 ),

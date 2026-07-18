@@ -387,6 +387,36 @@ class SecretOperations {
     }
   }
 
+  /// Remove a folder from a secret — the guarded superset of
+  /// [unlinkFromFolder] that the detail-panel chips use. Unlike the raw
+  /// unlink it may remove the HOME folder (secrets.folderId): the home
+  /// pointer is reassigned to a remaining linked folder FIRST, so a crash
+  /// between the two writes leaves a valid state (new home + both links)
+  /// rather than a dangling pointer. Refuses to remove the only folder —
+  /// every secret stays reachable from at least one.
+  Future<Result<void>> removeFromFolder(int secretId, int folderId) async {
+    try {
+      final linked = await _db.folderSecretsDao.getFolderIdsBySecretId(
+        secretId,
+      );
+      if (linked.length <= 1) {
+        return const Failure('A secret must belong to at least one folder');
+      }
+      final secret = await _db.secretDao.getById(secretId);
+      if (secret == null) return const Failure('Secret not found');
+
+      if (secret.folderId == folderId) {
+        final newHome = linked.firstWhere((id) => id != folderId);
+        await _db.secretDao.updateSecret(secretId, folderId: newHome);
+      }
+      await _db.folderSecretsDao.unlink(folderId, secretId);
+      await _logAudit('secret.unlink', secretId, {'folderId': folderId});
+      return const Success(null);
+    } catch (e) {
+      return Failure('Failed to remove from folder: $e');
+    }
+  }
+
   Future<String?> reveal(Secret secret) async {
     await _db.secretDao.recordAccess(secret.id);
     await _logAudit('secret.read', secret.id, {'name': secret.name});
