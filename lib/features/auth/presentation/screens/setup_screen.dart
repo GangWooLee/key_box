@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../../core/constants/crypto_constants.dart';
+import '../../../../core/router/route_names.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/theme/spacing.dart';
 import '../../../../core/theme/typography.dart';
@@ -121,6 +123,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                   _createButton(s),
                   const SizedBox(height: AppSpacing.md),
                   _noRecoveryNote(s),
+                  const SizedBox(height: AppSpacing.sm),
+                  _restoreLink(s),
                   const SizedBox(height: AppSpacing.xl),
                   _touchIdAffordance(s),
                 ],
@@ -339,6 +343,26 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       style: AppTypography.authInputLabel.copyWith(
         color: s.muted,
         letterSpacing: 0.5,
+      ),
+    );
+  }
+
+  Widget _restoreLink(KbSurface s) {
+    // The out-trust path for a new machine: a user with a .kbx but no vault
+    // lands here (AuthFirstRun) and would otherwise have no way to restore.
+    // The router permits /restore from AuthFirstRun (see authRedirect).
+    return Center(
+      child: TextButton(
+        onPressed: _isLoading
+            ? null
+            : () => context.pushNamed(RouteNames.restore),
+        child: Text(
+          'Restore from backup',
+          style: AppTypography.bodySmall.copyWith(
+            fontWeight: FontWeight.w600,
+            color: s.accent,
+          ),
+        ),
       ),
     );
   }

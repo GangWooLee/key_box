@@ -67,6 +67,22 @@ void main() {
         expect(find.text('Create Vault'), findsOneWidget);
       });
 
+      testWidgets('shows a "Restore from backup" entry point', (tester) async {
+        // Confirmed UX defect: a new machine (AuthFirstRun) had no path to
+        // restore from a .kbx — restore was only reachable from vault-error.
+        // Setup must offer it so backup/restore round-trip works on onboarding.
+        await tester.pumpProviderWidget(
+          const SetupScreen(),
+          overrides: [
+            authProvider.overrideWith(
+              (ref) => FakeAuthNotifier(const AuthFirstRun()),
+            ),
+          ],
+        );
+
+        expect(find.text('Restore from backup'), findsOneWidget);
+      });
+
       testWidgets('password fields are obscured by default', (tester) async {
         await tester.pumpProviderWidget(
           const SetupScreen(),

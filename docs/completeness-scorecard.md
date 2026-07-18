@@ -93,10 +93,91 @@
 
 **전체 마무리 판정**: 5대 작업(리뷰·보안·정리·문서·완성도) + Phase A(스테일 빌드 봉합) 완료. 처음 읽는 사람이 README→설계 정본으로 자립 이해 가능. 커밋 전부 CI-green·푸시.
 
-## B-장부 (A-필수 아님, 차기)
-- 코드: `secrets_providers:275` 폴더링크 트랜잭션 밖(orphan)·미테스트 356/140·죽은코드 watchRecent(39)·sheet_modal 계층(391)·folder_dialogs 죽은캐시(194)·계층위반 3곳(folder_dialogs·sheet_modal·onboarding→domain 승격)·빈 스캐폴딩 features/folders·search·vault
-- 보안(방어심층/B): 포커스상실·화면잠금 auto-lock(네이티브)·lock/종료 시 클립보드 소거·마이그레이션 평문잔여·화면캡처. gap-accepted: ad-hoc→Developer ID 공증(B2)·T11 복구코드·회전 Tier2 원자성.
+---
 
-## B-장부 (A-필수 아님, 차기)
-- 코드: `secrets_providers:262` 폴더링크 트랜잭션 밖(orphan)·미테스트 356/140·죽은코드 watchRecent(39)·sheet_modal 계층(386)·folder_dialogs 죽은캐시(194)
-- 보안(방어심층/B): 포커스상실·화면잠금 auto-lock(네이티브)·lock/종료 시 클립보드 소거·마이그레이션 평문잔여·화면캡처. gap-accepted: ad-hoc→Developer ID 공증(B2)·T11 복구코드·회전 Tier2 원자성.
+## ▲ 외부자 시선 3단계 평가 (2026-07-18) — 실측
+
+> "지금까지 판정은 만든 사람 시선"이라는 한계를 깨는 후속 평가. 1·2 실측이 3의 입력.
+
+### 1단계 — 유지보수성 실측 (`flutter test --coverage`, 2026-07-18)
+
+**커버리지 vs CLAUDE.md 타깃** (lcov 파싱, `*.g.dart` 제외):
+
+| 영역 | 타깃 | 실측 | 판정 |
+|---|---|---|---|
+| core/encryption | 100% | **100.0%** (117/117) | ✅ 충족 |
+| auth/domain | 100% | 94.7% (321/339) | ⚠️ 격차 5.3%p — backup_file_picker 20%(네이티브 패널)·auth_notifier 미커버 14줄은 전부 에러상태 전이(configMissing/mekUnwrapFailed)+debugPrint |
+| core/database | 80% | DAO만 88.6% / tables 포함 74.1% | ✅ DAO 충족(테이블 정의는 실행라인 0=구조상 정상) |
+| features/*/domain | 80% | **88.2%** (194/220) | ✅ 충족 |
+| features/*/presentation | 60% | 68.4% (1842/2694) | ✅ 충족(단 folder_dialogs 0%·audit_log 1%·onboarding 1.5%=미테스트 화면) |
+| services | 70% | **85.7%** (54/63) | ✅ 충족 |
+| **lib 전체** | — | **73.8%** (3301/4473) | — |
+
+- **정직 각주**: cipher 의존 라인의 "커버"는 라인 실행일 뿐 암호화 실증이 아님(macOS flutter test는 PRAGMA key 무시 — integration_test가 실증 계층). encryption 100%는 순수 로직(HKDF·wrap·AAD) 커버지 SQLCipher 왕복 아님.
+- **판정**: 6개 영역 중 encryption·domain·database(DAO)·presentation·services 충족, auth/domain만 5.3%p 미달(미커버=에러전이+네이티브패널, 실사용 경로는 커버). 타깃 대비 양호하나 100% 두 영역 중 auth는 미달로 명기.
+
+**구조 부채 (정량)**:
+- 200줄 초과 파일 20개 / 73개(27%). 최대 auth_notifier 989·secret_detail 843·sheet_modal 756. CLAUDE.md 클래스 200줄 기준 초과 다수 — 단 대부분 위젯 build 트리(분해 가능하나 결함 아님).
+- **confirmed 죽은 심볼 7건**(적대검증 후, 직접 재확인): `watchRecent`·`SecretDao.watchByFolderId`·`FolderDao.decrementSecretsCount`·`VaultDao.getAll`·`DateFormatters.timeOnly`·**enum 통파일 `SecretType`·`Environment`**(어디서도 import 안 됨 — grep 0). 프로덕션-죽음/테스트-생존 9건 별도(unlinkFromFolder는 removeFromFolder로 대체돼 테스트만 참조).
+- **의존성 노후**(`pub outdated`): 직접 12개 중 다수 메이저 뒤처짐 — drift 2.28→2.34, riverpod 2.6→3.3, go_router 14→17, pointycastle 3.9→4.0. **단 drift/riverpod은 riverpod_generator 3.0 충돌로 의도적 핀**(memory 기록) — "노후"가 아니라 "잠금". sqlcipher_flutter_libs 0.6→0.7+eol(EOL 표시 주의).
+
+### 2단계 — UX 실측 (실앱 비전, 볼트 대피 후, 2026-07-18)
+
+> 볼트 원본 shasum 대조 일치로 무손상 원복 확인(대피→테스트→복원). 판정 기준: 태스크가 끝나는가.
+
+| 태스크 | 완주 | 발견(심각도) |
+|---|---|---|
+| 1. 첫 5분(셋업→첫 키) | ✅ | 12자 검증 즉시 표시(좋음)·온보딩 3화면이 ⌘K/⌘N/⌘C를 가르침(좋음). **[사소] "forgotten passwords cannot be recovered"만 있고 복구코드 부재 재확인** |
+| 2. 핵심 루프(찾기→reveal→copy→붙여넣기) | ✅ | reveal/copy 작동, 클립보드 실측 일치(`dummy-value-for-ux-eval`). **[짜증] 커맨드 팔레트 입력에 자동 포커스 안 됨 — 한 번 더 클릭해야 타이핑(자동화 영향 가능성 보수적 감안)**. **[관찰] ⌘K 단축키가 팔레트를 안 열었음(자동 synthetic modifier 한계 의심 — 수동 확인 권장)** |
+| 3. 백업 유도 실효성 | ⚠️ | Export는 Settings>Backup에 명확. **[짜증] "never backed up" 배너가 클릭 불가 수동 라벨 — 백업 행동으로 유도 안 함**. 배너→export 연결 부재 |
+| 4. 저빈도 발견성 | ⚠️ | 비번변경(Settings>Security, 명료)·백업(Settings>Backup) 발견 가능. **[사용포기급 후보] 복원(Restore)이 Settings에 없음 — vault-error/unlock 경로에서만 도달. 정상 세션에서 "다른 기기 백업 복원"을 찾을 수 없음** |
+| 부수 | — | **[관찰] 온보딩 Continue 시점 macOS "메모리 부족" 강제종료 다이얼로그 발생** — 단 KeyBox 자체는 87MB(결백), 머신 전역 압박(ChatGPT 12GB 등). KeyBox 누수 아님. **감사 로그 정확**(reveal/create/setup 기록 확인) |
+
+> **2단계 자기 정정(정직)**: 위 (a)팔레트 자동포커스·(b)⌘K 미개방은 3단계 적대검증에서 **코드 반증됨** — `command_palette.dart:84`에 `autofocus: true`, `dashboard_screen.dart:210-214`에 ⌘K 바인딩 실재. 실앱 관찰은 **자동화 synthetic-modifier 한계/스테일 의심 아티팩트**로 판단, **실결함 아님**으로 격하한다("증거 없는 결함 주장 금지"의 대칭 적용). 재빌드 후 수동 재확인이 최종 확답이나, 소스 근거상 정상.
+
+### 3단계 — 컨셉 적합성 + 종합 (멀티에이전트 12에이전트, 적대검증, 2026-07-18)
+
+**방법**: 경쟁 4(1P·Bitwarden·Keychain·pass, 웹 리서치) + PRD갭 1 + 악마의변호인 3 → 각 논거 3렌즈 적대검증(사실성·유스케이스 적합·수용 트레이드오프 위장). 애매하면 refuted. 최종 등급은 메인(Advisor) 직접 산정.
+
+**악마의 변호인 판정 결과**: 3개 보고의 **논거 전부(6+6+6) 검증에서, confirmed로 살아남은 하드 결함은 단 1건** — 나머지는 배포(기준선 B)·수용 트레이드오프·유스케이스 부정합을 결함으로 포장한 것으로 코드/문서로 반증.
+
+- **[CONFIRMED · 사용포기급] 복원(Restore) 발견성** — restore 진입점이 **오직 `vault_error_screen.dart:62` 한 곳**(grep 실측, 여러 검증자 독립 확인). Settings·unlock·first-run 어디에도 없음 → **신규 Mac은 볼트 부재로 first-run(setup) 진입 → 백업 복원 경로 자체가 없음**. "타기기 백업 복원"이 정상 온보딩에서 불가능. PRD 요구 #5(백업/복구 왕복)의 경험상 미완 — 배치/라우팅 한 곳(Settings에 Restore 추가)으로 닫히는 유계 갭이나 실측 유효.
+- **[CONFIRMED · 사소] "never backed up" 배너 비인터랙티브**(`vault_status_strip.dart:33` Text) — 백업 자체는 Settings>Backup에서 발견 가능하므로 경미. 악마가 그린 "완화책 붕괴"는 과장.
+- **[CONFIRMED · 사소] SecretType·Environment 죽은 enum + taxonomy 이원화** — 기능 동작, 드리프트 리스크.
+- **[REFUTED] 복구코드 부재**(무백도어 ZK 설계의 수용된 대가, API키 재발급 가능, `pass`도 동일) · **ad-hoc 서명**(배포=B 관심사) · **회전 비원자성**("벽돌화" 거짓 — 저널+사전백업+case A/B/C 재개, 실패 시 vault-error=복원 진입점) · **자작 크립토**(pointycastle+SQLCipher 조합, 프리미티브 자작 아님) · **핀=패치 봉쇄**(핀은 코드젠 dev-dep에만; sqlcipher/pointycastle 런타임은 독립 bump 가능) · **Keychain으로 충분**(분리 마스터비번+auto-lock+무네트워크 entitlement = 측정 가능 confidentiality 이득, 폴더·검색·감사·이식형 백업 = Keychain 미제공 UX).
+
+**경쟁 벤치마크 결론** (유스케이스 한정 "개발자 개인 로컬 온리 API키 관리"):
+
+| 대안 | 로컬온리 순수성 | 이 유스케이스 결론 |
+|---|---|---|
+| **1Password** | ✗ v8이 계정+클라우드 동기화 강제(standalone 폐지) | 로컬온리 하드요건이면 후보 자체 아님. 단 "로컬온리=수단"이면 `op run`·`op://`·SSH agent 개발툴링이 KeyBox 수동 복사 루프를 압도 |
+| **Bitwarden** | △ 오프라인=읽기전용 캐시, 진짜 로컬온리는 셀프호스트(Docker) | 무료·오픈소스지만 로컬온리엔 서버 구축 필요 |
+| **Keychain/Passwords.app** | ✓ 로컬 | 로그인 시 자동해제(분리 비번 없음)·임의 개발시크릿 정리/검색/백업 UX 빈약 |
+| **pass/gopass** | ✓ 로컬·파일 | GPG CLI, GUI 없음·비개발자 마찰 |
+
+**→ KeyBox의 진짜 해자**: "완전 로컬온리 + 제로 네트워크(entitlement) + 제로 계정 + GUI + 폴더/검색/감사/이식형 암호화 백업"을 **동시에** 주는 대안이 없다. 단 해자의 폭은 좁다 — "로컬온리가 협상 불가 하드요건"일 때만 결정적이고, 취향 수준이면 1Password의 개발 워크플로 주입이 우세.
+
+---
+
+## ◆ 종합 스코어카드 — 5차원 등급 (Advisor 직접 판정, 2026-07-18)
+
+> 등급은 "잘 만들었다"의 보상이 아니라 실측의 요약. 나쁜 수치는 나쁜 등급으로.
+
+| 차원 | 등급 | 근거 (1차 증거) |
+|---|---|---|
+| **설계** | **A−** | 키 계층(PBKDF2 600k→HKDF 도메인분리→MEK wrap)·AAD 치환/롤백 방어·cipher 하드핀·크래시 안전 회전 프로토콜(case A/B/C)·entitlement 무네트워크. 위협모델 33경로. 감점: 복구코드·회전 원자성이 설계급 수용 갭(B 이월). [SECURITY.md·ARCHITECTURE.md] |
+| **구현** | **B+** | test 499 green + cipher integration_test 실증 + CI green. 실앱 버그 4종 수정·removeFromFolder 추가. 감점: 죽은 심볼 7(enum 2 통파일 포함)·200줄 초과 20/73·계층위반 3곳. [1단계 실측] |
+| **유지보수** | **B** | 문서 정본 5종+위협모델+스코어카드(탁월). 커버리지 영역 타깃 대부분 충족. 감점: auth/domain 94.7%<100%·의존성 메이저 핀(riverpod_generator 3.0 충돌 = 실 업그레이드 블로커)·구조 부채. [1단계 실측] |
+| **UX** | **B−** | 첫 5분·핵심 루프(찾기→reveal→copy→붙여넣기, 클립보드 실측 일치) 완주. 감점: **복원 발견성 사용포기급 confirmed**(신규 Mac 이관 차단)·백업 배너 비인터랙티브. 시크릿매니저의 가장 안전임계 플로(백업/복구)에 실 구멍. [2·3단계] |
+| **컨셉** | **B** | "완전 로컬온리 개인 API키 관리"에 경쟁 대안이 못 채우는 진짜 니치. 감점: 해자가 "로컬온리=하드요건"에 전적 의존(취향이면 1P 우세)·개발 워크플로 주입(CLI/env) 부재로 폭 좁음. [3단계 벤치마크] |
+
+**Advisor 종합 판정**: KeyBox는 **기준선 A(저자 개인 dogfood)를 실증으로 닫은, 설계가 특히 견고한 1인 제품**이다. 12에이전트 적대검증이 찾아낸 "쓰지 말아야 할 이유"는 **단 하나의 실 결함(복원 발견성)으로 수축**했고 — 나머지는 전부 (a)스스로 선언한 기준선 B 미완이거나 (b)논증을 거쳐 수용한 설계 트레이드오프였다. 가장 시급한 단일 개선은 **Settings에 Restore/Import 진입점 추가**(백업/복구 왕복 약속을 정상 세션에서 성립시킴). 컨셉은 방어 가능하나 해자가 좁아, 배포(B)로 가려면 복구코드·Developer ID 공증이 관문이다.
+
+## B-장부 (A-필수 아님 — 통합·갱신)
+
+- ~~**UX(신규 최우선)**: 복원 진입점을 first-run에 추가~~ → **2026-07-18 닫힘**: setup(AuthFirstRun)에 "Restore from backup" 진입점 + restore 화면 Cancel 탈출로 + 라우터 `authRedirect`가 FirstRun/VaultError에서 /restore 허용(mirror 복제 제거·뮤테이션 RED 실증). 신규-Mac 왕복(setup→restore→cancel) 실앱 비전 확인. 잔여: "never backed up" 배너 onTap→Backup 연결(사소)·AuthLocked(비번분실+백업) 복원은 reset-first 흐름 필요(별도 B).
+- **코드 위생**: 죽은 심볼 7 제거(`SecretType`·`Environment` enum 통파일·`watchRecent`·`SecretDao.watchByFolderId`·`FolderDao.decrementSecretsCount`·`VaultDao.getAll`·`DateFormatters.timeOnly`)·taxonomy 이원화(SecretCategory vs 죽은 enum) 정리·200줄 초과 위젯 분해·계층위반 3곳(folder_dialogs·sheet_modal·onboarding→domain)·빈 스캐폴딩 features/folders·search·vault·`secrets_providers` 폴더링크 트랜잭션 밖(orphan 창).
+- **보안(방어심층/B)**: 포커스상실·화면잠금 auto-lock(네이티브)·lock/종료 시 클립보드 소거·마이그레이션 평문잔여·화면캡처(sharingType). gap-accepted: ad-hoc→Developer ID+공증(B2)·복구코드(B1)·회전 Tier2 원자성(B3)·Argon2id 이관.
+- **의존성**: riverpod 3/drift 2.32+ 승급(riverpod_generator 3 안정판에 묶어서)·sqlcipher_flutter_libs 0.7 EOL 검토.
+
+> **커버리지 수치 정직 각주**: 본 스코어카드 실측(73.8%, `*.g.dart` 제외·영역 매핑)과 3단계 검증자가 본 lcov(54.9% 총, core 37.6%)의 차이는 (a) `*.g.dart`/집계 범위, (b) cipher 의존 코어가 integration_test로만 검증돼 flutter-test lcov에 안 잡히는 분리 아티팩트 때문. 영역별 타깃 대조(encryption 100%·presentation≥60%)는 양쪽 해석에서 유지.

@@ -12,21 +12,11 @@ import 'package:key_box/features/auth/domain/auth_state.dart';
 
 import '../../helpers/widget_test_helpers.dart';
 
-/// Simulates the redirect function from app_router.dart.
-/// This mirrors the exact switch expression used in production.
-String? simulateRedirect(AuthState authState, String path) {
-  return switch (authState) {
-    AuthInitial() => path != RoutePaths.loading ? RoutePaths.loading : null,
-    AuthFirstRun() => path != RoutePaths.setup ? RoutePaths.setup : null,
-    AuthLocked() => path != RoutePaths.unlock ? RoutePaths.unlock : null,
-    AuthVaultError() =>
-      path != RoutePaths.vaultError ? RoutePaths.vaultError : null,
-    AuthUnlocked(isFirstSetup: true) =>
-      path != RoutePaths.onboarding ? RoutePaths.onboarding : null,
-    AuthUnlocked() =>
-      RoutePaths.authRoutes.contains(path) ? RoutePaths.dashboard : null,
-  };
-}
+/// Test the REAL redirect (extracted top-level [authRedirect]) — no mirror.
+/// Previously this file duplicated the production switch, so the test could
+/// pass while production drifted. It now calls production directly.
+String? simulateRedirect(AuthState authState, String path) =>
+    authRedirect(authState, path);
 
 void main() {
   setUp(() {
@@ -220,6 +210,58 @@ void main() {
           expect(simulateRedirect(state, RoutePaths.auditLog), isNull);
         });
       });
+    });
+  });
+
+  // ── Restore reachability (confirmed defect: /restore was unreachable
+  // from the states where a user actually needs it) ──
+  group('restore reachability', () {
+    test('AuthFirstRun permits /restore (new-machine backup restore)', () {
+      // A new Mac has no vault → AuthFirstRun. The user with a .kbx must be
+      // able to reach /restore instead of being forced to /setup.
+      expect(
+        simulateRedirect(const AuthFirstRun(), RoutePaths.restore),
+        isNull,
+      );
+    });
+
+    test(
+      'AuthVaultError permits /restore (recovery path actually renders)',
+      () {
+        // vault_error_screen pushes /restore; the redirect must not bounce it.
+        expect(
+          simulateRedirect(
+            const AuthVaultError(reason: VaultErrorReason.sidecarMissing),
+            RoutePaths.restore,
+          ),
+          isNull,
+        );
+      },
+    );
+
+    test('AuthFirstRun still forces non-restore/non-setup paths to /setup', () {
+      expect(simulateRedirect(const AuthFirstRun(), '/'), RoutePaths.setup);
+      expect(
+        simulateRedirect(const AuthFirstRun(), RoutePaths.unlock),
+        RoutePaths.setup,
+      );
+    });
+
+    test('AuthLocked still bounces /restore to /unlock (vault intact)', () {
+      // Restoring over an intact locked vault is out of scope (would need a
+      // reset-first flow) — deliberately still bounced.
+      expect(
+        simulateRedirect(const AuthLocked(), RoutePaths.restore),
+        RoutePaths.unlock,
+      );
+    });
+
+    test('AuthUnlocked still bounces /restore to dashboard', () {
+      final state = AuthUnlocked(
+        masterEncryptionKey: Uint8List(32),
+        vaultId: 1,
+      );
+      expect(simulateRedirect(state, RoutePaths.restore), RoutePaths.dashboard);
     });
   });
 

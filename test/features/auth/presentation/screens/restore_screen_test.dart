@@ -65,6 +65,14 @@ void main() {
       expect(find.text('Restore'), findsNothing);
     });
 
+    testWidgets('step 1 offers a way back (Cancel)', (tester) async {
+      // Setup now pushes this screen; a user who arrives by mistake must have
+      // an exit rather than being trapped with only a completed restore.
+      await pumpRestore(tester, outcome: const RestoreCorrupt());
+
+      expect(find.text('Cancel'), findsOneWidget);
+    });
+
     testWidgets('picking a file advances to the password step', (tester) async {
       await pumpRestore(tester, outcome: const RestoreCorrupt());
 

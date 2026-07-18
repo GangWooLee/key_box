@@ -171,6 +171,18 @@ class _RestoreScreenState extends ConsumerState<RestoreScreen> {
             ),
           ),
         ),
+        const SizedBox(height: AppSpacing.sm),
+        // Exit path — restore is always PUSHED (from setup or vault-error), so
+        // maybePop returns there; a no-op if somehow at the root (never trapped).
+        Center(
+          child: TextButton(
+            onPressed: () => Navigator.of(context).maybePop(),
+            child: Text(
+              'Cancel',
+              style: AppTypography.bodySmall.copyWith(color: s.muted),
+            ),
+          ),
+        ),
       ],
     );
   }
