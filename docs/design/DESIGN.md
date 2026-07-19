@@ -128,7 +128,7 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 - **시그니처 — "불이 들어온다"**: unlock 성공 → 320ms `easeOutExpo` 대각(좌상→우하) 광원 스윕이 슬래브를 열림 표면으로 씻어냄. 콘텐츠는 제자리(슬라이드 금지 — 침착 유지), 표면 색만 스윕 전선 따라 lerp + 파일럿 라이트 `#3E6B3A→#5FB84E` 점화. **구현됨(2026-07-14)**: `lib/features/auth/presentation/widgets/unlock_sweep.dart` — 단일 `AnimationController(AppMotion.signature)` + 대각 `LinearGradient` 커버 리빌(slab-at-zero-alpha로 다크 프린지 제거). 표면 전환은 `surfaceThemeProvider`가 담당(스윕은 이미 그려진 새 표면을 드러냄). reduce-motion 시 `AppMotion.snap`(120ms) 균일 크로스페이드.
   - **라이트(벤치) 타깃**: 슬래브 `#0B0D08` → 벤치 `#EDE9DE` (극적 휘도 반전).
   - **다크(터미널) 타깃**: 슬래브 `#0B0D08` → 터미널 `#12140E` (미묘한 톤 리프트, 낙차 작음).
-  - **첫 실행 히어로 규칙(리뷰 §3)**: setup 완료 후 **첫 스윕은 OS 다크 여부와 무관하게 벤치(라이트)로** 극적 반전을 보여준 뒤, 다음 부팅부터 사용자 모드(theme_provider) 추종. 첫인상 = 제품 은유이므로 muted 버전으로 시작하지 않는다.
+  - **첫 실행 히어로 규칙(리뷰 §3)**: setup 완료 후 **첫 스윕은 OS 다크 여부와 무관하게 벤치(라이트)로** 극적 반전을 보여준 뒤, 다음 부팅부터 사용자 모드(theme_provider) 추종. 첫인상 = 제품 은유이므로 muted 버전으로 시작하지 않는다. 단 **명시적 테마 선택은 히어로를 즉시 해제**한다(2026-07-19): 히어로 세션 중에도 사용자가 설정/토글로 모드를 고르면 그 선택이 바로 렌더에 반영된다 — 히어로는 기본값을 이기지만 명시적 의사는 못 이긴다.
 - 잠김(lock)은 **즉각**: 120ms 이내 슬래브 복귀(해제는 관대하게, 잠금은 즉각).
 - Duration 스케일: micro 80ms(hover) · short 160ms(전개) · signature 320ms(unlock만). Easing: enter `easeOut`, exit `easeIn`, 이동 `easeInOut`.
 - 오답 피드백: 입력 필드 **수평 셰이크(진폭 8px, 3회, 240ms, easeInOut)** + `slabError` 테두리 1s 유지.
@@ -237,3 +237,4 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 | 2026-07-13 | **(design-review 반영)** 모션 토큰·미세 spacing 단계·버튼 3단계 명문화 | Stage 5 감사: 모션만 토큰 레이어 부재(5건 오프스케일)·6/12 인셋 체계적 재사용·버튼 높이 32/36/40 실측 일관 — 스케일로 승격 |
 | 2026-07-13 | **(design-review 반영)** dev 리셋 어포던스 = muted mono + 확인 게이트 | 실앱 첫인상: 클레이 아웃라인이 봉인 슬래브 최대 소음원. 파괴 마찰은 다이얼로그가 담당 |
 | 2026-07-14 | **시그니처 스윕 구현(Phase B 마감)** | §Motion 유일 HIGH 갭 해소 — UnlockSweep 위젯(앱 builder 1회 래핑, 봉인→해제 전이 시 320ms easeOutExpo 대각 슬래브-지우기). slab-at-zero-alpha로 프린지 제거·reduce-motion 120ms 페이드·첫 실행 히어로=벤치 고정. 골든 `unlock_sweep_mid.png` 신설. `motion.dart` snap(120) 추가 |
+| 2026-07-19 | **(QA 반영)** 히어로 예외 — 명시적 테마 선택 시 즉시 해제 | 실앱 QA: 셋업 직후 세션에서 Settings Dark·토글이 렌더에 무반응(히어로가 다음 잠금까지 themeMode를 가림). 히어로는 첫 노출 기본값 규칙이지 명시적 사용자 선택 차단이 아님 |

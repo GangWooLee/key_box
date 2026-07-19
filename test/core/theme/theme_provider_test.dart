@@ -121,6 +121,86 @@ void main() {
       );
     });
 
+    test('explicit setThemeMode(dark) during the hero session disarms the '
+        'hero and renders the terminal immediately', () async {
+      final fake = FakeAuthNotifier(const AuthFirstRun());
+      final container = ProviderContainer(
+        overrides: [authProvider.overrideWith((ref) => fake)],
+      );
+      addTearDown(container.dispose);
+      container.listen(surfaceThemeProvider, (_, __) {});
+
+      fake.setAuthState(unlocked());
+      expect(
+        container.read(surfaceThemeProvider).scaffoldBackgroundColor,
+        AppColors.benchCanvas,
+      );
+
+      // QA repro: mode already reads dark (default) — re-selecting Dark in
+      // Settings must still flip the render, not just the checkmark.
+      await container
+          .read(themeModeProvider.notifier)
+          .setThemeMode(ThemeMode.dark);
+
+      expect(container.read(firstRunHeroProvider), isFalse);
+      expect(
+        container.read(surfaceThemeProvider).scaffoldBackgroundColor,
+        AppColors.termCanvas,
+      );
+    });
+
+    test('toggle() during the hero session disarms the hero and follows '
+        'the chosen mode', () async {
+      final fake = FakeAuthNotifier(const AuthFirstRun());
+      final container = ProviderContainer(
+        overrides: [authProvider.overrideWith((ref) => fake)],
+      );
+      addTearDown(container.dispose);
+      container.listen(surfaceThemeProvider, (_, __) {});
+
+      fake.setAuthState(unlocked());
+
+      // dark → light: still the bench, but now by explicit choice.
+      container.read(themeModeProvider.notifier).toggle();
+      expect(container.read(firstRunHeroProvider), isFalse);
+      expect(
+        container.read(surfaceThemeProvider).scaffoldBackgroundColor,
+        AppColors.benchCanvas,
+      );
+
+      // light → dark: render must follow.
+      container.read(themeModeProvider.notifier).toggle();
+      expect(
+        container.read(surfaceThemeProvider).scaffoldBackgroundColor,
+        AppColors.termCanvas,
+      );
+    });
+
+    test('programmatic prefs load does NOT disarm the hero', () async {
+      // A persisted mode loading in the background is not a user action —
+      // the first-run reveal must survive it.
+      SharedPreferences.setMockInitialValues({
+        'theme_mode': ThemeMode.dark.index,
+      });
+      final fake = FakeAuthNotifier(const AuthFirstRun());
+      final container = ProviderContainer(
+        overrides: [authProvider.overrideWith((ref) => fake)],
+      );
+      addTearDown(container.dispose);
+      container.listen(surfaceThemeProvider, (_, __) {});
+
+      fake.setAuthState(unlocked());
+      // Instantiate the notifier and let its async _load() complete.
+      container.read(themeModeProvider);
+      await Future.delayed(const Duration(milliseconds: 50));
+
+      expect(container.read(firstRunHeroProvider), isTrue);
+      expect(
+        container.read(surfaceThemeProvider).scaffoldBackgroundColor,
+        AppColors.benchCanvas,
+      );
+    });
+
     test('regular Locked→Unlocked never sets the hero flag', () async {
       final fake = FakeAuthNotifier(const AuthLocked());
       final container = ProviderContainer(
