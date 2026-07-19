@@ -18,13 +18,24 @@ const _themePrefKey = 'theme_mode';
 final themeModeProvider = StateNotifierProvider<ThemeModeNotifier, ThemeMode>((
   ref,
 ) {
-  return ThemeModeNotifier();
+  // An explicit selection outranks the first-run hero (DESIGN.md §Motion):
+  // picking a mode mid-hero-session must change the render, not just the
+  // checkmark. Wired here (not via ref.listen on state) so the async prefs
+  // _load() — a programmatic change — cannot disarm the hero.
+  return ThemeModeNotifier(
+    onExplicitChange: () =>
+        ref.read(firstRunHeroProvider.notifier).state = false,
+  );
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.dark) {
+  ThemeModeNotifier({VoidCallback? onExplicitChange})
+    : _onExplicitChange = onExplicitChange,
+      super(ThemeMode.dark) {
     unawaited(_load());
   }
+
+  final VoidCallback? _onExplicitChange;
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -35,6 +46,7 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
+    _onExplicitChange?.call();
     state = mode;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt(_themePrefKey, mode.index);
@@ -49,7 +61,8 @@ class ThemeModeNotifier extends StateNotifier<ThemeMode> {
 
 /// First-run hero flag (DESIGN.md §Motion 첫 실행 히어로 규칙): the very first
 /// sweep after setup lands on the Bench (light) regardless of OS/user mode —
-/// the first impression IS the product metaphor. Cleared on the next lock;
+/// the first impression IS the product metaphor. Cleared on the next lock or
+/// by an explicit theme selection (the hero beats defaults, never the user);
 /// afterwards the user's mode is followed.
 final firstRunHeroProvider = StateProvider<bool>((ref) => false);
 
