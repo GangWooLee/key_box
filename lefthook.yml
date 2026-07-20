@@ -1,14 +1,17 @@
 # 기계적 개발 규율 게이트(git 계층). 설치: `lefthook install` (bin/setup 없음 — 수동 1회).
 # 우회(escape hatch): `git <cmd> --no-verify` 또는 `LEFTHOOK=0 git <cmd>`.
+# `env -u GIT_DIR …`: linked worktree에서 git이 훅에 절대경로 GIT_DIR/GIT_INDEX_FILE을 내보내는데,
+# Flutter SDK 래퍼(shared.sh)의 `git rev-parse HEAD`가 이를 SDK 저장소 대신 key_box로 해석해
+# "0.0.0-unknown" 버전으로 붕괴한다(도구 리빌드 + pub 버전 해석 실패). SDK 호출에서만 벗겨낸다.
 pre-commit:
   parallel: true
   commands:
     dart-format:
       glob: "*.dart"
-      run: dart format --set-exit-if-changed {staged_files}
+      run: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE dart format --set-exit-if-changed {staged_files}
     analyze:
       glob: "*.dart"
-      run: flutter analyze
+      run: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE flutter analyze
 commit-msg:
   commands:
     claude-trailers:
@@ -16,4 +19,4 @@ commit-msg:
 pre-push:
   commands:
     tests:
-      run: flutter test
+      run: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE flutter test
