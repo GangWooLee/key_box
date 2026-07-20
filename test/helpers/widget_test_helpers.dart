@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 
 import 'package:key_box/core/database/database.dart';
+import 'package:key_box/core/encryption/key_derivation_service.dart';
 import 'package:key_box/core/theme/app_theme.dart';
 import 'package:key_box/core/utils/result.dart';
 import 'package:key_box/features/auth/domain/auth_notifier.dart';
@@ -79,9 +80,18 @@ class TestVaultData {
 }
 
 /// Creates a real in-memory DB with a vault, folder, and optionally seeded secrets.
+///
+/// KDF cost is cut to 2 iterations: no consumer ever re-derives from the
+/// password (they use the returned [TestVaultData.masterKey] directly), and
+/// the production 600k-iteration PBKDF2 costs ~3s of blocked event loop PER
+/// setUp — the main reason widget suites finished last in batch runs and got
+/// blamed by the compact reporter for other suites' failures (2026-07-20).
 Future<TestVaultData> createSeededVault({int secretCount = 3}) async {
   final db = AppDatabase.forTesting(NativeDatabase.memory());
-  final notifier = AuthNotifier(db);
+  final notifier = AuthNotifier(
+    db,
+    keyDerivationService: KeyDerivationService(iterations: 2),
+  );
   await notifier.setup(
     password: 'testpassword123',
     confirmation: 'testpassword123',
