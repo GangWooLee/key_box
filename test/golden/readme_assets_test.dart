@@ -1,8 +1,7 @@
 @Tags(['golden'])
 library;
 
-import 'dart:typed_data';
-
+import 'package:drift/drift.dart' hide Column;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -105,6 +104,24 @@ void main() {
     expect(result, isA<Success<Secret>>());
   }
 
+  /// Pins each seeded secret's createdAt/updatedAt to a strictly-descending
+  /// ladder in insertion order (id 1 newest … id 6 oldest). The table sorts by
+  /// updatedAt DESC with second precision, so without this a batch-run under
+  /// CPU load can straddle a second boundary mid-seed and flip the row order —
+  /// the 2026-07-20 "golden flake reported as secret_detail (tearDownAll)".
+  /// Offsets stay far below the 60s "just now" threshold, so no rendered text
+  /// changes and the committed goldens stay valid.
+  Future<void> pinSeedTimestamps() async {
+    final rows = await db.secretDao.getByVaultId(vaultId);
+    final base = DateTime.now();
+    for (final row in rows) {
+      final t = base.subtract(Duration(seconds: row.id));
+      await (db.update(db.secrets)..where((s) => s.id.equals(row.id))).write(
+        SecretsCompanion(createdAt: Value(t), updatedAt: Value(t)),
+      );
+    }
+  }
+
   Future<void> seedDemoVault() async {
     await seed(
       'Stripe Secret Key',
@@ -151,6 +168,7 @@ void main() {
       service: 'Railway',
       env: 'staging',
     );
+    await pinSeedTimestamps();
   }
 
   /// Unmounts the tree and elapses the fake clock so drift's zero-duration
