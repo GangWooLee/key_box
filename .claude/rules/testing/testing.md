@@ -110,6 +110,25 @@ testWidgets('shows unlock screen when locked', (tester) async {
 });
 ```
 
+## drift 스트림 × 위젯 테스트 — drain 필수 (3회 반복으로 승격, 2026-07-21)
+
+위젯이 실 drift 스트림(StreamProvider → `watch*()`)을 watch하는 테스트는
+**테스트 본문 끝에 반드시 `drainDriftTimers(tester)`** (공용 헬퍼,
+`test/helpers/widget_test_helpers.dart`) 호출:
+
+```dart
+await drainDriftTimers(tester); // 트리 언마운트 + fake 시계 1s 전진
+```
+
+- 이유: 트리 해체 시 drift가 0-duration 정리 타이머(`markAsClosed`)를
+  예약하는데, fake-async 시계가 멈춰 있으면 발화 불가 → ① `'!timersPending'`
+  단언 실패("A Timer is still pending…") ② tearDown `db.close()` **행**
+  (테스트당 ~10분 타임아웃).
+- **증상이 '실패'가 아니라 '행/타임아웃'이면 이 클래스부터 의심**하라.
+- 위젯에 drift StreamProvider watch를 새로 추가하면 그 위젯의 **기존 테스트
+  전건**에 drain이 필요해진다 (2026-07-21 sheet_modal 10건 회귀 사례 —
+  `docs/solutions/test-failures/` 참조).
+
 ## 금지 패턴
 
 ```dart
