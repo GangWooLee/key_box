@@ -80,7 +80,7 @@ Key routing rules:
 
 ### 검증 규율 — "테스트 그린 ≠ 앱 작동"
 
-- DoD(완료 기준) = `dart analyze` 0건 + `flutter test` 전건 green + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` 성공. 테스트가 못 보는 결함(네이티브 의존·entitlements·창 관리)은 실빌드가 잡는다.
+- DoD(완료 기준) = `dart analyze` 0건 + `flutter test` 전건 green + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` 성공 + (기능 변경) `/test-sync` 매핑표 ❌ 0건 + (UI 행동 변경) `/vision-qa` 해당 시나리오 PASS. 테스트가 못 보는 결함(네이티브 의존·entitlements·창 관리·실앱 UI 반응)은 실빌드·비전 QA가 잡는다.
 - 증거 없이 완료 선언 금지 — 진실원천은 `.claude/rules/common/verification-discipline.md`(자동 로드). 이 절은 포인터다.
 - 게이트를 새로 만들면 **뮤테이션으로 실증하라**: 결함을 일부러 주입해 게이트가 RED가 되는 것을 확인한 뒤 채택한다(통과만 확인한 게이트는 장식이다).
 

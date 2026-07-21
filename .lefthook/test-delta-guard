@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# test-delta-guard — "작업은 했는데 테스트는 안 늘었다" 봉합 (pre-push 게이트).
+#   · 소스 변경 > 0 && 테스트 변경 = 0 → push 차단.
+#   · 스택 중립: 소스/테스트 경로는 TDG_SRC_RE / TDG_TEST_RE 환경변수로 재정의 가능.
+#     기본값은 일반 레이아웃(lib|src|app / test|tests|integration_test|spec|__tests__) 커버.
+#   · 휴리스틱이므로 우회로 제공: TESTLESS_PUSH=1 (+ TESTLESS_REASON='사유')
+#     → 통과시키되 log/testless-pushes.log에 감사 기록. "조용히 통과"는 불가능.
+#   · 비교 기준: @{push} → @{upstream} → origin/main 순 폴백. 기준 없으면 통과.
+set -uo pipefail
+
+SRC_RE="${TDG_SRC_RE:-^(lib|src|app)/}"
+TEST_RE="${TDG_TEST_RE:-^(test|tests|integration_test|spec|__tests__)/}"
+
+base=""
+for ref in "@{push}" "@{upstream}" "origin/main"; do
+  if git rev-parse --verify --quiet "$ref" >/dev/null 2>&1; then
+    base="$ref"
+    break
+  fi
+done
+[ -z "$base" ] && exit 0 # 비교 기준 없음(고아 리포 등) — 판단 불가, 통과
+
+changed="$(git diff --name-only "$base"...HEAD 2>/dev/null)" || exit 0
+[ -z "$changed" ] && exit 0
+
+lib_n=$(printf '%s\n' "$changed" | grep -cE "$SRC_RE" || true)
+tst_n=$(printf '%s\n' "$changed" | grep -cE "$TEST_RE" || true)
+
+# 테스트가 동반됐거나 lib 변경이 없으면 통과.
+if [ "$lib_n" -eq 0 ] || [ "$tst_n" -gt 0 ]; then
+  exit 0
+fi
+
+if [ "${TESTLESS_PUSH:-0}" = "1" ]; then
+  mkdir -p log
+  printf '%s | branch=%s | base=%s | lib_files=%s | reason=%s\n' \
+    "$(date '+%Y-%m-%d %H:%M:%S')" \
+    "$(git branch --show-current 2>/dev/null || echo '?')" \
+    "$base" "$lib_n" \
+    "${TESTLESS_REASON:-<사유 미기재>}" >>log/testless-pushes.log
+  echo "⚠ test-delta-guard: TESTLESS_PUSH=1 우회 — log/testless-pushes.log에 기록됨" >&2
+  exit 0
+fi
+
+{
+  echo "✗ test-delta-guard: 소스 ${lib_n}개 파일 변경(기준 $base, 패턴 $SRC_RE)에 테스트 변경 0건."
+  echo "  → /test-sync 실행으로 변경-테스트 매핑표를 만들어 ❌를 봉합하거나,"
+  echo "  → 순수 리팩토링 등 정당 사유가 있으면:"
+  echo "      TESTLESS_PUSH=1 TESTLESS_REASON='사유' git push   (감사 로그 남음)"
+} >&2
+exit 1

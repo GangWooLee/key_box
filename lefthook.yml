@@ -18,5 +18,7 @@ commit-msg:
       run: .lefthook/commit-msg-trailers {1}
 pre-push:
   commands:
+    test-delta-guard:
+      run: .lefthook/test-delta-guard
     tests:
       run: env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE flutter test
