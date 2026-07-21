@@ -32,7 +32,7 @@
 | 시점 | 검증 명령 |
 |------|----------|
 | Phase/Task 완료 시 | `flutter test` (최소) |
-| PR 전 | DoD 전체: `dart analyze` 0건 + `flutter test` 전건 + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` |
+| PR 전 | DoD 전체: `dart analyze` 0건 + `flutter test` 전건 + (UI·네이티브·라우팅 변경 시) `flutter build macos --debug` + (기능 변경) `/test-sync` 매핑표 ❌ 0건 + (UI 행동 변경) `/vision-qa` 해당 시나리오 PASS |
 | 커밋 전 | `dart analyze` + 관련 테스트 |
 | 버그 수정 후 | 재현 시나리오 재실행 |
 
