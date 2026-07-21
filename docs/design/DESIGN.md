@@ -169,7 +169,8 @@ Plex의 설계 브리프("인간과 기계의 관계")가 제품 논지와 일�
 - **detail**: 값은 mono 마스킹 기본(**고정 dot 개수**), reveal·copy는 고스트. **긴 값(JWT·JSON 400~2000자)**: reveal 시 mono 래핑 + 세로 스크롤(가로 스크롤 금지), 복사는 전체. 하단에 조용한 상태 정보 3종.
 - **modals(sheet·folder·context)**: canvas/terminal-canvas 위 lamp 카드, dim은 표면별 scrim 토큰. 파괴 확인 다이얼로그만 error 아웃라인 버튼.
 - **create/edit secret(sheet_modal — 리뷰 §2·§3 신설)**: lamp 카드에 세로 폼 —
-  - 필드 순서: Name(text) → Type(드롭다운: API/TOKEN/KEY/PWD/SSH) → Value(멀티라인 mono, 마스킹 토글) → Service(text) → Environment(드롭다운: PROD/DEV/STG) → Folder(드롭다운) → Notes(옵션).
+  - 필드 순서: Name(text) → Value(멀티라인 mono, 마스킹 토글) → **Folder(드롭다운 — 생성 모드에서 Key Value 다음·Advanced 토글 앞에 상시 노출)** → Type(드롭다운: API/TOKEN/KEY/PWD/SSH) → Service(text) → Environment(드롭다운: PROD/DEV/STG) → Notes(옵션).
+  - Folder 기본값: 현재 선택 폴더를 추종, 미선택(카테고리 뷰) 시 General을 명시 표시 — 무음 파일링 제거. 편집 모드에는 셀렉터 미표시(폴더 이동은 detail 칩 소관).
   - 라벨은 필드 위 mono caption(placeholder-as-label 금지 — 접근성). 검증: Name·Value 필수, 빈값 시 error 테두리 + mono 사유 한 줄.
   - dirty 상태: 저장 버튼 활성화(dirty 아니면 disabled). Cancel은 dirty면 확인 다이얼로그.
   - 하단 액션: `Save`(주 버튼) · `Cancel`(보조). Save 성공 → 토스트 + 모달 닫힘.

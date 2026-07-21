@@ -128,6 +128,7 @@ void main() {
       await tester.pump();
       expect(find.byIcon(LucideIcons.eyeOff), findsOneWidget);
       expect(find.byIcon(LucideIcons.eye), findsNothing);
+      await drainDriftTimers(tester);
     },
   );
 
@@ -148,6 +149,7 @@ void main() {
         isTrue,
         reason: 'masked by default (reveal parity)',
       );
+      await drainDriftTimers(tester);
     });
 
     testWidgets('saving without changing the value does NOT rotate', (
@@ -176,6 +178,7 @@ void main() {
         1,
         reason: 'unchanged value must not bump recordVersion',
       );
+      await drainDriftTimers(tester);
     });
 
     testWidgets('changing the value rotates (recordVersion + 1)', (
@@ -197,6 +200,7 @@ void main() {
         after = await db.secretDao.getById(secret.id);
       });
       expect(after!.recordVersion, 2, reason: 'changed value rotates');
+      await drainDriftTimers(tester);
     });
   });
 
@@ -226,6 +230,7 @@ void main() {
       });
       expect(inWork.map((s) => s.name), ['GitHub Token']);
       expect(inGeneral, isEmpty, reason: 'must not fall back to general');
+      await drainDriftTimers(tester);
     },
   );
 
@@ -249,6 +254,92 @@ void main() {
             .first;
       });
       expect(inGeneral.map((s) => s.name), ['Loose Key']);
+      await drainDriftTimers(tester);
     },
   );
+
+  group('folder selector (create mode)', () {
+    // The closed DropdownButton keeps ALL its item texts in an IndexedStack
+    // (only the selected one is painted), so find.text can't discriminate which
+    // is selected. Read the rendered DropdownButton<String?>.value instead — the
+    // behavioral source of truth for the current selection.
+    String selectedFolderValue(WidgetTester tester) {
+      final dropdown = tester.widget<DropdownButton<String?>>(
+        find.byType(DropdownButton<String?>),
+      );
+      return dropdown.value!;
+    }
+
+    testWidgets('defaults to the currently selected folder (Work)', (
+      tester,
+    ) async {
+      await pumpModal(tester, selectedFolderId: workId);
+      expect(selectedFolderValue(tester), workId.toString());
+      await drainDriftTimers(tester);
+    });
+
+    testWidgets('shows General when no folder is selected (category view)', (
+      tester,
+    ) async {
+      await pumpModal(tester, selectedFolderId: null);
+      expect(selectedFolderValue(tester), generalId.toString());
+      await drainDriftTimers(tester);
+    });
+
+    testWidgets(
+      'picking a different folder (Work) lands the secret there, not general',
+      (tester) async {
+        await pumpModal(tester, selectedFolderId: null); // default = General
+
+        // Open the selector and switch to Work. The open menu re-renders the
+        // item text (button IndexedStack + menu overlay), so target .last.
+        await tester.tap(find.byType(DropdownButton<String?>));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Work').last);
+        await tester.pumpAndSettle();
+
+        final fields = find.byType(TextField);
+        await tester.enterText(fields.at(0), 'Moved Key'); // Title
+        await tester.enterText(fields.at(1), 'sk_moved'); // Value
+        await tester.pump();
+        // Save spins a CircularProgressIndicator — pump (not pumpAndSettle),
+        // then drain the real create+link on the event loop via runAsync.
+        await tester.tap(find.text('Save'));
+        await tester.pump();
+
+        List<Secret> inWork = const [];
+        List<Secret> inGeneral = const [];
+        await tester.runAsync(() async {
+          await Future<void>.delayed(const Duration(milliseconds: 300));
+          inWork = await db.folderSecretsDao
+              .watchSecretsByFolderId(workId)
+              .first;
+          inGeneral = await db.folderSecretsDao
+              .watchSecretsByFolderId(generalId)
+              .first;
+        });
+        expect(inWork.map((s) => s.name), ['Moved Key']);
+        expect(
+          inGeneral,
+          isEmpty,
+          reason: 'picking Work must not fall back to general',
+        );
+        await drainDriftTimers(tester);
+      },
+    );
+
+    testWidgets(
+      'is absent in edit mode (folder move is a detail-chip concern)',
+      (tester) async {
+        final secret = await seedSecret('GH', 'ghp_original', workId);
+        final current = (await db.secretDao.getById(secret.id))!;
+
+        await pumpModal(tester, secret: current);
+        await tester.pumpAndSettle();
+
+        expect(find.text('FOLDER'), findsNothing);
+        await drainDriftTimers(tester);
+      },
+    );
+  });
 }
