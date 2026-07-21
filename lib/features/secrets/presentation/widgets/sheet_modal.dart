@@ -65,6 +65,11 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
   bool _showAdvanced = false;
   bool _saving = false;
 
+  /// The folder the user explicitly picked in the create-mode selector. Null
+  /// means "follow the default" — the currently viewed folder, else General.
+  /// Only meaningful in create mode (edit mode never shows the selector).
+  int? _userPickedFolderId;
+
   /// Value masking toggle. Masked = single-line obscured field; revealed =
   /// multiline mono (obscureText cannot span lines — paste multi-line values
   /// while revealed).
@@ -136,7 +141,8 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
           _serviceController.text.isNotEmpty ||
           _notesController.text.isNotEmpty ||
           _secretType != 'api_key' ||
-          _environment != null;
+          _environment != null ||
+          _userPickedFolderId != null;
     }
     return _nameController.text != sec.name ||
         _valueController.text != (_originalValue ?? '') ||
@@ -144,6 +150,25 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
         _notesController.text != (sec.notes ?? '') ||
         _secretType != sec.secretType ||
         _environment != sec.environment;
+  }
+
+  /// The folder a create-mode Save should land in, given the [folders] the
+  /// vault currently has. Priority: the user's explicit pick (if still valid)
+  /// → the folder the dashboard is viewing (selectedFolderIdProvider) → General
+  /// by name → the first folder. Null only when the vault has no folders yet
+  /// (Save then mints a Default home — see [_save]).
+  int? _effectiveFolderId(List<Folder> folders) {
+    if (folders.isEmpty) return null;
+    if (_userPickedFolderId != null &&
+        folders.any((f) => f.id == _userPickedFolderId)) {
+      return _userPickedFolderId;
+    }
+    final selected = ref.read(selectedFolderIdProvider);
+    if (selected != null && folders.any((f) => f.id == selected)) {
+      return selected;
+    }
+    final general = folders.where((f) => f.name == 'General');
+    return general.isNotEmpty ? general.first.id : folders.first.id;
   }
 
   @override
@@ -184,6 +209,9 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
   @override
   Widget build(BuildContext context) {
     final s = Theme.of(context).extension<KbSurface>()!;
+    // Folder selector (create mode only). Empty/absent list ⇒ graceful degrade
+    // (selector not rendered — e.g. a locked/loading vault).
+    final folders = ref.watch(foldersProvider).valueOrNull ?? const <Folder>[];
 
     return KeyboardListener(
       focusNode: _escFocusNode,
@@ -263,6 +291,23 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
                               setState(() => _valueRevealed = !_valueRevealed),
                         ),
                       ),
+                      // Folder selector — create mode only, always visible
+                      // (never behind Advanced) so a category-view save can't
+                      // silently file to General. Absent when the vault has no
+                      // folders yet (graceful degrade).
+                      if (!_isEdit && folders.isNotEmpty) ...[
+                        const SizedBox(height: AppSpacing.lg - 4),
+                        _ModalDropdown(
+                          label: 'Folder',
+                          value: _effectiveFolderId(folders)?.toString(),
+                          items: <String?, String>{
+                            for (final f in folders) f.id.toString(): f.name,
+                          },
+                          onChanged: (v) => setState(
+                            () => _userPickedFolderId = int.tryParse(v ?? ''),
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: AppSpacing.md),
                       _AdvancedToggle(
                         expanded: _showAdvanced,
@@ -380,27 +425,23 @@ class _SecretSheetModalState extends ConsumerState<_SecretSheetModal> {
       // it would keep showing (and decrypting) the pre-edit row.
       ref.invalidate(secretDetailProvider(widget.secret!.id));
     } else {
-      // Resolve the target folder: the one the user is currently viewing
-      // (selectedFolderIdProvider) so "Add secret" lands where they expect.
-      // Fall back to the first folder (general) only in a category/all view
-      // where no folder is selected, or create one if the vault has none.
+      // Resolve the target folder via the same rule the selector renders:
+      // the user's explicit pick → the viewed folder → General → first folder.
+      // Only when the vault has no folders at all do we mint a Default home.
       final auth = ref.read(authProvider);
       if (auth is! AuthUnlocked) return;
       final db = ref.read(databaseProvider);
-      final selectedFolderId = ref.read(selectedFolderIdProvider);
       final folders = await db.folderDao.getByVaultId(auth.vaultId);
-      int folderId;
-      if (selectedFolderId != null &&
-          folders.any((f) => f.id == selectedFolderId)) {
-        folderId = selectedFolderId;
-      } else if (folders.isEmpty) {
+      final effectiveFolderId = _effectiveFolderId(folders);
+      final int folderId;
+      if (effectiveFolderId != null) {
+        folderId = effectiveFolderId;
+      } else {
         final folder = await db.folderDao.create(
           vaultId: auth.vaultId,
           name: 'Default',
         );
         folderId = folder.id;
-      } else {
-        folderId = folders.first.id;
       }
 
       await ops.create(

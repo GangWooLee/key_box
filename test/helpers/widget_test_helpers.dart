@@ -196,6 +196,17 @@ Secret makeTestSecret({
   );
 }
 
+/// Unmounts the tree and elapses the fake clock so drift's zero-duration
+/// stream-cleanup timers fire inside the test's FakeAsync zone. Call at the
+/// end of any test whose tree watched a real drift stream (StreamProvider on
+/// the test DB) — otherwise the binding's `!timersPending` invariant fails
+/// ("A Timer is still pending…") and the tearDown `db.close()` hangs waiting
+/// on cleanup that can no longer run.
+Future<void> drainDriftTimers(WidgetTester tester) async {
+  await tester.pumpWidget(const SizedBox.shrink());
+  await tester.pump(const Duration(seconds: 1));
+}
+
 // ─── Widget Test Helper ───
 // Extended pumpApp that pre-configures all providers needed for dashboard-level tests.
 
