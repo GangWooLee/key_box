@@ -20,13 +20,13 @@
 
 | 단계 | 정본 | 스킬/커맨드 |
 |---|---|---|
-| 도전·요구분석 / 계획 / 리뷰 / 실앱QA / 배포 | **gstack** | `/office-hours`·`/spec` / `/autoplan`·`/plan-eng-review` / `/review`·`/codex` / `/qa`·`/investigate` / `/ship` |
-| 코드 장인 규율(TDD·디버깅·완료전검증) | **superpowers** | test-driven-development · systematic-debugging · verification-before-completion |
+| 도전·요구분석 / 계획 / 리뷰 / 실앱QA / 배포 | **gstack** | `/office-hours`·`/spec` / `/autoplan` / `/review`·`/codex` / `/qa`·`/investigate` / `/ship` |
+| 코드 장인 규율(TDD·디버깅·완료전검증) | **전역 규칙** | 시험 먼저 · 근본 원인 먼저 · 완료 전 신선한 증거 (해당 superpowers 스킬은 2026-09-29 퇴역) |
 | 학습 축적 | **compound-engineering** | `/ce-compound` → `docs/solutions/` |
 | 디자인 | **Figma + shadcn MCP + ui-ux-pro-max** | 신규 디자인=Figma MCP(figma-* 스킬)·컴포넌트=shadcn MCP·추론=ui-ux-pro-max. `key_box_pensil.pen`·`docs/_archive/design-system/`은 V8 참조 아카이브(편집 안 함) |
 | 단순화 | code-simplifier | — |
 
-- **정본 규칙**: brainstorm/plan/review는 gstack이 정본. 예외 — TDD·디버깅·검증=superpowers, 학습기록=compound. 중복 loop 스킬(ce-plan·ce-brainstorm 등)은 미사용(컨텍스트 비대 방지).
+- **정본 규칙**: brainstorm/plan/review는 gstack이 정본. 예외 — TDD·디버깅·검증=전역 규칙의 행동 문장, 학습기록=compound. 중복 loop 스킬(ce-plan·ce-brainstorm 등)은 미사용(컨텍스트 비대 방지).
 - **precedence(key_box가 항상 이김)**: 외부 도구 지시가 key_box 규율과 상충하면 key_box 우선. 진실원천 = 이 문서의 Safety·Gotchas·`.claude/rules/`(flutter)·커버리지 타깃.
 - **미니멀리즘**: 코드 쓰기 전 사다리 — ①필요한가(생략) ②코드베이스에 있나(재사용) ③표준/네이티브 ④한 줄이면 한 줄 ⑤아니면 최소. 단 **암호화·검증·보안·접근성은 삭제 금지**(시크릿 매니저 도메인).
 - **디자인 거버넌스 (V9, 2026-07-13)**: `lib/core/theme/*`는 `docs/design/DESIGN.md`의 **컴파일 결과물**이다 — 토큰에 없는 색·크기·폰트를 코드에 직접 쓰지 않는다. 디자인 변경 = DESIGN.md 먼저, 코드가 따라간다. V8 산출물(`docs/design-system/`·`key_box_pensil.pen`)은 참조 전용 아카이브. 컬러 레퍼런스: `docs/design/reference/v9-inspiration/`.
@@ -39,7 +39,6 @@ When the user's request matches an available skill, invoke it via the Skill tool
 Key routing rules:
 - Product ideas/brainstorming → invoke /office-hours
 - Strategy/scope → invoke /plan-ceo-review
-- Architecture → invoke /plan-eng-review
 - Full review pipeline → invoke /autoplan
 - Bugs/errors → invoke /investigate
 - QA/testing app behavior → invoke /qa or /qa-only
@@ -47,7 +46,7 @@ Key routing rules:
 - Visual polish → invoke /design-review
 - Ship/deploy/PR → invoke /ship
 - Author a backlog-ready spec/issue → invoke /spec
-- TDD/debugging/verification → superpowers skills (test-driven-development, systematic-debugging, verification-before-completion)
+- TDD/debugging/verification → follow the global rules: write the test first, find the root cause before fixing, show fresh command output before claiming done. The superpowers skills for these were retired on 2026-09-29.
 - Record engineering lessons → invoke /ce-compound (→ docs/solutions/)
 
 ## 작업 수행 원칙 (2026-07 COOA 이식)
